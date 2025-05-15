@@ -19,7 +19,7 @@ use std::rc::Rc;
 use tracing::*;
 
 pub struct EntityClass {
-    db: Rc<dyn Database>,
+    db: Rc<RefCell<dyn Database>>,
     id: i64,
     already_read_data: bool,                 /*= false*/
     name: String,                            /*= null*/
@@ -33,19 +33,19 @@ impl EntityClass {
     }
 
     pub fn is_duplicate(
-        db_in: Rc<dyn Database>,
+        db_in: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_name: &str,
         in_self_id_to_ignore: Option<i64>, /*= None*/
     ) -> Result<bool, Error> {
-        db_in.is_duplicate_class_name(transaction, in_name, in_self_id_to_ignore)
+        db_in.borrow().is_duplicate_class_name(transaction, in_name, in_self_id_to_ignore)
     }
 
     /// This one is perhaps only called by the database class implementation--so it can return arrays of objects & save more DB hits
     ///  that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
     pub fn new(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         id: i64,
         name_in: &str,
         template_entity_id: i64,
@@ -63,12 +63,12 @@ impl EntityClass {
 
     /// See comments on similar methods in group.rs.
     pub fn new2(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<EntityClass, anyhow::Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
-        if !db.is_remote() && !db.class_key_exists(transaction, id)? {
+        if !db.borrow().is_remote() && !db.borrow().class_key_exists(transaction, id)? {
             Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
         } else {
             Ok(EntityClass {
@@ -143,7 +143,7 @@ impl EntityClass {
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
-        let data: Vec<Option<DataType>> = self.db.get_class_data(transaction, self.id)?;
+        let data: Vec<Option<DataType>> = self.db.borrow().get_class_data(transaction, self.id)?;
         if data.len() == 0 {
             return Err(anyhow!(
                 "No results returned from data request for: {}",
@@ -223,7 +223,7 @@ impl EntityClass {
         let template_entity_id: i64 = self.get_template_entity_id(transaction.clone())?;
         let ref rc_db = &self.db;
         let ref cloned_db = rc_db.clone();
-        cloned_db.update_class_and_template_entity_name(
+        cloned_db.borrow().update_class_and_template_entity_name(
             transaction.clone(),
             self.get_id(),
             template_entity_id,
@@ -238,7 +238,7 @@ impl EntityClass {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         value_in: Option<bool>,
     ) -> Result<(), Error> {
-        self.db
+        self.db.borrow()
             .update_class_create_default_attributes(transaction, self.get_id(), value_in)?;
         self.create_default_attributes = value_in;
         Ok(())
@@ -246,18 +246,19 @@ impl EntityClass {
 
     /** Removes this object etc from the system. */
     fn delete(&self, _transaction: &Option<&mut Transaction<Postgres>>) -> Result<(), Error> {
-        self.db.delete_class_and_its_template_entity(self.id)
+        self.db.borrow().delete_class_and_its_template_entity(self.id)
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::EntityClass;
-    use crate::model::database::{DataType, Database};
+    use crate::model::database::{/*DataType, */Database};
     use crate::model::entity::Entity;
     use crate::util::Util;
     use std::rc::Rc;
-    use tracing::*;
+    use std::cell::RefCell;
+    //use tracing::*;
 
     /*Idea: Maybe could do something like this again to make the tests run faster. Also in other structs' tests.
           let mut mTemplateEntity: Entity = null;
@@ -303,10 +304,10 @@ mod test {
         //let entityClass = new EntityClass(mock_db, id);
 
         Util::initialize_tracing();
-        let db: Rc<dyn Database> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<dyn Database>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         let tx = None;
 
-        let (class_id, _entity_id) = db
+        let (class_id, _entity_id) = db.borrow()
             .create_class_and_its_template_entity(tx.clone(), "testclass")
             .unwrap();
         let mut entity_class = EntityClass::new2(db.clone(), tx.clone(), class_id).unwrap();
@@ -327,9 +328,9 @@ mod test {
         //let entityClass = new EntityClass(mock_db, id);
 
         Util::initialize_tracing();
-        let db: Rc<dyn Database> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<dyn Database>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         let tx = None;
-        let (class_id, _entity_id) = db
+        let (class_id, _entity_id) = db.borrow()
             .create_class_and_its_template_entity(tx.clone(), "class1Name")
             .unwrap();
         let mut entity_class = EntityClass::new2(db.clone(), tx.clone(), class_id).unwrap();
@@ -340,11 +341,11 @@ mod test {
     #[test]
     fn update_class_and_template_entity_name() {
         Util::initialize_tracing();
-        let db: Rc<dyn Database> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<dyn Database>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         //about begintrans: see comment farther below.
         //db.begin_trans()
         let tx = None;
-        let (class_id, entity_id) = db
+        let (class_id, entity_id) = db.borrow()
             .create_class_and_its_template_entity(tx.clone(), "class2Name")
             .unwrap();
         let tmp_name = "garbage-temp";
@@ -377,9 +378,9 @@ mod test {
     #[test]
     fn update_create_default_attributes() {
         Util::initialize_tracing();
-        let db: Rc<dyn Database> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<dyn Database>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         let tx = None;
-        let (class_id, _entity_id) = db
+        let (class_id, _entity_id) = db.borrow()
             .create_class_and_its_template_entity(tx.clone(), "class3Name")
             .unwrap();
         let mut ec = EntityClass::new2(db.clone(), tx.clone(), class_id).unwrap();

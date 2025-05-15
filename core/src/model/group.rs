@@ -17,11 +17,11 @@ use anyhow::{anyhow, Error, Result};
 use sqlx::{Postgres, Transaction};
 use std::cell::RefCell;
 use std::rc::Rc;
-use tracing::*;
+//use tracing::*;
 
 pub struct Group {
     id: i64,
-    db: Rc<dyn Database>,
+    db: Rc<RefCell<dyn Database>>,
     already_read_data: bool,        /*= false*/
     name: String,                   /*= null*/
     insertion_date: i64,            /*= 0L*/
@@ -32,15 +32,13 @@ pub struct Group {
 impl Group {
     /// Creates a new group in the database.
     fn create_group(
-        db_in: Rc<dyn Database>,
+        db_in: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_name: &str,
         allow_mixed_classes_in_group_in: bool, /*= false*/
     ) -> Result<Group, Error>
-//where
-    //    'a: 'b
     {
-        let id: i64 = db_in.create_group(
+        let id: i64 = db_in.borrow().create_group(
             transaction.clone(),
             in_name,
             allow_mixed_classes_in_group_in,
@@ -52,7 +50,7 @@ impl Group {
 
     /// This is for times when you want None if it doesn't exist, instead of the exception thrown by the Entity constructor.  Or for convenience in tests.
     fn get_group(
-        db_in: Rc<dyn Database>,
+        db_in: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<Option<Group>, Error> {
@@ -75,7 +73,7 @@ impl Group {
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
     pub fn new(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         id: i64,
         name_in: &str,
         insertion_date: i64,
@@ -96,15 +94,13 @@ impl Group {
     /// See comments on similar methods in RelationToEntity (or maybe its subclasses%%).
     /// Groups don't contain remote entities (only those at the same DB as the group is), so some logic doesn't have to be written for that.
     pub fn new2(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<Group, Error>
-//where
-    //    'a: 'b,
     {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
-        if !db.is_remote() && !db.group_key_exists(transaction, id)? {
+        if !db.borrow().is_remote() && !db.borrow().group_key_exists(transaction, id)? {
             Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
         } else {
             Ok(Group {
@@ -132,7 +128,7 @@ impl Group {
     ) -> Result<(), Error> {
         // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
         // it all goes with
-        self.db.clone().update_group(
+        self.db.clone().borrow().update_group(
             transaction.clone(),
             self.id,
             match name_in {
@@ -167,7 +163,7 @@ impl Group {
         simplify_in: bool,      /* = false*/
     ) -> Result<String, Error> {
         let num_entries = self
-            .db
+            .db.borrow()
             .get_group_size(transaction.clone(), self.get_id(), 1)?;
         let mut result: String = "".to_string();
         let name = &self.get_name(transaction.clone())?;
@@ -209,7 +205,7 @@ impl Group {
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), Error> {
-        let data: Vec<Option<DataType>> = self.db.get_group_data(transaction, self.id)?;
+        let data: Vec<Option<DataType>> = self.db.borrow().get_group_data(transaction, self.id)?;
         if data.len() == 0 {
             return Err(anyhow!(
                 "No results returned from data request for: {}",
@@ -246,7 +242,7 @@ impl Group {
     where
         'a: 'b,
     {
-        self.db
+        self.db.borrow()
             .delete_group_and_relations_to_it(transaction, self.id)
     }
 
@@ -256,7 +252,7 @@ impl Group {
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
         entity_id: i64,
     ) -> Result<u64, Error> {
-        self.db
+        self.db.borrow()
             .remove_entity_from_group(transaction, self.id, entity_id)
     }
 
@@ -268,7 +264,7 @@ impl Group {
     where
         'a: 'b,
     {
-        self.db
+        self.db.borrow()
             .delete_group_relations_to_it_and_its_entries(transaction_in.clone(), self.id)
     }
 
@@ -278,7 +274,7 @@ impl Group {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         include_which_entities: i32, /*= 3*/
     ) -> Result<u64, Error> {
-        self.db
+        self.db.borrow()
             .get_group_size(transaction, self.id, include_which_entities)
     }
 
@@ -288,7 +284,7 @@ impl Group {
         starting_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/
     ) -> Result<Vec<Group>, Error> {
-        let ids = self.db.clone().get_group_entry_ids(
+        let ids = self.db.clone().borrow().get_group_entry_ids(
             transaction.clone(),
             self.id,
             starting_index_in,
@@ -315,7 +311,7 @@ impl Group {
         let ref cloned = rc_db.clone();
         let tx = transaction.clone();
         let id = self.get_id();
-        cloned.add_entity_to_group(tx, id, in_entity_id, sorting_index_in)
+        cloned.borrow().add_entity_to_group(tx, id, in_entity_id, sorting_index_in)
     }
 
     pub fn get_id(&self) -> i64 {
@@ -421,7 +417,7 @@ impl Group {
             Ok(None)
         } else {
             let ids: Vec<i64> =
-                self.db
+                self.db.borrow()
                     .get_group_entry_ids(transaction.clone(), self.get_id(), 0, Some(1))?;
             let mut entries: Vec<Entity> = Vec::new();
             for id in ids {
@@ -474,7 +470,7 @@ impl Group {
                 let mut ec = EntityClass::new2(self.db.clone(), transaction.clone(), id)?;
                 let template_entity_id: i64 = ec.get_template_entity_id(transaction.clone())?;
 
-                let db: Rc<dyn Database> = self.db.clone();
+                let db: Rc<RefCell<dyn Database>> = self.db.clone();
                 let e = Entity::new2(db.clone(), transaction.clone(), template_entity_id)?;
                 Ok(Some(e))
             }
@@ -486,7 +482,7 @@ impl Group {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, Error> {
-        self.db
+        self.db.borrow()
             .get_highest_sorting_index_for_group(transaction, self.get_id())
     }
 
@@ -497,7 +493,7 @@ impl Group {
         max_vals_in: Option<u64>, /*= None*/
     ) -> Result<Vec<RelationToGroup>, Error> {
         let rtgs_data: Vec<(i64, i64, i64, i64, Option<i64>, i64, i64)> =
-            self.db.get_relations_to_group_containing_this_group(
+            self.db.borrow().get_relations_to_group_containing_this_group(
                 transaction,
                 self.get_id(),
                 starting_index_in,
@@ -524,7 +520,7 @@ impl Group {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(u64, u64), Error> {
-        self.db
+        self.db.borrow()
             .get_count_of_entities_containing_group(transaction, self.get_id())
     }
 
@@ -534,7 +530,7 @@ impl Group {
         starting_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/
     ) -> Result<Vec<(i64, Entity)>, Error> {
-        let ids = self.db.get_entities_containing_group(
+        let ids = self.db.borrow().get_entities_containing_group(
             transaction.clone(),
             self.get_id(),
             starting_index_in,
@@ -553,7 +549,7 @@ impl Group {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_with_in: Option<i64>, /*= None*/
     ) -> Result<i64, Error> {
-        self.db
+        self.db.borrow()
             .find_unused_group_sorting_index(transaction, self.get_id(), starting_with_in)
     }
 
@@ -562,7 +558,7 @@ impl Group {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         limit_in: Option<i64>, /*= Some(5)*/
     ) -> Result<Vec<Vec<Option<DataType>>>, Error> {
-        self.db
+        self.db.borrow()
             .get_groups_containing_entitys_groups_ids(transaction, self.get_id(), limit_in)
     }
 
@@ -571,7 +567,7 @@ impl Group {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
     ) -> Result<bool, Error> {
-        self.db
+        self.db.borrow()
             .is_entity_in_group(transaction, self.get_id(), entity_id_in)
     }
 
@@ -582,7 +578,7 @@ impl Group {
         limit_in: Option<i64>, /*= None*/
         forward_not_back_in: bool,
     ) -> Result<Vec<Vec<Option<DataType>>>, Error> {
-        self.db.get_adjacent_group_entries_sorting_indexes(
+        self.db.borrow().get_adjacent_group_entries_sorting_indexes(
             transaction,
             self.get_id(),
             sorting_index_in,
@@ -597,7 +593,7 @@ impl Group {
         starting_point_sorting_index_in: i64,
         forward_not_back_in: bool,
     ) -> Result<Option<i64>, Error> {
-        self.db.get_nearest_group_entrys_sorting_index(
+        self.db.borrow().get_nearest_group_entrys_sorting_index(
             transaction,
             self.get_id(),
             starting_point_sorting_index_in,
@@ -610,7 +606,7 @@ impl Group {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
     ) -> Result<i64, Error> {
-        self.db
+        self.db.borrow()
             .get_group_entry_sorting_index(transaction, self.get_id(), entity_id_in)
     }
 
@@ -619,7 +615,7 @@ impl Group {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         sorting_index_in: i64,
     ) -> Result<bool, Error> {
-        self.db
+        self.db.borrow()
             .is_group_entry_sorting_index_in_use(transaction, self.get_id(), sorting_index_in)
     }
 
@@ -629,7 +625,7 @@ impl Group {
         entity_id_in: i64,
         sorting_index_in: i64,
     ) -> Result<u64, Error> {
-        self.db.update_sorting_index_in_a_group(
+        self.db.borrow().update_sorting_index_in_a_group(
             transaction,
             self.get_id(),
             entity_id_in,
@@ -641,7 +637,7 @@ impl Group {
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
     ) -> Result<(), Error> {
-        self.db
+        self.db.borrow()
             .renumber_sorting_indexes(transaction, self.get_id(), false)
     }
 
@@ -651,7 +647,7 @@ impl Group {
         move_entity_id_in: i64,
         sorting_index_in: i64,
     ) -> Result<(), Error> {
-        self.db.move_entity_from_group_to_local_entity(
+        self.db.borrow().move_entity_from_group_to_local_entity(
             self.get_id(),
             to_entity_id_in,
             move_entity_id_in,
@@ -665,7 +661,7 @@ impl Group {
         move_entity_id_in: i64,
         sorting_index_in: i64,
     ) -> Result<(), Error> {
-        self.db.move_local_entity_from_group_to_group(
+        self.db.borrow().move_local_entity_from_group_to_group(
             self.get_id(),
             to_group_id_in,
             move_entity_id_in,
@@ -682,7 +678,7 @@ mod test {
     use crate::model::postgres::postgresql_database::PostgreSQLDatabase;
     use crate::model::relation_type::RelationType;
     use crate::util::Util;
-    use sqlx::{Postgres, Transaction};
+    //use sqlx::{Postgres, Transaction};
     use std::cell::RefCell;
     use std::collections::HashSet;
     use std::rc::Rc;
@@ -714,9 +710,9 @@ mod test {
     #[test]
     fn move_entity_to_different_group_etc() {
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
-        let gid1 = db.create_group(None, "group_name1", false).unwrap();
-        let gid2 = db.create_group(None, "group_name2", false).unwrap();
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
+        let gid1 = db.borrow().create_group(None, "group_name1", false).unwrap();
+        let gid2 = db.borrow().create_group(None, "group_name2", false).unwrap();
         let group1 = Group::new2(db.clone(), None, gid1).unwrap();
         let group2 = Group::new2(db.clone(), None, gid2).unwrap();
 
@@ -726,7 +722,7 @@ mod test {
         //lines instead of the "let tx = None;" just below?
         let tx = None;
 
-        let eid1 = db.create_entity(tx.clone(), "e1", None, None).unwrap();
+        let eid1 = db.borrow().create_entity(tx.clone(), "e1", None, None).unwrap();
         let e1 = Entity::new2(db.clone(), tx.clone(), eid1).unwrap();
 
         // Add the entity to group1 and verify its presence.
@@ -790,19 +786,19 @@ mod test {
         let e3 = Entity::new2(
             db.clone(),
             tx.clone(),
-            db.create_entity(tx.clone(), "e3", None, None).unwrap(),
+            db.borrow().create_entity(tx.clone(), "e3", None, None).unwrap(),
         )
         .unwrap();
         group2.add_entity(tx.clone(), e3.get_id(), None).unwrap();
         group2
-            .update_sorting_index(tx.clone(), e3.get_id(), db.min_id_value())
+            .update_sorting_index(tx.clone(), e3.get_id(), db.borrow().min_id_value())
             .unwrap();
 
         // next lines not much of a test but is something:
         let index3: Option<i64> = group2
-            .get_nearest_group_entrys_sorting_index(tx.clone(), db.min_id_value(), true)
+            .get_nearest_group_entrys_sorting_index(tx.clone(), db.borrow().min_id_value(), true)
             .unwrap();
-        assert!(index3.unwrap() > db.min_id_value());
+        assert!(index3.unwrap() > db.borrow().min_id_value());
         /*val index4: i64 = */
         group2
             .get_entry_sorting_index(tx.clone(), e1.get_id())
@@ -810,7 +806,7 @@ mod test {
         let indexes = group2
             .get_adjacent_group_entries_sorting_indexes(
                 tx.clone(),
-                db.min_id_value(),
+                db.borrow().min_id_value(),
                 Some(0),
                 true,
             )
@@ -821,7 +817,7 @@ mod test {
         let e2 = Entity::new2(
             db.clone(),
             tx.clone(),
-            db.create_entity(tx.clone(), "e2", None, None).unwrap(),
+            db.borrow().create_entity(tx.clone(), "e2", None, None).unwrap(),
         )
         .unwrap();
         let mut hs: HashSet<i64> = HashSet::new();
@@ -846,40 +842,40 @@ mod test {
     #[test]
     fn get_groups_containing_entitys_groups_ids_etc_should_work() {
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
 
         let g1 = Group::new2(
             db.clone(),
             None,
-            db.create_group(None, "g1", false).unwrap(),
+            db.borrow().create_group(None, "g1", false).unwrap(),
         )
         .unwrap();
         let g2 = Group::new2(
             db.clone(),
             None,
-            db.create_group(None, "g2", false).unwrap(),
+            db.borrow().create_group(None, "g2", false).unwrap(),
         )
         .unwrap();
         let g3 = Group::new2(
             db.clone(),
             None,
-            db.create_group(None, "g3", false).unwrap(),
+            db.borrow().create_group(None, "g3", false).unwrap(),
         )
         .unwrap();
         let e1 = Entity::new2(
             db.clone(),
             None,
-            db.create_entity(None, "e1", None, None).unwrap(),
+            db.borrow().create_entity(None, "e1", None, None).unwrap(),
         )
         .unwrap();
         let e2 = Entity::new2(
             db.clone(),
             None,
-            db.create_entity(None, "e2", None, None).unwrap(),
+            db.borrow().create_entity(None, "e2", None, None).unwrap(),
         )
         .unwrap();
         let rt_id = db
-            .clone()
+            .clone().borrow()
             .create_relation_type(None, "rt", "rtReversed", "BI")
             .unwrap();
         let rt = RelationType::new2(db.clone(), None, rt_id).unwrap();

@@ -33,7 +33,7 @@ pub struct FileAttribute {
     // on create_file_attribute(...) or create_tables() in PostgreSQLDatabase or Database structs,
     // and/or examples in the database testing code.
     id: i64,
-    db: Rc<dyn Database>,
+    db: Rc<RefCell<dyn Database>>,
     already_read_data: bool,    /*= false*/
     parent_id: i64,             /*= 0_i64*/
     attr_type_id: i64,          /*= 0_i64*/
@@ -55,7 +55,7 @@ impl FileAttribute {
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
     pub fn new(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         id: i64,
         parent_id: i64,
         attr_type_id: i64,
@@ -93,12 +93,12 @@ impl FileAttribute {
     /// This constructor instantiates an existing object from the DB. You can use Entity.add*Attribute() to
     /// create a new object.
     pub fn new2(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<FileAttribute, anyhow::Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
-        if !db.is_remote() && !db.file_attribute_key_exists(transaction, id)? {
+        if !db.borrow().is_remote() && !db.borrow().file_attribute_key_exists(transaction, id)? {
             Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
         } else {
             Ok(FileAttribute {
@@ -462,7 +462,7 @@ impl Attribute for FileAttribute {
         simplify: bool,                 /* = false*/
     ) -> Result<String, anyhow::Error> {
         let attr_type_id = self.get_attr_type_id(None)?;
-        let type_name: String = match self.db.get_entity_name(None, attr_type_id)? {
+        let type_name: String = match self.db.borrow().get_entity_name(None, attr_type_id)? {
             None => "(None)".to_string(),
             Some(x) => x,
         };
@@ -500,7 +500,7 @@ impl Attribute for FileAttribute {
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
-        let data: Vec<Option<DataType>> = self.db.get_file_attribute_data(transaction, self.id)?;
+        let data: Vec<Option<DataType>> = self.db.borrow().get_file_attribute_data(transaction, self.id)?;
         if data.len() == 0 {
             return Err(anyhow!(
                 "No results returned from data request for: {}",
@@ -578,12 +578,12 @@ impl Attribute for FileAttribute {
     // }
 
     /** Removes this object from the system. */
-    fn delete<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn delete(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         //id_in: i64,
     ) -> Result<u64, anyhow::Error> {
-        self.db.delete_file_attribute(transaction, self.id)
+        self.db.borrow().delete_file_attribute(transaction, self.id)
     }
 
     // This datum is provided upon construction (new2(), at minimum), so can be returned
@@ -594,7 +594,7 @@ impl Attribute for FileAttribute {
 
     fn get_form_id(&self) -> Result<i32, Error> {
         // self.db.get_attribute_form_id(was in scala:  this.getClass.getSimpleName)
-        self.db.get_attribute_form_id(Util::FILE_TYPE)
+        self.db.borrow().get_attribute_form_id(Util::FILE_TYPE)
     }
 
     fn get_attr_type_id(

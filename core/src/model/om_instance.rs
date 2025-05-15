@@ -18,7 +18,7 @@ use tracing::*;
 
 pub struct OmInstance {
     id: String,
-    db: Rc<dyn Database>,
+    db: Rc<RefCell<dyn Database>>,
     already_read_data: bool, /*= false*/
     is_local: bool,          /*= false*/
     address: String,         /*= ""*/
@@ -28,7 +28,7 @@ pub struct OmInstance {
 
 impl OmInstance {
     fn address_length(&self) -> i32 {
-        self.db.om_instance_address_length()
+        self.db.borrow().om_instance_address_length()
     }
 
     fn is_duplicate(
@@ -41,7 +41,7 @@ impl OmInstance {
     }
 
     pub fn create(
-        db_in: Rc<dyn Database>,
+        db_in: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: &str,
         address_in: &str,
@@ -49,7 +49,7 @@ impl OmInstance {
     ) -> Result<OmInstance, anyhow::Error> {
         // Passing false for is_local_in because the only time that should be true is when it is created at db creation, for this site, and that is done
         // in the db class more directly.
-        let insertion_date: i64 = db_in.create_om_instance(
+        let insertion_date: i64 = db_in.borrow().create_om_instance(
             transaction,
             id_in.to_string(),
             false,
@@ -71,7 +71,7 @@ impl OmInstance {
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.
     pub fn new(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         id: String,
         is_local_in: bool,
         address_in: String,
@@ -93,12 +93,12 @@ impl OmInstance {
     /// This 1st constructor instantiates an existing object from the DB. Generally use Model.createObject() to create a new object.
     /// Note: Having Entities and other DB objects be readonly makes the code clearer & avoid some bugs, similarly to reasons for immutability in scala.
     pub fn new2(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: String,
     ) -> Result<OmInstance, anyhow::Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
-        if !db.is_remote() && !db.om_instance_key_exists(transaction, id.as_str())? {
+        if !db.borrow().is_remote() && !db.borrow().om_instance_key_exists(transaction, id.as_str())? {
             Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
         } else {
             Ok(OmInstance {
@@ -167,7 +167,7 @@ impl OmInstance {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
         let data: Vec<Option<DataType>> =
-            self.db.get_om_instance_data(transaction, self.get_id()?)?;
+            self.db.borrow().get_om_instance_data(transaction, self.get_id()?)?;
         if data.len() == 0 {
             return Err(anyhow!(
                 "No results returned from data request for: {}",
@@ -215,7 +215,7 @@ impl OmInstance {
         new_address: String,
     ) -> Result<u64, Error> {
         let entity_id = self.get_entity_id(transaction.clone())?;
-        self.db.update_om_instance(
+        self.db.borrow().update_om_instance(
             transaction.clone(),
             self.get_id()?,
             new_address,
@@ -223,11 +223,11 @@ impl OmInstance {
         )
     }
 
-    fn delete<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn delete(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<u64, Error> {
-        self.db
+        self.db.borrow()
             .delete_om_instance(transaction, self.get_id()?.as_str())
     }
 }

@@ -299,8 +299,8 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
       }
     }
   } catch {
-      //%%%%example of handling (catching) Results! All those outside these *Menu structs that have these things, and outside of Controller, should probably return Results up!
-      //%%%%when this is implemented, find first "expect()" call in controller and note this place as
+      //%%%example of handling (catching) Results! All those outside these *Menu structs that have these things, and outside of Controller, should probably return Results up!
+      //%%%when this is implemented, find first "expect()" call in controller and note this place as
       //an example to find, of error handling. 
     case e: Throwable =>
       // catching Throwable instead of Exception here, because sometimes depending on how I'm running X etc I might get the InternalError
@@ -685,7 +685,7 @@ class EntityMenu(override let ui: TextUI, val controller: Controller) extends So
     if containingGroupIn.is_defined) {
       leading_text_in(0) += ": found via group: " + containingGroupIn.get.get_name
     }
-    //%%%%
+    //%%%
     leading_text_in(0) += ": created " + entity_in.get_creation_date_formatted
     leading_text_in(1) = if numAttributes == 0) "No attributes have been assigned to this object, yet."
     else "Attribute list menu: (or choose attribute by letter)"

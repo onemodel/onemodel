@@ -20,12 +20,12 @@ use crate::model::postgres::postgresql_database::*;
 use crate::model::date_attribute::DateAttribute;
 use crate::model::file_attribute::FileAttribute;
 use crate::model::quantity_attribute::QuantityAttribute;
+use crate::model::relation_to_entity::RelationToEntity;
+use crate::model::relation_to_group::RelationToGroup;
 use crate::model::relation_to_local_entity::RelationToLocalEntity;
 use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
 use crate::model::relation_type::RelationType;
 use crate::model::text_attribute::TextAttribute;
-use crate::model::relation_to_entity::RelationToEntity;
-use crate::model::relation_to_group::RelationToGroup;
 use crate::util::Util;
 use anyhow::anyhow;
 use chrono::Utc;
@@ -46,19 +46,16 @@ use tracing::*;
 
 impl Database for PostgreSQLDatabase {
     /// @return the new entity id and the new relation_to_local_entity id that relates to it.
-    fn add_uri_entity_with_uri_attribute<'a, 'b>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+    fn add_uri_entity_with_uri_attribute(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         containing_entity_id_in: i64,
         new_entity_name_in: &str,
         uri_in: &str,
         observation_date_in: i64,
         make_them_public_in: Option<bool>,
         quote_in: Option<&str>, /*= None*/
-    ) -> Result<(i64, i64), anyhow::Error>
-    where
-        'a: 'b,
-    {
+    ) -> Result<(i64, i64), anyhow::Error> {
         if quote_in.is_some() {
             if quote_in.unwrap().is_empty() {
                 return Err(anyhow!("It doesn't make sense to store a blank quotation; there was probably a program error."));
@@ -116,9 +113,9 @@ impl Database for PostgreSQLDatabase {
 
     /// Creates new entity then adds to it a particular kind of rte.
     /// @return the new entity_id & rte_id, and the relation_type_id.
-    fn create_entity_and_add_has_local_relation_to_it<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn create_entity_and_add_has_local_relation_to_it(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         from_entity_id_in: i64,
         new_entity_name_in: &str,
         observation_date_in: i64,
@@ -142,9 +139,9 @@ impl Database for PostgreSQLDatabase {
     }
 
     /// @return the new_entity_id and new_rte_id.
-    fn add_entity_and_relation_to_local_entity<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn add_entity_and_relation_to_local_entity(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         rel_type_id_in: i64,
         from_entity_id_in: i64,
         new_entity_name_in: &str,
@@ -322,6 +319,27 @@ impl Database for PostgreSQLDatabase {
         //%% see comments in fn connect() re this
         // connection.setAutoCommit(true);
     }
+    fn commit_local_trans(
+        &self,
+        local_tx_option: Option<Rc<RefCell<Transaction<Postgres>>>>,
+    ) -> Result<(), anyhow::Error> {
+        let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
+            Rc::into_inner(local_tx_option.unwrap());
+        match local_tx_cell {
+            Some(t) => {
+                let unwrapped_local_tx = t.into_inner();
+                match self.commit_trans(unwrapped_local_tx) {
+                    Err(e) => return Err(anyhow!(e.to_string())),
+                    _ => return Ok(()),
+                };
+            }
+            None => {
+                // see comments in delete_objects() about rollback
+                return Err(anyhow!("Data not saved. Unexpectedly found None instead of \
+                        Some<RefCell<Transaction<Postgres>>>. How did the caller send that value?"));
+            }
+        }
+    }
 
     fn find_all_entity_ids_by_name(
         &self,
@@ -350,11 +368,11 @@ impl Database for PostgreSQLDatabase {
     }
 
     /// @param search_string_in is case-insensitive.
-    /// @param stop_after_any_found is to prevent a serious performance problem when searching for 
+    /// @param stop_after_any_found is to prevent a serious performance problem when searching for
     /// the default entity at startup, if that default entity eventually links to 1000's of others.  
-    /// Alternatives included specifying a different levels_remaining parameter in that case, or 
-    /// not following any RelationTo[Local|Remote]Entity links (which defeats the ability to organize 
-    /// the preferences in a hierarchy), or flagging certain ones to skip by marking them as a preference 
+    /// Alternatives included specifying a different levels_remaining parameter in that case, or
+    /// not following any RelationTo[Local|Remote]Entity links (which defeats the ability to organize
+    /// the preferences in a hierarchy), or flagging certain ones to skip by marking them as a preference
     /// (not a link to follow in the preferences hierarchy), but those all seemed more complicated.
     fn find_contained_local_entity_ids<'a, 'b>(
         &'a self,
@@ -368,9 +386,9 @@ impl Database for PostgreSQLDatabase {
     where
         'b: 'a,
     {
-        // Idea for optimizing: don't re-traverse dup ones (eg, circular links or entities in same two 
-        // places).  But that has other complexities: see comments on 
-        // ImportExport.exportItsChildrenToHtmlFiles for more info.  But since we are limiting the # of 
+        // Idea for optimizing: don't re-traverse dup ones (eg, circular links or entities in same two
+        // places).  But that has other complexities: see comments on
+        // ImportExport.exportItsChildrenToHtmlFiles for more info.  But since we are limiting the # of
         // levels total, it might not matter anyway
         // (ie, probably the current code is not optimized but is simpler and good enough for now).
 
@@ -414,7 +432,7 @@ impl Database for PostgreSQLDatabase {
                     .contains(&search_string_in.to_lowercase())
                 {
                     // if lower_cased_regex_pattern.matcher(name.toLowerCase).find {
-                    // have to do the name check here because we need to traverse all contained entities, 
+                    // have to do the name check here because we need to traverse all contained entities,
                     // so we need all those back from the sql, not just name matches.
                     results_in_out.insert(id);
                 }
@@ -497,14 +515,11 @@ impl Database for PostgreSQLDatabase {
     }
 
     /// Returns the class_id and entity_id, in a tuple.
-    fn create_class_and_its_template_entity<'a, 'b>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+    fn create_class_and_its_template_entity(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         class_name_in: &str,
-    ) -> Result<(i64, i64), anyhow::Error>
-    where
-        'a: 'b,
-    {
+    ) -> Result<(i64, i64), anyhow::Error> {
         self.create_class_and_its_template_entity2(
             transaction.clone(),
             class_name_in.to_string(),
@@ -700,9 +715,9 @@ impl Database for PostgreSQLDatabase {
     /// of the data you can do some research and let us know what you find.
     /// <p/>
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
-    fn create_quantity_attribute<'a, 'b>(
-        &'a self,
-        transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+    fn create_quantity_attribute(
+        &self,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         parent_id_in: i64,
         attr_type_id_in: i64,
         unit_id_in: i64,
@@ -710,32 +725,30 @@ impl Database for PostgreSQLDatabase {
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         sorting_index_in: Option<i64>, /*= None*/
-    ) -> Result</*id*/ i64, anyhow::Error>
-    where
-        'a: 'b,
-    {
-        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
-        // Try creating a local transaction whether we use it or not, to handle compiler errors
-        // about variable moves. I'm not seeing a better way to get around them by just using
-        // conditions and an Option (many errors):
-        // (I tried putting this in a function, then a macro, but it gets compile errors.
-        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
-        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
-        // I didn't try a proc macro but based on some reading I think it would have the same
-        // problem.)
-        let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if transaction_in.clone().is_some() {
-            transaction_in.clone()
-        } else {
-            local_tx_option
+    ) -> Result</*id*/ i64, anyhow::Error> {
+        //KEEP SYNCHRONIZED ALL PLACES THAT USED TO HAVE A COPY/PASTED/DUPLICATED BLOCK HERE as they are
+        //still similar to each other (marked by this comment):
+        if transaction_in.is_none() {
+            let local_tx: Transaction<Postgres> = self.begin_trans()?;
+            let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+            // see comments in delete_objects about rollback (if next line returns due to error)
+            let id = self.create_quantity_attribute(
+                local_tx_option.clone(),
+                parent_id_in,
+                attr_type_id_in,
+                unit_id_in,
+                number_in,
+                valid_on_date_in,
+                observation_date_in,
+                sorting_index_in,
+            )?;
+            self.commit_local_trans(local_tx_option)?;
+            return Ok(id);
         };
-        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
-
-        let id: i64 = self.get_new_key(transaction.clone(), "QuantityAttributeKeySequence")?;
+        let id: i64 = self.get_new_key(transaction_in.clone(), "QuantityAttributeKeySequence")?;
         let form_id = self.get_attribute_form_id(Util::QUANTITY_TYPE)?;
         self.add_attribute_sorting_row(
-            transaction.clone(),
+            transaction_in.clone(),
             parent_id_in,
             form_id,
             id,
@@ -745,28 +758,12 @@ impl Database for PostgreSQLDatabase {
             None => "NULL".to_string(),
             Some(d) => format!("{}", d),
         };
-        self.db_action(transaction.clone(),
+        self.db_action(transaction_in.clone(),
                        format!("insert into QuantityAttribute (id, entity_id, unit_id, \
-                                         quantity_number, attr_type_id, valid_on_date, observation_date) values ({},{},{},{},\
-                                         {},{},{})", id, parent_id_in, unit_id_in, number_in, attr_type_id_in, valid_on, observation_date_in).as_str(),
-                       false, false)?;
-        if transaction_in.is_none() && transaction.is_some() {
-            // see comments at similar location in delete_objects about local_tx
-            // see comments in delete_objects about rollback
-            let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
-                Rc::into_inner(transaction.unwrap());
-            match local_tx_cell {
-                Some(t) => {
-                    let unwrapped_local_tx = t.into_inner();
-                    if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                        return Err(anyhow!(e.to_string()));
-                    }
-                }
-                None => {
-                    return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                }
-            }
-        }
+                                 quantity_number, attr_type_id, valid_on_date, observation_date) values ({},{},{},{},\
+                                 {},{},{})", id, parent_id_in, unit_id_in, number_in, 
+                                 attr_type_id_in, valid_on, observation_date_in).as_str(),
+                                 false, false)?;
         Ok(id)
     }
 
@@ -1008,95 +1005,68 @@ impl Database for PostgreSQLDatabase {
         )
     }
 
-    fn update_class_and_template_entity_name<'a, 'b>(
-        &'a self,
-        transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+    fn update_class_and_template_entity_name(
+        &self,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         class_id_in: i64,
         template_entity_id_in: i64,
         name: &str,
-    ) -> Result<(), anyhow::Error>
-    where
-        'a: 'b,
-    {
-        // let mut tx = self.begin_trans()?;
-        //   let transaction: &Option<&mut Transaction<Postgres>> = &Some(&mut tx);
-        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
-        // Try creating a local transaction whether we use it or not, to handle compiler errors
-        // about variable moves. I'm not seeing a better way to get around them by just using
-        // conditions and an Option (many errors):
-        // (I tried putting this in a function, then a macro, but it gets compile errors.
-        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
-        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
-        // I didn't try a proc macro but based on some reading I think it would have the same
-        // problem.)
-        let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if transaction_in.clone().is_some() {
-            transaction_in.clone()
-        } else {
-            local_tx_option
+    ) -> Result<(), anyhow::Error> {
+        //KEEP SYNCHRONIZED ALL PLACES THAT USED TO HAVE A COPY/PASTED/DUPLICATED BLOCK HERE as they are
+        //still similar to each other (marked by this comment):
+        if transaction_in.is_none() {
+            let local_tx: Transaction<Postgres> = self.begin_trans()?;
+            let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+            // see comments in delete_objects about rollback (if next line returns due to error)
+            let id = self.update_class_and_template_entity_name(
+                local_tx_option.clone(),
+                class_id_in,
+                template_entity_id_in,
+                name,
+            )?;
+            self.commit_local_trans(local_tx_option)?;
+            return Ok(id);
         };
-        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
-        self.update_class_name(transaction.clone(), class_id_in, name.to_string())?;
+        self.update_class_name(transaction_in.clone(), class_id_in, name.to_string())?;
         //not needed since we pass the template_entity_id_in as a parameter?:
         //let entity_id: i64 = EntityClass::new2(self as &dyn Database, transaction.clone(), class_id_in)?
         //        .get_template_entity_id(transaction.clone())?;
         self.update_entity_only_name(
-            transaction.clone(),
+            transaction_in.clone(),
             template_entity_id_in,
             format!("{}{}", name, Util::TEMPLATE_NAME_SUFFIX).as_str(),
         )?;
-        if transaction_in.is_none() && transaction.is_some() {
-            // see comments at similar location in delete_objects about local_tx
-            // see comments in delete_objects about rollback
-            let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
-                Rc::into_inner(transaction.unwrap());
-            match local_tx_cell {
-                Some(t) => {
-                    let unwrapped_local_tx = t.into_inner();
-                    if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                        return Err(anyhow!(e.to_string()));
-                    }
-                }
-                None => {
-                    return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                }
-            }
-        }
         Ok(())
     }
 
-    fn update_entitys_class<'a>(
-        &'a self,
-        transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn update_entitys_class(
+        &self,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id: i64,
         class_id: Option<i64>,
     ) -> Result<(), anyhow::Error> {
-        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
-        // Try creating a local transaction whether we use it or not, to handle compiler errors
-        // about variable moves. I'm not seeing a better way to get around them by just using
-        // conditions and an Option (many errors):
-        // (I tried putting this in a function, then a macro, but it gets compile errors.
-        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
-        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
-        // I didn't try a proc macro but based on some reading I think it would have the same
-        // problem.)
-        let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if transaction_in.clone().is_some() {
-            transaction_in.clone()
-        } else {
-            local_tx_option
+        //KEEP SYNCHRONIZED ALL PLACES THAT USED TO HAVE A COPY/PASTED/DUPLICATED BLOCK HERE as they are
+        //still similar to each other (marked by this comment):
+        if transaction_in.is_none() {
+            let local_tx: Transaction<Postgres> = self.begin_trans()?;
+            let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+            // see comments in delete_objects about rollback (if next line returns due to error)
+            let id = self.update_entitys_class(
+                local_tx_option.clone(),
+                entity_id,
+                class_id,
+            )?;
+            self.commit_local_trans(local_tx_option)?;
+            return Ok(id);
         };
-        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
         let ci = match class_id {
             None => "NULL".to_string(),
             Some(x) => format!("{}", x),
         };
         self.db_action(
-            transaction.clone(),
+            transaction_in.clone(),
             format!(
                 "update Entity set (class_id) = ROW({}) where id={}",
                 ci, entity_id
@@ -1106,7 +1076,7 @@ impl Database for PostgreSQLDatabase {
             false,
         )?;
         let group_ids = self.db_query(
-            transaction.clone(),
+            transaction_in.clone(),
             format!(
                 "select group_id from \
                         EntitiesInAGroup where entity_id={}",
@@ -1126,29 +1096,12 @@ impl Database for PostgreSQLDatabase {
                 }
             };
             let mixed_classes_allowed: bool =
-                self.are_mixed_classes_allowed(transaction.clone(), &group_id)?;
-            if !mixed_classes_allowed && self.has_mixed_classes(transaction.clone(), &group_id)? {
+                self.are_mixed_classes_allowed(transaction_in.clone(), &group_id)?;
+            if !mixed_classes_allowed && self.has_mixed_classes(transaction_in.clone(), &group_id)? {
                 return Err(anyhow!(
                     "In update_entitys_class: {}",
                     Util::MIXED_CLASSES_EXCEPTION
                 ));
-            }
-        }
-        if transaction_in.is_none() && transaction.is_some() {
-            // see comments at similar location in delete_objects about local_tx
-            // see comments in delete_objects about rollback
-            let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
-                Rc::into_inner(transaction.unwrap());
-            match local_tx_cell {
-                Some(t) => {
-                    let unwrapped_local_tx = t.into_inner();
-                    if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                        return Err(anyhow!(e.to_string()));
-                    }
-                }
-                None => {
-                    return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                }
             }
         }
         Ok(())
@@ -1213,10 +1166,10 @@ impl Database for PostgreSQLDatabase {
     }
 
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
-    fn create_text_attribute<'a, 'b>(
-        &'a self,
+    fn create_text_attribute(
+        &self,
         // purpose: see comment in delete_objects
-        transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         parent_id_in: i64,
         attr_type_id_in: i64,
         text_in: &str,
@@ -1228,32 +1181,30 @@ impl Database for PostgreSQLDatabase {
                                        // the Rust reference (as quoted by) and in chapter 7 of the helpful site:
                                        // https://tfpk.github.io/lifetimekata/chapter_7.html .
                                        //) -> Result<i64, anyhow::Error> where 'a: 'b {
-    ) -> Result<i64, anyhow::Error>
-    where
-        'a: 'b,
-    {
-        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
-        // Try creating a local transaction whether we use it or not, to handle compiler errors
-        // about variable moves. I'm not seeing a better way to get around them by just using
-        // conditions and an Option (many errors):
-        // (I tried putting this in a function, then a macro, but it gets compile errors.
-        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
-        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
-        // I didn't try a proc macro but based on some reading I think it would have the same
-        // problem.)
-        let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if transaction_in.clone().is_some() {
-            transaction_in.clone()
-        } else {
-            local_tx_option
+    ) -> Result<i64, anyhow::Error> {
+        //KEEP SYNCHRONIZED ALL PLACES THAT USED TO HAVE A COPY/PASTED/DUPLICATED BLOCK HERE as they are
+        //still similar to each other (marked by this comment):
+        if transaction_in.is_none() {
+            let local_tx: Transaction<Postgres> = self.begin_trans()?;
+            let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+            // see comments in delete_objects about rollback (if next line returns due to error)
+            let id = self.create_text_attribute(
+                local_tx_option.clone(),
+                parent_id_in,
+                attr_type_id_in,
+                text_in,
+                valid_on_date_in,
+                observation_date_in,
+                sorting_index_in,
+            )?;
+            self.commit_local_trans(local_tx_option)?;
+            return Ok(id);
         };
-        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
         let text: String = Self::escape_quotes_etc(text_in.to_string());
-        let id: i64 = self.get_new_key(transaction.clone(), "TextAttributeKeySequence")?;
+        let id: i64 = self.get_new_key(transaction_in.clone(), "TextAttributeKeySequence")?;
         let add_result = self.add_attribute_sorting_row(
-            transaction.clone(),
+            transaction_in.clone(),
             parent_id_in,
             self.get_attribute_form_id(Util::TEXT_TYPE).unwrap(),
             id,
@@ -1267,7 +1218,7 @@ impl Database for PostgreSQLDatabase {
             _ => {}
         }
         let result = self.db_action(
-            transaction.clone(),
+            transaction_in.clone(),
             format!(
                 "insert into TextAttribute (id, entity_id, textvalue, \
                   attr_type_id, valid_on_date, observation_date) values ({},{},'{}',{},{},{})",
@@ -1292,62 +1243,44 @@ impl Database for PostgreSQLDatabase {
             }
             _ => {}
         };
-        if transaction_in.is_none() && transaction.is_some() {
-            // see comments at similar location in delete_objects about local_tx
-            // see comments in delete_objects about rollback
-            let local_tx_cell: Option<RefCell<Transaction<'b, Postgres>>> =
-                Rc::into_inner(transaction.unwrap());
-            match local_tx_cell {
-                Some(t) => {
-                    let unwrapped_local_tx = t.into_inner();
-                    if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                        return Err(anyhow!(e.to_string()));
-                    }
-                }
-                None => {
-                    return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                }
-            }
-        }
         Ok(id)
     }
 
-    fn create_date_attribute<'a>(
-        &'a self,
-        transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn create_date_attribute(
+        &self,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         parent_id_in: i64,
         attr_type_id_in: i64,
         date_in: i64,
         sorting_index_in: Option<i64>, /*= None*/
     ) -> Result</*id*/ i64, anyhow::Error> {
-        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
-        // Try creating a local transaction whether we use it or not, to handle compiler errors
-        // about variable moves. I'm not seeing a better way to get around them by just using
-        // conditions and an Option (many errors):
-        // (I tried putting this in a function, then a macro, but it gets compile errors.
-        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
-        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
-        // I didn't try a proc macro but based on some reading I think it would have the same
-        // problem.)
-        let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if transaction_in.clone().is_some() {
-            transaction_in.clone()
-        } else {
-            local_tx_option
+        //KEEP SYNCHRONIZED ALL PLACES THAT USED TO HAVE A COPY/PASTED/DUPLICATED BLOCK HERE as they are
+        //still similar to each other (marked by this comment):
+        if transaction_in.is_none() {
+            let local_tx: Transaction<Postgres> = self.begin_trans()?;
+            let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+            // see comments in delete_objects about rollback (if next line returns due to error)
+            let id = self.create_date_attribute(
+                local_tx_option.clone(),
+                parent_id_in,
+                attr_type_id_in,
+                date_in,
+                sorting_index_in,
+            )?;
+            self.commit_local_trans(local_tx_option)?;
+            return Ok(id);
         };
-        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
-        let id: i64 = self.get_new_key(transaction.clone(), "DateAttributeKeySequence")?;
+        let id: i64 = self.get_new_key(transaction_in.clone(), "DateAttributeKeySequence")?;
         self.add_attribute_sorting_row(
-            transaction.clone(),
+            transaction_in.clone(),
             parent_id_in,
             self.get_attribute_form_id(Util::DATE_TYPE).unwrap(),
             id,
             sorting_index_in,
         )?;
         self.db_action(
-            transaction.clone(),
+            transaction_in.clone(),
             format!(
                 "insert into DateAttribute (id, entity_id, attr_type_id, date) \
                     values ({},{},'{}',{})",
@@ -1357,30 +1290,13 @@ impl Database for PostgreSQLDatabase {
             false,
             false,
         )?;
-        if transaction_in.is_none() && transaction.is_some() {
-            // see comments at similar location in delete_objects about local_tx
-            // see comments in delete_objects about rollback
-            let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
-                Rc::into_inner(transaction.unwrap());
-            match local_tx_cell {
-                Some(t) => {
-                    let unwrapped_local_tx = t.into_inner();
-                    if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                        return Err(anyhow!(e.to_string()));
-                    }
-                }
-                None => {
-                    return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                }
-            };
-        }
         Ok(id)
     }
 
-    fn create_boolean_attribute<'a>(
-        &'a self,
+    fn create_boolean_attribute(
+        &self,
         // purpose: see comment in delete_objects
-        transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         parent_id_in: i64,
         attr_type_id_in: i64,
         boolean_in: bool,
@@ -1388,28 +1304,29 @@ impl Database for PostgreSQLDatabase {
         observation_date_in: i64,
         sorting_index_in: Option<i64>, /*= None*/
     ) -> Result<i64, anyhow::Error> {
-        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
-        // Try creating a local transaction whether we use it or not, to handle compiler errors
-        // about variable moves. I'm not seeing a better way to get around them by just using
-        // conditions and an Option (many errors):
-        // (I tried putting this in a function, then a macro, but it gets compile errors.
-        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
-        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
-        // I didn't try a proc macro but based on some reading I think it would have the same
-        // problem.)
-        let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if transaction_in.is_some() {
-            transaction_in.clone()
-        } else {
-            local_tx_option
+        //KEEP SYNCHRONIZED ALL PLACES THAT USED TO HAVE A COPY/PASTED/DUPLICATED BLOCK HERE as they are
+        //still similar to each other (marked by this comment):
+        if transaction_in.is_none() {
+            let local_tx: Transaction<Postgres> = self.begin_trans()?;
+            let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+            // see comments in delete_objects about rollback (if next line returns due to error)
+            let id = self.create_boolean_attribute(
+                local_tx_option.clone(),
+                parent_id_in,
+                attr_type_id_in,
+                boolean_in,
+                valid_on_date_in,
+                observation_date_in,
+                sorting_index_in,
+            )?;
+            self.commit_local_trans(local_tx_option)?;
+            return Ok(id);
         };
-        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
-        let id: i64 = self.get_new_key(transaction.clone(), "BooleanAttributeKeySequence")?;
+        let id: i64 = self.get_new_key(transaction_in.clone(), "BooleanAttributeKeySequence")?;
         // try {
         self.add_attribute_sorting_row(
-            transaction.clone(),
+            transaction_in.clone(),
             parent_id_in,
             self.get_attribute_form_id(Util::BOOLEAN_TYPE).unwrap(),
             id,
@@ -1420,7 +1337,7 @@ impl Database for PostgreSQLDatabase {
             Some(date) => date.to_string(),
         };
         self.db_action(
-            transaction.clone(),
+            transaction_in.clone(),
             format!(
                 "insert into BooleanAttribute (id, \
             entity_id, booleanvalue, attr_type_id, valid_on_date, observation_date) \
@@ -1431,24 +1348,6 @@ impl Database for PostgreSQLDatabase {
             false,
             false,
         )?;
-
-        if transaction_in.is_none() && transaction.is_some() {
-            // see comments at similar location in delete_objects about local_tx
-            // see comments in delete_objects about rollback
-            let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
-                Rc::into_inner(transaction.unwrap());
-            match local_tx_cell {
-                Some(t) => {
-                    let unwrapped_local_tx = t.into_inner();
-                    if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                        return Err(anyhow!(e.to_string()));
-                    }
-                }
-                None => {
-                    return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                }
-            };
-        }
         Ok(id)
     }
 
@@ -1526,43 +1425,41 @@ impl Database for PostgreSQLDatabase {
 
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables). */
     /// @return the new ID and the sorting_index.
-    fn create_relation_to_local_entity<'a, 'b>(
-        &'a self,
+    fn create_relation_to_local_entity(
+        &self,
         // purpose: see comment in delete_objects
-        transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         relation_type_id_in: i64,
         entity_id1_in: i64,
         entity_id2_in: i64,
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         sorting_index_in: Option<i64>, /*= None*/
-    ) -> Result<(i64, i64), anyhow::Error>
-    where
-        'a: 'b,
-    {
+    ) -> Result<(i64, i64), anyhow::Error> {
         debug!("in create_relation_to_local_entity 0");
-        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
-        // Try creating a local transaction whether we use it or not, to handle compiler errors
-        // about variable moves. I'm not seeing a better way to get around them by just using
-        // conditions and an Option (many errors):
-        // (I tried putting this in a function, then a macro, but it gets compile errors.
-        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
-        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
-        // I didn't try a proc macro but based on some reading I think it would have the same
-        // problem.)
-        let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if transaction_in.clone().is_some() {
-            transaction_in.clone()
-        } else {
-            local_tx_option
+        //KEEP SYNCHRONIZED ALL PLACES THAT USED TO HAVE A COPY/PASTED/DUPLICATED BLOCK HERE as they are
+        //still similar to each other (marked by this comment):
+        if transaction_in.is_none() {
+            let local_tx: Transaction<Postgres> = self.begin_trans()?;
+            let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+            // see comments in delete_objects about rollback (if next line returns due to error)
+            let id = self.create_relation_to_local_entity(
+                local_tx_option.clone(),
+                relation_type_id_in,
+                entity_id1_in,
+                entity_id2_in,
+                valid_on_date_in,
+                observation_date_in,
+                sorting_index_in,
+            )?;
+            self.commit_local_trans(local_tx_option)?;
+            return Ok(id);
         };
-        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
         debug!("in create_relation_to_local_entity 1");
-        let rte_id: i64 = self.get_new_key(transaction.clone(), "RelationToEntityKeySequence")?;
+        let rte_id: i64 = self.get_new_key(transaction_in.clone(), "RelationToEntityKeySequence")?;
         let sorting_index = self.add_attribute_sorting_row(
-            transaction.clone(),
+            transaction_in.clone(),
             entity_id1_in,
             self.get_attribute_form_id(Util::RELATION_TO_LOCAL_ENTITY_TYPE)
                 .unwrap(),
@@ -1580,7 +1477,7 @@ impl Database for PostgreSQLDatabase {
             None => "NULL".to_string(),
         };
         debug!("in create_relation_to_local_entity 2");
-        let result = self.db_action(transaction.clone(), format!("INSERT INTO RelationToEntity (id, rel_type_id, entity_id, entity_id_2, valid_on_date, observation_date) \
+        let result = self.db_action(transaction_in.clone(), format!("INSERT INTO RelationToEntity (id, rel_type_id, entity_id, entity_id_2, valid_on_date, observation_date) \
                        VALUES ({},{},{},{}, {},{})", rte_id, relation_type_id_in, entity_id1_in, entity_id2_in,
                                                           valid_on_date_sql_str, observation_date_in).as_str(), false, false);
         debug!("in create_relation_to_local_entity 3");
@@ -1589,32 +1486,14 @@ impl Database for PostgreSQLDatabase {
             return Err(anyhow!(e));
         }
         debug!("in create_relation_to_local_entity 4");
-        if transaction_in.is_none() && transaction.is_some() {
-            // see comments at similar location in delete_objects about local_tx
-            // see comments in delete_objects about rollback
-            let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
-                Rc::into_inner(transaction.unwrap());
-            match local_tx_cell {
-                Some(t) => {
-                    let unwrapped_local_tx = t.into_inner();
-                    if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                        return Err(anyhow!(e.to_string()));
-                    }
-                }
-                None => {
-                    return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                }
-            }
-        }
-        debug!("in create_relation_to_local_entity 5");
         Ok((rte_id, sorting_index))
     }
 
     /** Re dates' meanings: see usage notes elsewhere in code (like inside create_tables). */
-    fn create_relation_to_remote_entity<'a>(
-        &'a self,
+    fn create_relation_to_remote_entity(
+        &self,
         // purpose: see comment in delete_objects
-        transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         relation_type_id_in: i64,
         entity_id1_in: i64,
         entity_id2_in: i64,
@@ -1623,29 +1502,31 @@ impl Database for PostgreSQLDatabase {
         remote_instance_id_in: &str,
         sorting_index_in: Option<i64>, /*= None*/
     ) -> Result<RelationToRemoteEntity, anyhow::Error> {
-        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
-        // Try creating a local transaction whether we use it or not, to handle compiler errors
-        // about variable moves. I'm not seeing a better way to get around them by just using
-        // conditions and an Option (many errors):
-        // (I tried putting this in a function, then a macro, but it gets compile errors.
-        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
-        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
-        // I didn't try a proc macro but based on some reading I think it would have the same
-        // problem.)
-        let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if transaction_in.clone().is_some() {
-            transaction_in.clone()
-        } else {
-            local_tx_option
+        //KEEP SYNCHRONIZED ALL PLACES THAT USED TO HAVE A COPY/PASTED/DUPLICATED BLOCK HERE as they are
+        //still similar to each other (marked by this comment):
+        if transaction_in.is_none() {
+            let local_tx: Transaction<Postgres> = self.begin_trans()?;
+            let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+            // see comments in delete_objects about rollback (if next line returns due to error)
+            let id = self.create_relation_to_remote_entity(
+                local_tx_option.clone(),
+                relation_type_id_in,
+                entity_id1_in,
+                entity_id2_in,
+                valid_on_date_in,
+                observation_date_in,
+                remote_instance_id_in,
+                sorting_index_in,
+            )?;
+            self.commit_local_trans(local_tx_option)?;
+            return Ok(id);
         };
-        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
         let rte_id: i64 =
-            self.get_new_key(transaction.clone(), "RelationToRemoteEntityKeySequence")?;
+            self.get_new_key(transaction_in.clone(), "RelationToRemoteEntityKeySequence")?;
         // not creating anything in a remote DB, but a local record of a local relation to a remote entity.
         let result = self.add_attribute_sorting_row(
-            transaction.clone(),
+            transaction_in.clone(),
             entity_id1_in,
             self.get_attribute_form_id(Util::RELATION_TO_REMOTE_ENTITY_TYPE)
                 .unwrap(),
@@ -1661,30 +1542,13 @@ impl Database for PostgreSQLDatabase {
             Some(date) => date.to_string(),
             None => "NULL".to_string(),
         };
-        let result = self.db_action(transaction.clone(), format!("INSERT INTO RelationToRemoteEntity (id, rel_type_id, entity_id, \
+        let result = self.db_action(transaction_in.clone(), format!("INSERT INTO RelationToRemoteEntity (id, rel_type_id, entity_id, \
                   entity_id_2, valid_on_date, observation_date, remote_instance_id) VALUES ({},{},{},{},{},{},'{}')",
                                                           rte_id, relation_type_id_in, entity_id1_in, entity_id2_in,
                                                           valid_on_date_sql_str, observation_date_in, remote_instance_id_in).as_str(), false, false);
         if let Err(e) = result {
             // see comments in delete_objects about rollback
             return Err(anyhow!(e));
-        }
-        if transaction_in.is_none() && transaction.is_some() {
-            // see comments at similar location in delete_objects about local_tx
-            // see comments in delete_objects about rollback
-            let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
-                Rc::into_inner(transaction.unwrap());
-            match local_tx_cell {
-                Some(t) => {
-                    let unwrapped_local_tx = t.into_inner();
-                    if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                        return Err(anyhow!(e.to_string()));
-                    }
-                }
-                None => {
-                    return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                }
-            }
         }
         Ok(RelationToRemoteEntity {}) //%%really: self, rte_id, relation_type_id_in, entity_id1_in, remote_instance_id_in, entity_id2_in
     }
@@ -1917,10 +1781,10 @@ impl Database for PostgreSQLDatabase {
 
     /// I.e., make it so the entity has a group in it, which can contain entities.
     // Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
-    fn create_group_and_relation_to_group<'a, 'b>(
-        &'a self,
+    fn create_group_and_relation_to_group(
+        &self,
         // purpose: see comment in delete_objects
-        transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
         relation_type_id_in: i64,
         new_group_name_in: &str,
@@ -1928,36 +1792,34 @@ impl Database for PostgreSQLDatabase {
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         sorting_index_in: Option<i64>,
-    ) -> Result<(i64, i64), anyhow::Error>
-    where
-        'a: 'b,
-    {
-        //%%latertrans: fix/simplify these blocks??  can dup in a simple enough thing to post on URLO?
-        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
-        // Try creating a local transaction whether we use it or not, to handle compiler errors
-        // about variable moves. I'm not seeing a better way to get around them by just using
-        // conditions and an Option (many errors):
-        // (I tried putting this in a function, then a macro, but it gets compile errors.
-        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
-        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
-        // I didn't try a proc macro but based on some reading I think it would have the same
-        // problem.)
-        let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if transaction_in.is_some() {
-            transaction_in.clone()
-        } else {
-            local_tx_option
+    ) -> Result<(i64, i64), anyhow::Error> {
+        //KEEP SYNCHRONIZED ALL PLACES THAT USED TO HAVE A COPY/PASTED/DUPLICATED BLOCK HERE as they are
+        //still similar to each other (marked by this comment):
+        if transaction_in.is_none() {
+            let local_tx: Transaction<Postgres> = self.begin_trans()?;
+            let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+            // see comments in delete_objects about rollback (if next line returns due to error)
+            let id = self.create_group_and_relation_to_group(
+                local_tx_option.clone(),
+                entity_id_in,
+                relation_type_id_in,
+                new_group_name_in,
+                allow_mixed_classes_in_group_in,
+                valid_on_date_in,
+                observation_date_in,
+                sorting_index_in,
+            )?;
+            self.commit_local_trans(local_tx_option)?;
+            return Ok(id);
         };
-        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
         let group_id: i64 = self.create_group(
-            transaction.clone(),
+            transaction_in.clone(),
             new_group_name_in,
             allow_mixed_classes_in_group_in,
         )?;
         let (rtg_id, _) = self.create_relation_to_group(
-            transaction.clone(),
+            transaction_in.clone(),
             entity_id_in,
             relation_type_id_in,
             group_id,
@@ -1965,33 +1827,16 @@ impl Database for PostgreSQLDatabase {
             observation_date_in,
             sorting_index_in,
         )?;
-        if transaction_in.is_none() && transaction.is_some() {
-            // see comments at similar location in delete_objects about local_tx
-            // see comments in delete_objects about rollback
-            let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
-                Rc::into_inner(transaction.unwrap());
-            match local_tx_cell {
-                Some(t) => {
-                    let unwrapped_local_tx = t.into_inner();
-                    if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                        return Err(anyhow!(e.to_string()));
-                    }
-                }
-                None => {
-                    return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                }
-            }
-        }
         Ok((group_id, rtg_id))
     }
 
     /// I.e., make it so the entity has a relation to a new entity in it.
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
     /// @return the new_entity_id, and new_rte_id.
-    fn create_entity_and_relation_to_local_entity<'a>(
-        &'a self,
+    fn create_entity_and_relation_to_local_entity(
+        &self,
         // purpose: see comment in delete_objects
-        transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
         relation_type_id_in: i64,
         new_entity_name_in: &str,
@@ -2001,29 +1846,30 @@ impl Database for PostgreSQLDatabase {
     ) -> Result<(i64, i64), anyhow::Error> {
         let name: String = Self::escape_quotes_etc(new_entity_name_in.to_string());
 
-        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
-        // Try creating a local transaction whether we use it or not, to handle compiler errors
-        // about variable moves. I'm not seeing a better way to get around them by just using
-        // conditions and an Option (many errors):
-        // (I tried putting this in a function, then a macro, but it gets compile errors.
-        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
-        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
-        // I didn't try a proc macro but based on some reading I think it would have the same
-        // problem.)
-        let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if transaction_in.clone().is_some() {
-            transaction_in.clone()
-        } else {
-            local_tx_option
+        //KEEP SYNCHRONIZED ALL PLACES THAT USED TO HAVE A COPY/PASTED/DUPLICATED BLOCK HERE as they are
+        //still similar to each other (marked by this comment):
+        if transaction_in.is_none() {
+            let local_tx: Transaction<Postgres> = self.begin_trans()?;
+            let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+            // see comments in delete_objects about rollback (if next line returns due to error)
+            let id = self.create_entity_and_relation_to_local_entity(
+                local_tx_option.clone(),
+                entity_id_in,
+                relation_type_id_in,
+                new_entity_name_in,
+                is_public_in,
+                valid_on_date_in,
+                observation_date_in,
+            )?;
+            self.commit_local_trans(local_tx_option)?;
+            return Ok(id);
         };
-        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
         let new_entity_id: i64 =
-            self.create_entity(transaction.clone(), name.as_str(), None, is_public_in)?;
+            self.create_entity(transaction_in.clone(), name.as_str(), None, is_public_in)?;
         let (new_rte_id, _new_sorting_index) = self.create_relation_to_local_entity(
             //%%should this not be "_in"?:
-            transaction.clone(),
+            transaction_in.clone(),
             relation_type_id_in,
             entity_id_in,
             new_entity_id,
@@ -2031,68 +1877,46 @@ impl Database for PostgreSQLDatabase {
             observation_date_in,
             None,
         )?;
-        if transaction_in.is_none() && transaction.is_some() {
-            // see comments at similar location in delete_objects about local_tx
-            // see comments in delete_objects about rollback
-            let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
-                Rc::into_inner(transaction.unwrap());
-            match local_tx_cell {
-                Some(t) => {
-                    let unwrapped_local_tx = t.into_inner();
-                    if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                        return Err(anyhow!(
-                            "In create_entity_and_relation_to_local_entity, {}: ",
-                            e.to_string()
-                        ));
-                    }
-                }
-                None => {
-                    return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                }
-            }
-        }
         Ok((new_entity_id, new_rte_id))
     }
 
     /// I.e., make it so the entity has a group in it, which can contain entities.
     /// Re dates' meanings: see usage notes elsewhere in code (like inside create_tables).
     /// @return a tuple containing the id and new sorting_index: (id, sorting_index)
-    fn create_relation_to_group<'a, 'b>(
-        &'a self,
+    fn create_relation_to_group(
+        &self,
         // purpose: see comment in delete_objects
-        transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
         relation_type_id_in: i64,
         group_id_in: i64,
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         sorting_index_in: Option<i64>, /*= None*/
-    ) -> Result<(i64, i64), anyhow::Error>
-    where
-        'a: 'b,
-    {
-        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
-        // Try creating a local transaction whether we use it or not, to handle compiler errors
-        // about variable moves. I'm not seeing a better way to get around them by just using
-        // conditions and an Option (many errors):
-        // (I tried putting this in a function, then a macro, but it gets compile errors.
-        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
-        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
-        // I didn't try a proc macro but based on some reading I think it would have the same
-        // problem.)
-        let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if transaction_in.is_some() {
-            transaction_in.clone()
-        } else {
-            local_tx_option
+    ) -> Result<(i64, i64), anyhow::Error> {
+        //KEEP SYNCHRONIZED ALL PLACES THAT USED TO HAVE A COPY/PASTED/DUPLICATED BLOCK HERE as they are
+        //still similar to each other (marked by this comment):
+        if transaction_in.is_none() {
+            let local_tx: Transaction<Postgres> = self.begin_trans()?;
+            let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+            // see comments in delete_objects about rollback (if next line returns due to error)
+            let id = self.create_relation_to_group(
+                local_tx_option.clone(),
+                entity_id_in,
+                relation_type_id_in,
+                group_id_in,
+                valid_on_date_in,
+                observation_date_in,
+                sorting_index_in,
+            )?;
+            self.commit_local_trans(local_tx_option)?;
+            return Ok(id);
         };
-        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
-        let id: i64 = self.get_new_key(transaction.clone(), "RelationToGroupKeySequence2")?;
+        let id: i64 = self.get_new_key(transaction_in.clone(), "RelationToGroupKeySequence2")?;
         let sorting_index = {
             let sorting_index: i64 = self.add_attribute_sorting_row(
-                transaction.clone(),
+                transaction_in.clone(),
                 entity_id_in,
                 self.get_attribute_form_id(Util::RELATION_TO_GROUP_TYPE)
                     .unwrap(),
@@ -2103,28 +1927,11 @@ impl Database for PostgreSQLDatabase {
                 None => "NULL".to_string(),
                 Some(d) => d.to_string(),
             };
-            self.db_action(transaction.clone(), format!("INSERT INTO RelationToGroup (id, entity_id, rel_type_id, group_id, valid_on_date, observation_date) \
+            self.db_action(transaction_in.clone(), format!("INSERT INTO RelationToGroup (id, entity_id, rel_type_id, group_id, valid_on_date, observation_date) \
                              VALUES ({},{},{},{},{},{})", id, entity_id_in, relation_type_id_in, group_id_in, valid_date, observation_date_in).as_str(),
                            false, false)?;
             sorting_index
         };
-        if transaction_in.is_none() && transaction.is_some() {
-            // see comments at similar location in delete_objects about local_tx
-            // see comments in delete_objects about rollback
-            let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
-                Rc::into_inner(transaction.unwrap());
-            match local_tx_cell {
-                Some(t) => {
-                    let unwrapped_local_tx = t.into_inner();
-                    if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                        return Err(anyhow!(e.to_string()));
-                    }
-                }
-                None => {
-                    return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                }
-            }
-        }
         Ok((id, sorting_index))
     }
 
@@ -2431,59 +2238,54 @@ impl Database for PostgreSQLDatabase {
     /// I.e., insert an entity into a group of entities. Using a default value for the sorting_index because user can set it if/as desired;
     /// the max (ie putting it at the end) might be the least often surprising if the user wonders where one went....
     /// **ABOUT THE SORTINGINDEX*:  SEE the related comment on method add_attribute_sorting_row.
-    fn add_entity_to_group<'a, 'b>(
-        &'a self,
+    fn add_entity_to_group(
+        &self,
         // purpose: see comment in delete_objects
-        transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         group_id_in: i64,
         contained_entity_id_in: i64,
         sorting_index_in: Option<i64>, /*= None*/
-    ) -> Result<(), anyhow::Error>
-    where
-        'a: 'b,
-    {
+    ) -> Result<(), anyhow::Error> {
         // IF THIS CHANGES ALSO DO MAINTENANCE IN SIMILAR METHOD add_attribute_sorting_row
 
-        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
-        // Try creating a local transaction whether we use it or not, to handle compiler errors
-        // about variable moves. I'm not seeing a better way to get around them by just using
-        // conditions and an Option (many errors):
-        // (I tried putting this in a function, then a macro, but it gets compile errors.
-        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
-        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
-        // I didn't try a proc macro but based on some reading I think it would have the same
-        // problem.)
-        let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if transaction_in.clone().is_some() {
-            transaction_in.clone()
-        } else {
-            local_tx_option
+        //KEEP SYNCHRONIZED ALL PLACES THAT USED TO HAVE A COPY/PASTED/DUPLICATED BLOCK HERE as they are
+        //still similar to each other (marked by this comment):
+        if transaction_in.is_none() {
+            let local_tx: Transaction<Postgres> = self.begin_trans()?;
+            let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+            // see comments in delete_objects about rollback (if next line returns due to error)
+            let id = self.add_entity_to_group(
+                local_tx_option.clone(),
+                group_id_in,
+                contained_entity_id_in,
+                sorting_index_in,
+            )?;
+            self.commit_local_trans(local_tx_option)?;
+            return Ok(id);
         };
-        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
         // start from the beginning index, if it's the 1st record (otherwise later sorting/renumbering gets messed up if we start w/ the last #):
         let sorting_index: i64 = {
             let index = match sorting_index_in {
                 Some(x) => x,
                 // start with an increment off the min or max, so that later there is room to sort something before or after it, manually:
-                None if self.get_group_size(transaction.clone(), group_id_in, 3)? == 0 => {
+                None if self.get_group_size(transaction_in.clone(), group_id_in, 3)? == 0 => {
                     self.min_id_value() + 99999
                 }
                 _ => self.max_id_value() - 99999,
             };
             let is_in_use: bool =
-                self.is_group_entry_sorting_index_in_use(transaction.clone(), group_id_in, index)?;
+                self.is_group_entry_sorting_index_in_use(transaction_in.clone(), group_id_in, index)?;
             if is_in_use {
                 let find_unused_result: i64 =
-                    self.find_unused_group_sorting_index(transaction.clone(), group_id_in, None)?;
+                    self.find_unused_group_sorting_index(transaction_in.clone(), group_id_in, None)?;
                 find_unused_result
             } else {
                 index
             }
         };
 
-        let result = self.db_action(transaction.clone(), format!("insert into EntitiesInAGroup (group_id, entity_id, sorting_index) values ({},{},{})",
+        let result = self.db_action(transaction_in.clone(), format!("insert into EntitiesInAGroup (group_id, entity_id, sorting_index) values ({},{},{})",
                                                          group_id_in, contained_entity_id_in, sorting_index).as_str(), false, false);
         if let Err(s) = result {
             // see comments in delete_objects about rollback
@@ -2491,27 +2293,10 @@ impl Database for PostgreSQLDatabase {
         }
         // idea: do this check sooner in this method?:
         let mixed_classes_allowed: bool =
-            self.are_mixed_classes_allowed(transaction.clone(), &group_id_in)?;
-        if !mixed_classes_allowed && self.has_mixed_classes(transaction.clone(), &group_id_in)? {
+            self.are_mixed_classes_allowed(transaction_in.clone(), &group_id_in)?;
+        if !mixed_classes_allowed && self.has_mixed_classes(transaction_in.clone(), &group_id_in)? {
             // see comments in delete_objects about rollback
             return Err(anyhow!(Util::MIXED_CLASSES_EXCEPTION.to_string()));
-        }
-        if transaction_in.is_none() && transaction.is_some() {
-            // see comments at similar location in delete_objects about local_tx
-            // see comments in delete_objects about rollback
-            let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
-                Rc::into_inner(transaction.unwrap());
-            match local_tx_cell {
-                Some(t) => {
-                    let unwrapped_local_tx = t.into_inner();
-                    if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                        return Err(anyhow!(e.to_string()));
-                    }
-                }
-                None => {
-                    return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                }
-            }
         }
         Ok(())
     }
@@ -2564,17 +2349,30 @@ impl Database for PostgreSQLDatabase {
         Ok(id)
     }
 
-    fn create_relation_type<'a, 'b>(
-        &'a self,
+    fn create_relation_type(
+        &self,
         // purpose: see comment in delete_objects
-        transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         name_in: &str,
         name_in_reverse_direction_in: &str,
         directionality_in: &str,
-    ) -> Result<i64, anyhow::Error>
-    where
-        'a: 'b,
-    {
+    ) -> Result<i64, anyhow::Error> {
+        //KEEP SYNCHRONIZED ALL PLACES THAT USED TO HAVE A COPY/PASTED/DUPLICATED BLOCK HERE as they are
+        //still similar to each other (marked by this comment):
+        if transaction_in.is_none() {
+            let local_tx: Transaction<Postgres> = self.begin_trans()?;
+            let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+            // see comments in delete_objects about rollback (if next line returns due to error)
+            let id = self.create_relation_type(
+                local_tx_option.clone(),
+                name_in,
+                name_in_reverse_direction_in,
+                directionality_in,
+            )?;
+            self.commit_local_trans(local_tx_option)?;
+            return Ok(id);
+        };
+
         let name_in_reverse_direction: String =
             Self::escape_quotes_etc(name_in_reverse_direction_in.to_string());
         let name: String = Self::escape_quotes_etc(name_in.to_string());
@@ -2584,30 +2382,11 @@ impl Database for PostgreSQLDatabase {
                 "In create_relation_type, name must have a value.".to_string()
             ));
         }
-
-        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
-        // Try creating a local transaction whether we use it or not, to handle compiler errors
-        // about variable moves. I'm not seeing a better way to get around them by just using
-        // conditions and an Option (many errors):
-        // (I tried putting this in a function, then a macro, but it gets compile errors.
-        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
-        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
-        // I didn't try a proc macro but based on some reading I think it would have the same
-        // problem.)
-        let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if transaction_in.clone().is_some() {
-            transaction_in.clone()
-        } else {
-            local_tx_option
-        };
-        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
-
         let mut result: Result<u64, anyhow::Error>;
         let mut id: i64 = 0;
         //see comment at loop in fn create_tables
         loop {
-            id = match self.get_new_key(transaction.clone(), "EntityKeySequence") {
+            id = match self.get_new_key(transaction_in.clone(), "EntityKeySequence") {
                 Err(s) => {
                     result = Err(anyhow!(s.to_string()));
                     break;
@@ -2615,7 +2394,7 @@ impl Database for PostgreSQLDatabase {
                 Ok(i) => i,
             };
             result = self.db_action(
-                transaction.clone(),
+                transaction_in.clone(),
                 format!(
                     "INSERT INTO Entity (id, insertion_date, name) VALUES ({},{},'{}')",
                     id,
@@ -2629,28 +2408,11 @@ impl Database for PostgreSQLDatabase {
             if result.is_err() {
                 break;
             }
-            result = self.db_action(transaction.clone(),
+            result = self.db_action(transaction_in.clone(),
                                     format!("INSERT INTO RelationType (entity_id, name_in_reverse_direction, directionality) VALUES ({},'{}','{}')",
                                             id, name_in_reverse_direction, directionality).as_str(), false, false);
             if result.is_err() {
                 break;
-            }
-            if transaction_in.is_none() && transaction.is_some() {
-                // see comments at similar location in delete_objects about local_tx
-                // see comments in delete_objects about rollback
-                let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
-                    Rc::into_inner(transaction.unwrap());
-                match local_tx_cell {
-                    Some(t) => {
-                        let unwrapped_local_tx = t.into_inner();
-                        if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                            return Err(anyhow!("In create_relation_type (2), {}", e.to_string()));
-                        }
-                    }
-                    None => {
-                        return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                    }
-                }
             }
 
             // see comment at top of loop
@@ -2663,74 +2425,53 @@ impl Database for PostgreSQLDatabase {
         }
     }
 
-    fn delete_entity<'a>(
-        &'a self,
+    fn delete_entity(
+        &self,
         // purpose: see comment in delete_objects
-        transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
     ) -> Result<(), anyhow::Error> {
-        // idea: (also on task list i think but) we should not delete entities until dealing with their use as attr_type_ids etc!
-        // (or does the DB's integrity constraints do that for us?)
+        // idea: (also on task list i think but) we should not delete entities until dealing with 
+        // their use as attr_type_ids etc! (or does the DB's integrity constraints do that for us?)
 
-        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
-        // Try creating a local transaction whether we use it or not, to handle compiler errors
-        // about variable moves. I'm not seeing a better way to get around them by just using
-        // conditions and an Option (many errors):
-        // (I tried putting this in a function, then a macro, but it gets compile errors.
-        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
-        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
-        // I didn't try a proc macro but based on some reading I think it would have the same
-        // problem.)
-        let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if transaction_in.clone().is_some() {
-            transaction_in.clone()
-        } else {
-            local_tx_option
+        //KEEP SYNCHRONIZED ALL PLACES THAT USED TO HAVE A COPY/PASTED/DUPLICATED BLOCK HERE as they are
+        //still similar to each other (marked by this comment):
+        if transaction_in.is_none() {
+            let local_tx: Transaction<Postgres> = self.begin_trans()?;
+            let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+            // see comments in delete_objects about rollback (if next line returns due to error)
+            let id = self.delete_entity(
+                local_tx_option.clone(),
+                id_in,
+            )?;
+            self.commit_local_trans(local_tx_option)?;
+            return Ok(id);
         };
-        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
         self.delete_objects(
-            transaction.clone(),
+            transaction_in.clone(),
             "EntitiesInAGroup",
             format!("where entity_id={}", id_in).as_str(),
             0,
         )?;
         self.delete_objects(
-            transaction.clone(),
+            transaction_in.clone(),
             Util::ENTITY_TYPE,
             format!("where id={}", id_in).as_str(),
             1,
         )?;
         self.delete_objects(
-            transaction.clone(),
+            transaction_in.clone(),
             "AttributeSorting",
             format!("where entity_id={}", id_in).as_str(),
             0,
         )?;
-        if transaction_in.is_none() && transaction.is_some() {
-            // see comments at similar location in delete_objects about local_tx
-            // see comments in delete_objects about rollback
-            let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
-                Rc::into_inner(transaction.unwrap());
-            match local_tx_cell {
-                Some(t) => {
-                    let unwrapped_local_tx = t.into_inner();
-                    if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                        return Err(anyhow!(e.to_string()));
-                    }
-                }
-                None => {
-                    return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                }
-            }
-        }
         Ok(())
     }
 
-    fn archive_entity<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn archive_entity(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         self.archive_objects(
@@ -2742,9 +2483,9 @@ impl Database for PostgreSQLDatabase {
         )
     }
 
-    fn unarchive_entity<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn unarchive_entity(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         self.archive_objects(
@@ -2756,49 +2497,49 @@ impl Database for PostgreSQLDatabase {
         )
     }
 
-    fn delete_quantity_attribute<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn delete_quantity_attribute(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         self.delete_object_by_id(transaction, Util::QUANTITY_TYPE, id_in)
     }
 
-    fn delete_text_attribute<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn delete_text_attribute(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         self.delete_object_by_id(transaction, Util::TEXT_TYPE, id_in)
     }
 
-    fn delete_date_attribute<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn delete_date_attribute(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         self.delete_object_by_id(transaction, Util::DATE_TYPE, id_in)
     }
 
-    fn delete_boolean_attribute<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn delete_boolean_attribute(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         self.delete_object_by_id(transaction, Util::BOOLEAN_TYPE, id_in)
     }
 
-    fn delete_file_attribute<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn delete_file_attribute(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         self.delete_object_by_id(transaction, Util::FILE_TYPE, id_in)
     }
 
-    fn delete_relation_to_local_entity<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn delete_relation_to_local_entity(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         rel_type_id_in: i64,
         entity_id1_in: i64,
         entity_id2_in: i64,
@@ -2815,9 +2556,9 @@ impl Database for PostgreSQLDatabase {
         )
     }
 
-    fn delete_relation_to_remote_entity<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn delete_relation_to_remote_entity(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         rel_type_id_in: i64,
         entity_id1_in: i64,
         remote_instance_id_in: &str,
@@ -2829,9 +2570,9 @@ impl Database for PostgreSQLDatabase {
                             1)
     }
 
-    fn delete_relation_to_group<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn delete_relation_to_group(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
         rel_type_id_in: i64,
         group_id_in: i64,
@@ -2848,78 +2589,54 @@ impl Database for PostgreSQLDatabase {
         )
     }
 
-    fn delete_group_and_relations_to_it<'a, 'b>(
-        &'a self,
-        transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+    fn delete_group_and_relations_to_it(
+        &self,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
-    ) -> Result<(), anyhow::Error>
-    where
-        'a: 'b,
-    {
-        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
-        // Try creating a local transaction whether we use it or not, to handle compiler errors
-        // about variable moves. I'm not seeing a better way to get around them by just using
-        // conditions and an Option (many errors):
-        // (I tried putting this in a function, then a macro, but it gets compile errors.
-        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
-        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
-        // I didn't try a proc macro but based on some reading I think it would have the same
-        // problem.)
-        let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if transaction_in.clone().is_some() {
-            transaction_in.clone()
-        } else {
-            local_tx_option
+    ) -> Result<(), anyhow::Error> {
+        //KEEP SYNCHRONIZED ALL PLACES THAT USED TO HAVE A COPY/PASTED/DUPLICATED BLOCK HERE as they are
+        //still similar to each other (marked by this comment):
+        if transaction_in.is_none() {
+            let local_tx: Transaction<Postgres> = self.begin_trans()?;
+            let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+            // see comments in delete_objects about rollback (if next line returns due to error)
+            //let id = self.delete_group_relations_to_it_and_its_entries(
+            let id = self.delete_group_and_relations_to_it(
+                local_tx_option.clone(),
+                id_in,
+            )?;
+            self.commit_local_trans(local_tx_option)?;
+            return Ok(id);
         };
-        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
-        let entity_count: u64 = self.get_group_size(transaction.clone(), id_in, 3)?;
+        let entity_count: u64 = self.get_group_size(transaction_in.clone(), id_in, 3)?;
         self.delete_objects(
-            transaction.clone(),
+            transaction_in.clone(),
             "EntitiesInAGroup",
             format!("where group_id={}", id_in).as_str(),
             entity_count,
         )?;
         let num_groups: u64 = self
-            .get_relation_to_group_count_by_group(transaction.clone(), id_in)?
+            .get_relation_to_group_count_by_group(transaction_in.clone(), id_in)?
             .try_into()?;
         self.delete_objects(
-            transaction.clone(),
+            transaction_in.clone(),
             Util::RELATION_TO_GROUP_TYPE,
             format!("where group_id={}", id_in).as_str(),
             num_groups,
         )?;
         self.delete_objects(
-            transaction.clone(),
+            transaction_in.clone(),
             "grupo",
             format!("where id={}", id_in).as_str(),
             1,
         )?;
-
-        if transaction_in.is_none() && transaction.is_some() {
-            // see comments at similar location in delete_objects about local_tx
-            // see comments in delete_objects about rollback
-            let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
-                Rc::into_inner(transaction.unwrap());
-            match local_tx_cell {
-                Some(t) => {
-                    let unwrapped_local_tx = t.into_inner();
-                    if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                        return Err(anyhow!(e.to_string()));
-                    }
-                }
-                None => {
-                    return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                }
-            }
-        }
         Ok(())
     }
 
-    fn remove_entity_from_group<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn remove_entity_from_group(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         group_id_in: i64,
         contained_entity_id_in: i64,
     ) -> Result<u64, anyhow::Error> {
@@ -2936,36 +2653,29 @@ impl Database for PostgreSQLDatabase {
     }
 
     /// I hope you have a backup.
-    fn delete_group_relations_to_it_and_its_entries<'a, 'b>(
-        &'a self,
+    fn delete_group_relations_to_it_and_its_entries(
+        &self,
         // purpose: see comment in delete_objects
-        transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         group_id_in: i64,
-    ) -> Result<(), anyhow::Error>
-    where
-        'a: 'b,
-    {
-        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
-        // Try creating a local transaction whether we use it or not, to handle compiler errors
-        // about variable moves. I'm not seeing a better way to get around them by just using
-        // conditions and an Option (many errors):
-        // (I tried putting this in a function, then a macro, but it gets compile errors.
-        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
-        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
-        // I didn't try a proc macro but based on some reading I think it would have the same
-        // problem.)
-        let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if transaction_in.clone().is_some() {
-            transaction_in.clone()
-        } else {
-            local_tx_option
+    ) -> Result<(), anyhow::Error> {
+        //KEEP SYNCHRONIZED ALL PLACES THAT USED TO HAVE A COPY/PASTED/DUPLICATED BLOCK HERE as they are
+        //still similar to each other (marked by this comment):
+        if transaction_in.is_none() {
+            let local_tx: Transaction<Postgres> = self.begin_trans()?;
+            let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+            // see comments in delete_objects about rollback (if next line returns due to error)
+            let id = self.delete_group_relations_to_it_and_its_entries(
+                local_tx_option.clone(),
+                group_id_in,
+            )?;
+            self.commit_local_trans(local_tx_option)?;
+            return Ok(id);
         };
-        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
-        let entity_count = self.get_group_size(transaction.clone(), group_id_in, 3)?;
+        let entity_count = self.get_group_size(transaction_in.clone(), group_id_in, 3)?;
         let (deletions1, deletions2) =
-            self.delete_relation_to_group_and_all_recursively(transaction.clone(), group_id_in)?;
+            self.delete_relation_to_group_and_all_recursively(transaction_in.clone(), group_id_in)?;
         if deletions1.checked_add(deletions2).unwrap() != entity_count {
             return Err(anyhow!(
                 "Not proceeding: deletions1 {} + deletions2 {} != entity_count {}.",
@@ -2974,29 +2684,12 @@ impl Database for PostgreSQLDatabase {
                 entity_count
             ));
         }
-        if transaction_in.is_none() && transaction.is_some() {
-            // see comments at similar location in delete_objects about local_tx
-            // see comments in delete_objects about rollback
-            let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
-                Rc::into_inner(transaction.unwrap());
-            match local_tx_cell {
-                Some(t) => {
-                    let unwrapped_local_tx = t.into_inner();
-                    if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                        return Err(anyhow!(e.to_string()));
-                    }
-                }
-                None => {
-                    return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                }
-            }
-        }
         Ok(())
     }
 
-    fn delete_relation_type<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn delete_relation_type(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         // One possibility is that this should ALWAYS fail because it is done by deleting the entity, which cascades.
@@ -3015,9 +2708,9 @@ impl Database for PostgreSQLDatabase {
     }
 
     /// Creates the preference if it doesn't already exist.
-    fn set_user_preference_boolean<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn set_user_preference_boolean(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         name_in: &str,
         value_in: bool,
     ) -> Result<(), anyhow::Error> {
@@ -3069,9 +2762,9 @@ impl Database for PostgreSQLDatabase {
             Ok(())
         }
     }
-    fn get_user_preference_boolean<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn get_user_preference_boolean(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         preference_name_in: &str,
         default_value_in: Option<bool>, /*= None*/
     ) -> Result<Option<bool>, anyhow::Error> {
@@ -3096,9 +2789,9 @@ impl Database for PostgreSQLDatabase {
         }
     }
     /// Creates the preference if it doesn't already exist.
-    fn set_user_preference_entity_id<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn set_user_preference_entity_id(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         name_in: &str,
         entity_id_in: i64,
     ) -> Result<(), anyhow::Error> {
@@ -3164,9 +2857,9 @@ impl Database for PostgreSQLDatabase {
         }
     }
 
-    fn get_user_preference_entity_id<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn get_user_preference_entity_id(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         preference_name_in: &str,
         default_value_in: Option<i64>, /*= None*/
     ) -> Result<Option<i64>, anyhow::Error> {
@@ -3309,16 +3002,14 @@ impl Database for PostgreSQLDatabase {
         }
     }
 
-    fn renumber_sorting_indexes<'a, 'b>(
-        &'a self,
-        transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+    fn renumber_sorting_indexes(
+        &self,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_or_group_id_in: i64,
         is_entity_attrs_not_group_entries: bool, /*= true*/
-    ) -> Result<(), anyhow::Error>
-    where
-        'a: 'b,
-    {
-        //This used to be called "renumberAttributeSortingIndexes" before it was merged with "renumberGroupSortingIndexes" (very similar).
+    ) -> Result<(), anyhow::Error> {
+        //This used to be called "renumberAttributeSortingIndexes" before it was merged 
+        //with "renumberGroupSortingIndexes" (very similar).
         let number_of_entries: u64 = {
             if is_entity_attrs_not_group_entries {
                 self.get_attribute_count(transaction_in.clone(), entity_id_or_group_id_in, true)?
@@ -3338,34 +3029,31 @@ impl Database for PostgreSQLDatabase {
             let mut next: i64 = self.min_id_value().checked_add(increment).unwrap();
             let mut previous: i64 = self.min_id_value();
 
-            //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
-            // Try creating a local transaction whether we use it or not, to handle compiler errors
-            // about variable moves. I'm not seeing a better way to get around them by just using
-            // conditions and an Option (many errors):
-            // (I tried putting this in a function, then a macro, but it gets compile errors.
-            // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
-            // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
-            // I didn't try a proc macro but based on some reading I think it would have the same
-            // problem.)
-            let local_tx: Transaction<Postgres> = self.begin_trans()?;
-            let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-            let transaction = if transaction_in.clone().is_some() {
-                transaction_in.clone()
-            } else {
-                local_tx_option
+            //KEEP SYNCHRONIZED ALL PLACES THAT USED TO HAVE A COPY/PASTED/DUPLICATED BLOCK HERE as they are
+            //still similar to each other (marked by this comment):
+            if transaction_in.is_none() {
+                let local_tx: Transaction<Postgres> = self.begin_trans()?;
+                let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+                // see comments in delete_objects about rollback (if next line returns due to error)
+                let id = self.renumber_sorting_indexes(
+                    local_tx_option.clone(),
+                    entity_id_or_group_id_in,
+                    is_entity_attrs_not_group_entries,
+                )?;
+                self.commit_local_trans(local_tx_option)?;
+                return Ok(id);
             };
-            //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
             let data: Vec<Vec<Option<DataType>>> = {
                 if is_entity_attrs_not_group_entries {
                     self.get_entity_attribute_sorting_data(
-                        transaction.clone(),
+                        transaction_in.clone(),
                         entity_id_or_group_id_in,
                         None,
                     )?
                 } else {
                     self.get_group_entries_data(
-                        transaction.clone(),
+                        transaction_in.clone(),
                         entity_id_or_group_id_in,
                         None,
                         true,
@@ -3393,7 +3081,7 @@ impl Database for PostgreSQLDatabase {
             for entry in data {
                 if is_entity_attrs_not_group_entries {
                     while self.is_attribute_sorting_index_in_use(
-                        transaction.clone(),
+                        transaction_in.clone(),
                         entity_id_or_group_id_in,
                         next,
                     )? {
@@ -3405,7 +3093,7 @@ impl Database for PostgreSQLDatabase {
                     }
                 } else {
                     while self.is_group_entry_sorting_index_in_use(
-                        transaction.clone(),
+                        transaction_in.clone(),
                         entity_id_or_group_id_in,
                         next,
                     )? {
@@ -3443,7 +3131,7 @@ impl Database for PostgreSQLDatabase {
                         }
                     };
                     self.update_attribute_sorting_index(
-                        transaction.clone(),
+                        transaction_in.clone(),
                         entity_id_or_group_id_in,
                         form_id,
                         attribute_id,
@@ -3465,7 +3153,7 @@ impl Database for PostgreSQLDatabase {
                         }
                     };
                     self.update_sorting_index_in_a_group(
-                        transaction.clone(),
+                        transaction_in.clone(),
                         entity_id_or_group_id_in,
                         id,
                         next,
@@ -3484,24 +3172,6 @@ impl Database for PostgreSQLDatabase {
             // But anyway, if used, do it with a condition and return an error, not panicking.
             //assert((maxIDValue - next) < (increment * 2))
 
-            //%%put this & similar places into a function like self.commit_or_err(tx)?;   ?  If so, include the rollback cmt from just above?
-            if transaction_in.is_none() && transaction.is_some() {
-                // see comments at similar location in delete_objects about local_tx
-                // see comments in delete_objects about rollback
-                let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
-                    Rc::into_inner(transaction.unwrap());
-                match local_tx_cell {
-                    Some(t) => {
-                        let unwrapped_local_tx = t.into_inner();
-                        if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                            return Err(anyhow!(e.to_string()));
-                        }
-                    }
-                    None => {
-                        return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                    }
-                }
-            }
         }
         Ok(())
     }
@@ -3549,9 +3219,9 @@ impl Database for PostgreSQLDatabase {
 
     /// @return the id of the new RTE, the id of the "has" relation type, and the new sorting_index
     /// of the RTE added.
-    fn add_has_relation_to_local_entity<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn add_has_relation_to_local_entity(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         from_entity_id_in: i64,
         to_entity_id_in: i64,
         valid_on_date_in: Option<i64>,
@@ -4526,11 +4196,11 @@ impl Database for PostgreSQLDatabase {
 
     /// Allows querying for a range of objects in the database; returns a java.util.Map with keys and names.
     /// 1st parm is index to start with (0-based), 2nd parm is # of obj's to return (if None, means no limit).
-    /// This takes a db parameter for the same reasons as in the comment on 
+    /// This takes a db parameter for the same reasons as in the comment on
     /// fn get_entities_generic in postgresql_database2.rs.
     fn get_entities(
         &self,
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_object_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/
@@ -4548,22 +4218,22 @@ impl Database for PostgreSQLDatabase {
         )
     }
 
-    /// Excludes those entities that are really relationtypes, attribute types, or 
+    /// Excludes those entities that are really relationtypes, attribute types, or
     /// quantity units. Otherwise similar to get_entities.
-    /// *****NOTE*****: The limit_by_class:Boolean parameter is not redundant with the 
-    /// in_class_id: in_class_id could be None and we could still want to select only those entities 
+    /// *****NOTE*****: The limit_by_class:Boolean parameter is not redundant with the
+    /// in_class_id: in_class_id could be None and we could still want to select only those entities
     /// whose class_id is NULL, such as when enforcing group uniformity (see method has_mixed_classes and its
     /// uses, for more info).
     ///
-    /// The parameter omitEntity is (at this writing) used for the id of a class-defining (template) 
+    /// The parameter omitEntity is (at this writing) used for the id of a class-defining (template)
     /// entity, which we shouldn't show for editing when showing all the
     /// entities in the class (editing that is a separate menu option), otherwise it confuses things.
     ///
-    /// This takes a db parameter for the same reasons as in the comment on 
+    /// This takes a db parameter for the same reasons as in the comment on
     /// fn get_entities_generic in postgresql_database2.rs.
     fn get_entities_only(
         &self,
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_object_index_in: i64,
         max_vals_in: Option<i64>,         /*= None*/
@@ -4588,11 +4258,11 @@ impl Database for PostgreSQLDatabase {
     ///// similar to get_entities*
     // This fn used to be integrated with get_entities_generic. Probably want to check both when
     // making changes?
-    /// This takes a db parameter for the same reasons as in the comment on 
+    /// This takes a db parameter for the same reasons as in the comment on
     /// fn get_entities_generic in postgresql_database2.rs.
     fn get_relation_types(
         &self,
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_object_index_in: i64,
         max_vals_in: Option<i64>,
@@ -4643,7 +4313,7 @@ impl Database for PostgreSQLDatabase {
         // dependencies; is a cleaner design?)  (and similar ones)
         for result in early_results {
             // None of these values should be of "None" type. If they are it's a bug:
-           let entity_id: i64 = match result[0] {
+            let entity_id: i64 = match result[0] {
                 Some(DataType::Bigint(x)) => x,
                 _ => {
                     return Err(anyhow!(
@@ -4701,7 +4371,7 @@ impl Database for PostgreSQLDatabase {
 
     fn get_matching_entities(
         &self,
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_object_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/
@@ -4751,7 +4421,7 @@ impl Database for PostgreSQLDatabase {
 
     fn get_matching_groups(
         &self,
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_object_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/
@@ -4772,11 +4442,14 @@ impl Database for PostgreSQLDatabase {
         // idea: (see get_entities_generic for idea, see if applies here)
         for result in early_results {
             // None of these values should be of "None" type, so not checking for that. If they are it's a bug:
-            final_results.push(Group::new(db.clone(), Util::get_value_bigint("result[0]", &result[0])?, 
-                    Util::get_value_string("result[1]", &result[1])?.as_str(),
-                    Util::get_value_bigint("result[2]", &result[2])?, 
-                    Util::get_value_bool("result[3]", &result[3])?,
-                    Util::get_value_bool("result[4]", &result[4])?));
+            final_results.push(Group::new(
+                db.clone(),
+                Util::get_value_bigint("result[0]", &result[0])?,
+                Util::get_value_string("result[1]", &result[1])?.as_str(),
+                Util::get_value_bigint("result[2]", &result[2])?,
+                Util::get_value_bool("result[3]", &result[3])?,
+                Util::get_value_bool("result[4]", &result[4])?,
+            ));
         }
         if final_results.len() != early_results_len {
             return Err(anyhow!("In get_matching_groups, final_results.len() ({}) != early_results.len() ({}), with sql: {}", final_results.len(), early_results_len, sql));
@@ -4969,39 +4642,55 @@ impl Database for PostgreSQLDatabase {
         self.extract_row_count_from_count_query(transaction, sql.as_str())
     }
 
-    fn get_entities_used_as_attribute_types(&self,
-        db: Rc<dyn Database>,
+    fn get_entities_used_as_attribute_types(
+        &self,
+        db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         attribute_type_in: String,
-        _starting_object_index_in: i64, 
+        _starting_object_index_in: i64,
         quantity_seeks_unit_not_type_in: bool,
         _max_vals_in: Option<i64>, /*= None*/
     ) -> Result<Vec<Entity>, anyhow::Error> {
-        let sql = format!("{}{}", Util::SELECT_ENTITY_START, self.get_entities_used_as_attribute_types_sql(attribute_type_in, quantity_seeks_unit_not_type_in)?);
-        let early_results = self.db_query(transaction.clone(), &sql, "i64,String,i64,i64,bool,bool,bool")?;
+        let sql = format!(
+            "{}{}",
+            Util::SELECT_ENTITY_START,
+            self.get_entities_used_as_attribute_types_sql(
+                attribute_type_in,
+                quantity_seeks_unit_not_type_in
+            )?
+        );
+        let early_results = self.db_query(
+            transaction.clone(),
+            &sql,
+            "i64,String,i64,i64,bool,bool,bool",
+        )?;
         let mut final_results: Vec<Entity> = Vec::new();
-        // idea: should the remainder of this method be moved to Entity, so the persistence layer doesn't 
-        // know anything about the Model? (helps avoid circular dependencies; is a cleaner design.)  
+        // idea: should the remainder of this method be moved to Entity, so the persistence layer doesn't
+        // know anything about the Model? (helps avoid circular dependencies; is a cleaner design.)
         // (and similar ones)
         for result in early_results.iter() {
             self.add_new_entity_to_results(db.clone(), &mut final_results, result)?;
         }
         if final_results.len() != early_results.len() {
-            return Err(anyhow!("In get_entities_used_as_attribute_types, final_results.len() \
-                    ({}) != early_results.len() ({})", final_results.len(), early_results.len()));
+            return Err(anyhow!(
+                "In get_entities_used_as_attribute_types, final_results.len() \
+                    ({}) != early_results.len() ({})",
+                final_results.len(),
+                early_results.len()
+            ));
         }
         Ok(final_results)
     }
 
     /// Allows querying for a range of objects in the database;
     /// (in Scala it) returns a java.util.Map with keys and names.
-    /// This takes a db parameter for the same reasons as in the comment on 
+    /// This takes a db parameter for the same reasons as in the comment on
     /// fn get_entities_generic in postgresql_database2.rs.
     /// The starting_object_index is the index to start with (0-based),
     /// The max_vals is # of obj's to return (if None, means no limit).
     fn get_groups(
         &self,
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_object_index_in: i64,
         max_vals_in: Option<i64>,         /*= None*/
@@ -5066,7 +4755,7 @@ impl Database for PostgreSQLDatabase {
 
     fn get_classes(
         &self,
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_object_index_in: i64,
         max_vals_in: Option<i64>, // = None
@@ -5076,11 +4765,12 @@ impl Database for PostgreSQLDatabase {
             Self::check_if_should_be_all_results(max_vals_in),
             starting_object_index_in
         );
-        
-        let early_results: Vec<Vec<Option<DataType>>> = self.db_query(transaction.clone(), &sql, "i64,String,i64,bool")?;
+
+        let early_results: Vec<Vec<Option<DataType>>> =
+            self.db_query(transaction.clone(), &sql, "i64,String,i64,bool")?;
         let mut final_results: Vec<EntityClass> = Vec::new();
-        // idea: should the remainder of this method be moved to EntityClass, so the 
-        // persistence layer doesn't know anything about the Model? (helps avoid circular 
+        // idea: should the remainder of this method be moved to EntityClass, so the
+        // persistence layer doesn't know anything about the Model? (helps avoid circular
         // dependencies; is a cleaner design?; see similar comment in get_entities_generic.)
         for result in early_results.iter() {
             // Only one of these values should be of "None" type. If more are it's a bug:
@@ -5088,7 +4778,8 @@ impl Database for PostgreSQLDatabase {
             //let id = result[0].clone().unwrap().as_bigint()?;
             let name = Util::get_value_string("result[1]", &result[1])?;
             let defining_entity_id = Util::get_value_bigint("result[2]", &result[2])?;
-            let create_default_attributes: Option<bool> = Util::get_value_bool_option("result[3]", &result[3])?;
+            let create_default_attributes: Option<bool> =
+                Util::get_value_bool_option("result[3]", &result[3])?;
             let entity_class = EntityClass::new(
                 db.clone(), //Rc::new(self as dyn Database),
                 id,
@@ -5541,14 +5232,11 @@ impl Database for PostgreSQLDatabase {
     //     self.pool.%%?
     // }
 
-    fn get_or_create_class_and_template_entity<'a, 'b>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+    fn get_or_create_class_and_template_entity(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         class_name_in: &str,
-    ) -> Result<(i64, i64), anyhow::Error>
-    where
-        'a: 'b,
-    {
+    ) -> Result<(i64, i64), anyhow::Error> {
         //(%%see note above re 'bad smell' in method add_uri_entity_with_uri_attribute.)
         //(or places that have "unfortunately" and copy/pasted code?)
         //rollbacketc%%FIX NEXT LINE AFTERI SEE HOW OTHERS DO!
@@ -5676,7 +5364,10 @@ impl Database for PostgreSQLDatabase {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<String, anyhow::Error> {
         let all = self.get_local_om_instance_data(transaction)?;
-        let all = format!("omInstance: id: {}, address: {}, insertion_date: {}, entity_id: {:?}", all.0, all.2, all.3, all.4);
+        let all = format!(
+            "omInstance: id: {}, address: {}, insertion_date: {}, entity_id: {:?}",
+            all.0, all.2, all.3, all.4
+        );
         Ok(all)
     }
 
@@ -5795,9 +5486,9 @@ impl Database for PostgreSQLDatabase {
         self.db_action(transaction, sql.as_str(), false, false)
     }
 
-    fn delete_om_instance<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn delete_om_instance(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: &str,
     ) -> Result<u64, anyhow::Error> {
         self.delete_object_by_id2(transaction, "omInstance", id_in)
@@ -5822,7 +5513,7 @@ impl Database for PostgreSQLDatabase {
     /// when a given attribute (or all) is not found in the sorting table.
     fn get_sorted_attributes(
         &self,
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
         starting_object_index_in: usize, // = 0
@@ -5972,7 +5663,11 @@ impl Database for PostgreSQLDatabase {
 
             let results: Vec<Vec<Option<DataType>>> =
                 self.db_query(transaction.clone(), &sql, &types_by_table[table_list_index])?;
-            debug!("In get_sorted_attributes, {} results for sql: {}", results.len(), sql); 
+            debug!(
+                "In get_sorted_attributes, {} results for sql: {}",
+                results.len(),
+                sql
+            );
 
             for result in results {
                 // Skip past those that are outside the range to retrieve
@@ -6095,34 +5790,34 @@ impl Database for PostgreSQLDatabase {
                 } else if table_name == Util::RELATION_TO_REMOTE_ENTITY_TYPE {
                     unimplemented!(); //%%needs the RTRE to be converted w/ a new().
                                       //%%when adding it, also add a test for it (fail then pass!)
-                                      //to pg db_tests.rs fn get_sorted_attributes_returns_them_all_and_correctly() 
-                    //let sorting_index = Util::get_value_bigint_option("result[1]", &result[1])?;
-                    //all_results.push((
-                    //    sorting_index,
-                    //    Rc::new(RelationToRemoteEntity::new(
-                    //        db.clone(),
-                    //        Util::get_value_bigint("result[1]", &result[1])?,
-                    //        Util::get_value_bigint("result[2]", &result[2])?,
-                    //        Util::get_value_bigint("result[3]", &result[3])?,
-                    //        Util::get_value_string("result[4]", &result[4])?,
-                    //        Util::get_value_bigint("result[5]", &result[5])?,
-                    //        Util::get_value_bigint_option("result[6]", &result[6])?,
-                    //        Util::get_value_bigint("result[7]", &result[7])?,
-                    //        Util::get_value_bigint("result[0]", &result[0])?,
-                    //        //result[1].clone().unwrap().as_bigint()?,
-                    //        //result[2].clone().unwrap().as_bigint()?,
-                    //        //result[3].clone().unwrap().as_bigint()?,
-                    //        //result[4].clone().unwrap().as_string()?,
-                    //        //result[5].clone().unwrap().as_bigint()?,
-                    //        //if result[6].is_none() {
-                    //        //    None
-                    //        //} else {
-                    //        //    Some(result[6].clone().unwrap().as_bigint()?)
-                    //        //},
-                    //        //result[7].clone().unwrap().as_bigint()?,
-                    //        //result[0].clone().unwrap().as_bigint()?,
-                    //    )),
-                    //));
+                                      //to pg db_tests.rs fn get_sorted_attributes_returns_them_all_and_correctly()
+                                      //let sorting_index = Util::get_value_bigint_option("result[1]", &result[1])?;
+                                      //all_results.push((
+                                      //    sorting_index,
+                                      //    Rc::new(RelationToRemoteEntity::new(
+                                      //        db.clone(),
+                                      //        Util::get_value_bigint("result[1]", &result[1])?,
+                                      //        Util::get_value_bigint("result[2]", &result[2])?,
+                                      //        Util::get_value_bigint("result[3]", &result[3])?,
+                                      //        Util::get_value_string("result[4]", &result[4])?,
+                                      //        Util::get_value_bigint("result[5]", &result[5])?,
+                                      //        Util::get_value_bigint_option("result[6]", &result[6])?,
+                                      //        Util::get_value_bigint("result[7]", &result[7])?,
+                                      //        Util::get_value_bigint("result[0]", &result[0])?,
+                                      //        //result[1].clone().unwrap().as_bigint()?,
+                                      //        //result[2].clone().unwrap().as_bigint()?,
+                                      //        //result[3].clone().unwrap().as_bigint()?,
+                                      //        //result[4].clone().unwrap().as_string()?,
+                                      //        //result[5].clone().unwrap().as_bigint()?,
+                                      //        //if result[6].is_none() {
+                                      //        //    None
+                                      //        //} else {
+                                      //        //    Some(result[6].clone().unwrap().as_bigint()?)
+                                      //        //},
+                                      //        //result[7].clone().unwrap().as_bigint()?,
+                                      //        //result[0].clone().unwrap().as_bigint()?,
+                                      //    )),
+                                      //));
                 } else {
                     return Err(anyhow::anyhow!("invalid table type?: '{}'", table_name));
                 }
@@ -6141,7 +5836,10 @@ impl Database for PostgreSQLDatabase {
             // }
             table_list_index += 1;
         }
-        debug!("In get_sorted_attributes, all_results.len(): {}", all_results.len());
+        debug!(
+            "In get_sorted_attributes, all_results.len(): {}",
+            all_results.len()
+        );
 
         let mut all_results_array: Vec<(i64, Rc<dyn Attribute>)> =
             Vec::with_capacity(all_results.len());
@@ -6153,25 +5851,24 @@ impl Database for PostgreSQLDatabase {
 
         // Sort by the first element of the tuple which is the sorting_index
         all_results_array.sort_by_key(|a| a.0);
-        debug!("In get_sorted_attributes, all_results_array.len(): {}", all_results_array.len());
+        debug!(
+            "In get_sorted_attributes, all_results_array.len(): {}",
+            all_results_array.len()
+        );
 
-        let num_vals = if max_vals_in > 0 { 
-            max_vals_in 
-        } else { 
-            all_results_array.len() 
+        let num_vals = if max_vals_in > 0 {
+            max_vals_in
+        } else {
+            all_results_array.len()
         };
         let until = std::cmp::min(starting_object_index_in + num_vals, all_results_array.len());
         let mut return_attrs: Vec<(i64, Rc<dyn Attribute>)> = Vec::new();
         for (sorting_index, attr) in all_results_array[starting_object_index_in..until].iter() {
             return_attrs.push((*sorting_index, attr.clone()));
-        };
+        }
         debug!("In get_sorted_attributes, return_attrs.len(): {}, starting_object_index_in={}, max_vals_in={}, 
             until={}", 
             return_attrs.len(), starting_object_index_in, max_vals_in, until);
-        Ok((
-            return_attrs,
-            all_results_array.len(),
-        ))
+        Ok((return_attrs, all_results_array.len()))
     }
-
 }

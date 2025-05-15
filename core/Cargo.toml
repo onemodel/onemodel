@@ -9,7 +9,7 @@ edition = "2021"
 # next line added ~1.5MB to the debug binary. See related notes mentioning "Cargo.toml" in util.rs .
 console = "0.15.1"
 # next line added ~4.xMB to the debug binary
-rustyline = "10.1.1"    #alternative?:  reedline = "0.11.0"
+rustyline = "15.0.0"    #alternative?:  reedline = "0.11.0"
 # next lines added 62MB to the binary (from 6.9MB to 69MB, debug version)
 sqlx = { version = "0.6.3", features = [ "runtime-tokio-rustls", "postgres", "uuid" ] }
 #wont compile w/ next line: let...else statements are unstable or some such.
@@ -18,13 +18,14 @@ sqlx = { version = "0.6.3", features = [ "runtime-tokio-rustls", "postgres", "uu
 tokio = { version = "1", features = ["full"] }
 # next line added 9MB or 15MB to the debug binary (from 69MB to 78MB or 84MB; 4.1MB release, 2.7MB stripped!)
 futures = "0.3.25"
-# next lines added %% to the debug binary (from 84MB to %%)
+# next lines added ? to the debug binary (from 84MB to ?)
 chrono = "0.4.4"
 randlib = "0.2.0"
 tracing = "0.1.37"
 tracing-subscriber = "0.3.17"
 md-5 = "0.10.6"
 base16ct = "0.2.0"
+termion = "4.0.5"
 [dependencies.anyhow]
 version = "1.0.71"
 features = ["backtrace"]
@@ -35,6 +36,8 @@ features = [
     #"fast-rng",          # Use a faster (but still sufficiently random) RNG
     #"macro-diagnostics", # Enable better diagnostics for compile-time UUIDs
 ]
+# after above lines added, the debug binary is 76MB, and release is 6MB (4.8 stripped):
+#%%CONT HERE:
 [dev-dependencies]
 # (faux had fewer dependencies and still many users, compared to mockall. Could see others? I
 # got these ideas from https://blog.logrocket.com/mocking-rust-mockall-alternatives/ .)
@@ -43,6 +46,9 @@ features = [
 # mockall = "0.13.1"
 # mry = "0.10.0"
 # unimock = "0.6.7"
+
+[profile.release]
+overflow-checks = true
 
 #not yet supported here, in rustc 1.72.1.  See main.rs "...elided..." instead:
 #[lints.rust]

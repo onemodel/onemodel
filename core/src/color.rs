@@ -73,4 +73,12 @@ impl Color {
             format!("{}{}{}", Self::ANSI_YELLOW, s, Self::ANSI_RESET)
         }
     }
+
+    pub fn reset() -> String {
+        if Util::is_windows() {
+            "".to_string()
+        } else {
+            format!("{}", Self::ANSI_RESET)
+        }
+    }
 }

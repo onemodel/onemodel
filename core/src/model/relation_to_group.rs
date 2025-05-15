@@ -34,7 +34,7 @@ pub struct RelationToGroup {
     // For descriptions of the meanings of these variables, see the comments
     // on create_quantity_attribute(...) or create_tables() in PostgreSQLDatabase or Database structs,
     // and/or examples in the database testing code.
-    db: Rc<dyn Database>,
+    db: Rc<RefCell<dyn Database>>,
     id: i64,
     entity_id: i64,
     // Unlike most other things that implement Attribute, rel_type_id takes the place of attr_type_id in this, since
@@ -54,7 +54,7 @@ impl RelationToGroup {
     /// one that already exists.  It does not confirm that the id exists in the db.
     /// See comment about these 2 dates in PostgreSQLDatabase.create_tables()
     pub fn new(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         id: i64,
         entity_id: i64,
         rel_type_id: i64,
@@ -78,7 +78,7 @@ impl RelationToGroup {
     }
 
     pub fn new2(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
         entity_id: i64,
@@ -90,8 +90,8 @@ impl RelationToGroup {
         // something else might be cleaner, but these are the same thing and we need to make sure that (what was
         // in the scala code) the superclass' let mut doesn't overwrite this w/ 0:
         // } else {
-        if !db.is_remote()
-            && !db.relation_to_group_keys_exist_and_match(
+        if !db.borrow().is_remote()
+            && !db.borrow().relation_to_group_keys_exist_and_match(
                 transaction,
                 id,
                 entity_id,
@@ -129,12 +129,12 @@ impl RelationToGroup {
     // new constructors just wasn't working out (in scala code when I originally wrote this comment, anyway?).
     ///See comments on fn new, here.
     pub fn new3(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
     ) -> Result<RelationToGroup, anyhow::Error> {
         let relation_data: Vec<Option<DataType>> =
-            db.get_relation_to_group_data(transaction, id_in)?;
+            db.borrow().get_relation_to_group_data(transaction, id_in)?;
         if relation_data.len() == 0 {
             return Err(anyhow!(
                 "No results returned from data request for: {}",
@@ -202,7 +202,7 @@ impl RelationToGroup {
         new_containing_entity_id_in: i64,
         sorting_index_in: i64,
     ) -> Result<i64, anyhow::Error> {
-        self.db
+        self.db.borrow()
             .move_relation_to_group(self.get_id(), new_containing_entity_id_in, sorting_index_in)
     }
 
@@ -232,7 +232,7 @@ impl RelationToGroup {
             Some(x) => x,
             None => self.get_observation_date(transaction.clone())?,
         };
-        let rows_affected = self.db.update_relation_to_group(
+        let rows_affected = self.db.borrow().update_relation_to_group(
             transaction,
             self.entity_id,
             self.rel_type_id,
@@ -255,7 +255,7 @@ impl RelationToGroup {
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
-        self.db
+        self.db.borrow()
             .delete_group_and_relations_to_it(transaction, self.group_id)
     }
 }
@@ -297,7 +297,7 @@ impl Attribute for RelationToGroup {
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
-        let data: Vec<Option<DataType>> = self.db.get_relation_to_group_data_by_keys(
+        let data: Vec<Option<DataType>> = self.db.borrow().get_relation_to_group_data_by_keys(
             transaction,
             self.entity_id,
             self.rel_type_id,
@@ -353,7 +353,7 @@ impl Attribute for RelationToGroup {
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
     ) -> Result<u64, anyhow::Error> {
-        self.db.delete_relation_to_group(
+        self.db.borrow().delete_relation_to_group(
             transaction,
             self.entity_id,
             self.rel_type_id,
@@ -368,7 +368,7 @@ impl Attribute for RelationToGroup {
     }
 
     fn get_form_id(&self) -> Result<i32, Error> {
-        self.db.get_attribute_form_id(Util::RELATION_TO_GROUP_TYPE)
+        self.db.borrow().get_attribute_form_id(Util::RELATION_TO_GROUP_TYPE)
     }
 
     fn get_attr_type_id(
@@ -528,7 +528,7 @@ mod test {
     #[test]
     fn rtg_get_display_string_returns_correct_string_and_length() {
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<PostgreSQLDatabase>>= Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         //using None instead of transactions to avoid some complexities not important for a test.
         //let tx = db.begin_trans().unwrap();
         //let tx: Option<Rc<RefCell<Transaction<Postgres>>>> = Some(Rc::new(RefCell::new(tx)));
@@ -563,7 +563,7 @@ mod test {
         let entity = Entity::create_entity(db.clone(), None, "entity1", None, None).unwrap();
         let entity2 = Entity::create_entity(db.clone(), None, "entity2", None, None).unwrap();
         let entity3 = Entity::create_entity(db.clone(), None, "entity3", None, None).unwrap();
-        let rel_type_id = db
+        let rel_type_id = db.borrow()
             .create_relation_type(
                 None,
                 &relation_type_name,
@@ -571,8 +571,8 @@ mod test {
                 RelationType::UNIDIRECTIONAL,
             )
             .unwrap();
-        let group_id = db.create_group(None, &grp_name, true).unwrap();
-        let (rtg_id, _sorting_index) = db
+        let group_id = db.borrow().create_group(None, &grp_name, true).unwrap();
+        let (rtg_id, _sorting_index) = db.borrow()
             .create_relation_to_group(
                 None,
                 entity.get_id(),
@@ -681,7 +681,7 @@ mod test {
 
         //group.add_entity(None, entity2.get_id(), None).unwrap();
         let class_name = "someClassName";
-        let (class_id, _class_template_entity_id) = db
+        let (class_id, _class_template_entity_id) = db.borrow()
             .create_class_and_its_template_entity(None, class_name)
             .unwrap();
         let entity4 =

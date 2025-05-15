@@ -540,7 +540,7 @@ impl PostgreSQLDatabase {
     pub fn new(
         username: &str,
         password: &str,
-    ) -> Result<Rc<dyn Database>, anyhow::Error> {
+    ) -> Result<Rc<RefCell<dyn Database>>, anyhow::Error> {
         let include_archived_entities = false;
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
@@ -559,7 +559,7 @@ impl PostgreSQLDatabase {
             include_archived_entities,
         };
         new_db.setup_db()?;
-        Ok(Rc::new(new_db))
+        Ok(Rc::new(RefCell::new(new_db)))
     }
 
     //Idea: why does having this here instead inline in new() (above) cause
@@ -598,9 +598,9 @@ impl PostgreSQLDatabase {
 
     /// For newly-assumed data in existing systems.  I.e., not a database schema change, and was added to the system (probably expected by the code somewhere),
     /// after an OM release was done.  This puts it into existing databases if needed.
-    fn create_and_check_expected_data<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn create_and_check_expected_data(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
         debug!("starting fn create_and_check_expected_data");
         //Idea: should this really be in the Controller then?  It wouldn't differ by which database type we are using.  Hmm, no, if there were multiple
@@ -1531,9 +1531,9 @@ impl PostgreSQLDatabase {
     }
 
     /// Creates data that must exist in a base system, and which is not re-created in an existing system.  If this data is deleted, the system might not work.
-    fn create_base_data<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn create_base_data(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
         // idea: what tests are best, around this, vs. simply being careful in upgrade scripts?
         let ids: Vec<i64> = self.find_entity_only_ids_by_name(
@@ -1726,40 +1726,27 @@ impl PostgreSQLDatabase {
     }
 
     /// Returns the class_id and entity_id, in a tuple. 
-    pub fn create_class_and_its_template_entity2<'a, 'b>(
-        &'a self,
-        transaction_in: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+    pub fn create_class_and_its_template_entity2(
+        &self,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         class_name_in: String,
         entity_name_in: String,
         // (See fn delete_objects for more about this parameter, and transaction above.)
-    ) -> Result<(i64, i64), anyhow::Error> 
-    where
-        'a: 'b
-    {
-        //%%can I further simplify this and similar places now?  Maybe using Cow from stdlib?
-        /*%%For the duplicated code & comments just below, would ideas from these help?:
-            The weird of function-local types in Rust
-            https://elastio.github.io/bon/blog/the-weird-of-function-local-types-in-rust
-            https://news.ycombinator.com/item?id=41272893
-        */
-        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
-        // Try creating a local transaction whether we use it or not, to handle compiler errors
-        // about variable moves. I'm not seeing a better way to get around them by just using
-        // conditions and an Option (many errors):
-        // (I tried putting this in a function, then a macro, but it gets compile errors.
-        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
-        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
-        // I didn't try a proc macro but based on some reading I think it would have the same
-        // problem.)
-        let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if transaction_in.clone().is_some() {
-            transaction_in.clone()
-        } else {
-            local_tx_option
+    ) -> Result<(i64, i64), anyhow::Error> {
+        //KEEP SYNCHRONIZED ALL PLACES THAT USED TO HAVE A COPY/PASTED/DUPLICATED BLOCK HERE as they are
+        //still similar to each other (marked by this comment):
+        if transaction_in.is_none() {
+            let local_tx: Transaction<Postgres> = self.begin_trans()?;
+            let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+            // see comments in delete_objects about rollback (if next line returns due to error)
+            let id = self.create_class_and_its_template_entity2(
+                local_tx_option.clone(),
+                class_name_in,
+                entity_name_in,
+            )?;
+            self.commit_local_trans(local_tx_option)?;
+            return Ok(id);
         };
-        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
-
         // The name doesn't have to be the same on the entity and the template class, but why not for now.
         let class_name: String = Self::escape_quotes_etc(class_name_in);
         let entity_name: String = Self::escape_quotes_etc(entity_name_in);
@@ -1775,13 +1762,13 @@ impl PostgreSQLDatabase {
                     .to_string()
             ));
         }
-        let class_id: i64 = self.get_new_key(transaction.clone(), "ClassKeySequence")?;
-        let entity_id: i64 = self.get_new_key(transaction.clone(), "EntityKeySequence")?;
+        let class_id: i64 = self.get_new_key(transaction_in.clone(), "ClassKeySequence")?;
+        let entity_id: i64 = self.get_new_key(transaction_in.clone(), "EntityKeySequence")?;
         // Start the entity w/ a NULL class_id so that it can be inserted w/o the class present, then update it afterward; constraints complain otherwise.
         // Idea: instead of doing in 3 steps, could specify 'deferred' on the 'not null'
         // constraint?: (see file:///usr/share/doc/postgresql-doc-9.1/html/sql-createtable.html).
         self.db_action(
-            transaction.clone(),
+            transaction_in.clone(),
             format!(
                 "INSERT INTO Entity (id, insertion_date, name, class_id) VALUES ({},{},'{}', NULL)",
                 entity_id,
@@ -1793,7 +1780,7 @@ impl PostgreSQLDatabase {
             false,
         )?;
         self.db_action(
-            transaction.clone(),
+            transaction_in.clone(),
             format!(
                 "INSERT INTO Class (id, name, defining_entity_id) VALUES ({},'{}', {})",
                 class_id, class_name, entity_id
@@ -1803,7 +1790,7 @@ impl PostgreSQLDatabase {
             false,
         )?;
         self.db_action(
-            transaction.clone(),
+            transaction_in.clone(),
             format!(
                 "update Entity set (class_id) = ROW({}) where id={}",
                 class_id, entity_id
@@ -1813,35 +1800,15 @@ impl PostgreSQLDatabase {
             false,
         )?;
         let class_group_id: Option<i64> =
-            self.get_system_entitys_class_group_id(transaction.clone())?;
+            self.get_system_entitys_class_group_id(transaction_in.clone())?;
         if class_group_id.is_some() {
             self.add_entity_to_group(
-                transaction.clone(),
+                transaction_in.clone(),
                 class_group_id.unwrap(),
                 entity_id,
                 None,
             )?;
         }
-
-        //%%put this & similar places into a function like self.commit_or_err(tx)?;   ?  If so, include the rollback cmt from just above?
-        if transaction_in.is_none() && transaction.is_some() {
-            // see comments at similar location in delete_objects about local_tx
-            // see comments in delete_objects about rollback
-            let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
-                Rc::into_inner(transaction.unwrap());
-            match local_tx_cell {
-                Some(t) => {
-                    let unwrapped_local_tx = t.into_inner();
-                    if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                        return Err(anyhow!(e.to_string()));
-                    }
-                }
-                None => {
-                    return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                }
-            };
-        }
-
         Ok((class_id, entity_id))
     }
 

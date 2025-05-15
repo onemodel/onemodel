@@ -27,6 +27,7 @@ use chrono::prelude::*;
 use chrono::{DateTime, Local, NaiveDateTime, TimeZone, Utc};
 // use futures::stream_select;
 // use sqlx::PgPool;
+use std::cell::RefCell;
 use std::rc::Rc;
 use std::string::ToString;
 //ordered by decreasing verbosity:
@@ -1267,7 +1268,7 @@ impl Util {
     //%%do any callers of this have a transaction? If so, does it make sense to pass that into here so
     //it can pass it into the below call to "let new_same_entity = match Entity::new2(...)"?
     fn find_entity_to_highlight_next(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         object_set_size: usize,
         objects_to_display_in: Vec<Entity>,
         removed_one_in: bool,

@@ -34,7 +34,7 @@ pub struct RelationToLocalEntity {
     // For descriptions of the meanings of these variables, see the comments
     // on create_boolean_attribute(...) or create_tables() in PostgreSQLDatabase or Database structs,
     // and/or examples in the database testing code.
-    db: Rc<dyn Database>,
+    db: Rc<RefCell<dyn Database>>,
     id: i64,
     // Unlike most other things that implement Attribute, rel_type_id takes the place of attr_type_id in this, since
     // unlike in the scala code self does not extend Attribute and inherit attr_type_id.
@@ -53,7 +53,7 @@ impl RelationToLocalEntity {
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent
     /// object--but rather should reflect one that already exists.
     pub fn new(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         id: i64,
         rel_type_id: i64,
         entity_id1: i64,
@@ -83,7 +83,7 @@ impl RelationToLocalEntity {
     /// This constructor instantiates an existing object from the DB and is rarely needed.
     /// You can use Entity.addRelationTo[Local|Remote]Entity() to create a new persistent record.
     pub fn new2(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
         rel_type_id: i64,
@@ -93,8 +93,8 @@ impl RelationToLocalEntity {
         // Even a RelationToRemoteEntity can have db.is_remote == true, if it
         // is viewing data *in* a remote OM instance looking at RTLEs that are remote to that remote instance.
         // See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.
-        if !db.is_remote()
-            && !db.relation_to_local_entity_keys_exist_and_match(
+        if !db.borrow().is_remote()
+            && !db.borrow().relation_to_local_entity_keys_exist_and_match(
                 transaction,
                 id,
                 rel_type_id,
@@ -130,7 +130,7 @@ impl RelationToLocalEntity {
     /// by the Entity constructor.  Or for convenience in tests.
     /// Was called "get_relation_to_local_entity" but that was harder to remember.
     pub fn new3<'a, 'b>(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         id: i64,
     ) -> Result<Option<RelationToLocalEntity>, anyhow::Error> 
@@ -138,7 +138,7 @@ impl RelationToLocalEntity {
         'a: 'b
     {
         let result: Vec<Option<DataType>> =
-            db.get_relation_to_local_entity_data_by_id(transaction.clone(), id)?;
+            db.borrow().get_relation_to_local_entity_data_by_id(transaction.clone(), id)?;
         let Some(DataType::Bigint(rel_type_id)) = result[0] else {
             return Err(anyhow!("Unexpected result: {:?}", result));
         };
@@ -167,7 +167,7 @@ impl RelationToLocalEntity {
         to_local_containing_entity_id_in: i64,
         sorting_index_in: i64,
     ) -> Result<(i64, i64), anyhow::Error> {
-        self.db.move_relation_to_local_entity_into_local_entity(
+        self.db.borrow().move_relation_to_local_entity_into_local_entity(
             self.get_id(),
             to_local_containing_entity_id_in,
             sorting_index_in,
@@ -179,7 +179,7 @@ impl RelationToLocalEntity {
         target_group_id_in: i64,
         sorting_index_in: i64,
     ) -> Result<(), anyhow::Error> {
-        self.db.clone().move_local_entity_from_local_entity_to_group(
+        self.db.clone().borrow().move_local_entity_from_local_entity_to_group(
             self,
             target_group_id_in,
             sorting_index_in,
@@ -209,7 +209,7 @@ impl RelationToLocalEntity {
         } else {
             self.get_observation_date(transaction.clone())?
         };
-        self.db.update_relation_to_local_entity(
+        self.db.borrow().update_relation_to_local_entity(
             transaction,
             self.rel_type_id,
             self.entity_id1,
@@ -267,7 +267,7 @@ impl Attribute for RelationToLocalEntity {
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
     ) -> Result<u64, anyhow::Error> {
-        self.db.delete_relation_to_local_entity(
+        self.db.borrow().delete_relation_to_local_entity(
             transaction,
             self.rel_type_id,
             self.entity_id1,
@@ -279,7 +279,7 @@ impl Attribute for RelationToLocalEntity {
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
-        let data: Vec<Option<DataType>> = self.db.get_relation_to_local_entity_data(
+        let data: Vec<Option<DataType>> = self.db.borrow().get_relation_to_local_entity_data(
             transaction,
             self.rel_type_id,
             self.entity_id1,
@@ -424,7 +424,7 @@ impl Attribute for RelationToLocalEntity {
     }
 
     fn get_form_id(&self) -> Result<i32, anyhow::Error> {
-        self.db
+        self.db.borrow()
             .get_attribute_form_id(Util::RELATION_TO_LOCAL_ENTITY_TYPE)
     }
 

@@ -125,38 +125,36 @@ impl PostgreSQLDatabase {
     }
 
     // Cloned to archive_objects: CONSIDER UPDATING BOTH if updating one.  Returns the # of rows deleted.
-    /// Unless the parameter rows_expected==-1, it will allow any # of rows to be deleted; otherwise if the # of rows is wrong it will abort tran & fail.
-    pub fn delete_objects<'a>(
-        &'a self,
+    /// Unless the parameter rows_expected==-1, it will allow any # of rows to be deleted; 
+    /// otherwise if the # of rows is wrong it will abort tran & fail.
+    pub fn delete_objects(
+        &self,
         // The purpose of transaction_in is so that whenever a direct db call needs to be done in a
         // transaction, as opposed to just using the pool as Executor, it will be available.
         // And (it being None vs. Some) for those times when this method does not know the
         // context in which it will be called: whether it should rollback itself on error
         // (automatically by creating a transaction and letting it go out of scope), or should allow
         // the caller only to manage that.
-        transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         table_name_in: &str,
         where_clause_in: &str,
         rows_expected: u64, /*= 1*/
     ) -> Result<u64, anyhow::Error> {
-        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
-        // Try creating a local transaction whether we use it or not, to handle compiler errors
-        // about variable moves. I'm not seeing a better way to get around them by just using
-        // conditions and an Option (many errors):
-        // (I tried putting this in a function, then a macro, but it gets compile errors.
-        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
-        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
-        // I didn't try a proc macro but based on some reading I think it would have the same
-        // problem.)
-        let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if transaction_in.clone().is_some() {
-            transaction_in.clone()
-        } else {
-            local_tx_option
+        //KEEP SYNCHRONIZED ALL PLACES THAT USED TO HAVE A COPY/PASTED/DUPLICATED BLOCK HERE as they are
+        //still similar to each other (marked by this comment):
+        if transaction_in.is_none() {
+            let local_tx: Transaction<Postgres> = self.begin_trans()?;
+            let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+            // see comments in delete_objects about rollback (if next line returns due to error)
+            let id = self.delete_objects(
+                local_tx_option.clone(),
+                table_name_in,
+                where_clause_in,
+                rows_expected,
+            )?;
+            self.commit_local_trans(local_tx_option)?;
+            return Ok(id);
         };
-        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
-
         //idea: enhance this to also check & return the # of rows deleted, to the caller to just make sure? If so would have to let caller handle transactions.
         let sql = format!("DELETE FROM {} {}", table_name_in, where_clause_in);
 
@@ -166,7 +164,7 @@ impl PostgreSQLDatabase {
             //     Some(mut tx) => &Some(&mut tx),
             //     None => transaction_in,
             // },
-            transaction.clone(),
+            transaction_in.clone(),
             sql.as_str(),
             /*caller_checks_row_count_etc =*/ true,
             false,
@@ -184,38 +182,17 @@ impl PostgreSQLDatabase {
                 sql
             ));
         } else {
-            //%%put this & similar places into a function like self.commit_or_err(tx)?;   ?  If so, include the rollback cmt from just above?
-            if transaction_in.is_none() && transaction.is_some() {
-                // Using local_tx to make the compiler happy and because it is the one we need,
-                // Ie, there is no transaction provided by the caller.
-                let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
-                    Rc::into_inner(transaction.unwrap());
-                match local_tx_cell {
-                    Some(t) => {
-                        let unwrapped_local_tx = t.into_inner();
-                        if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                            return Err(anyhow!(e.to_string()));
-                        }
-                    }
-                    None => {
-                        return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                    }
-                }
-            }
             Ok(rows_deleted)
         }
     }
 
-    pub fn get_user_preference2<'a, 'b>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+    pub fn get_user_preference2(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         preferences_container_id_in: i64,
         preference_name_in: &str,
         preference_type: &str,
-    ) -> Result<Vec<DataType>, anyhow::Error>
-    where
-        'a: 'b,
-    {
+    ) -> Result<Vec<DataType>, anyhow::Error> {
         // (Passing a smaller numeric parameter to find_contained_local_entity_ids for levels_remainingIn, so that in the (very rare) case where one does not
         // have a default entity set at the *top* level of the preferences under the system entity, and there are links there to entities with many links
         // to others, then it still won't take too long to traverse them all at startup when searching for the default entity.  But still allowing for
@@ -563,9 +540,9 @@ impl PostgreSQLDatabase {
     // This isn't really recursive and I don't immediately remember why.  Maybe it didn't make sense
     // or I was going to do it later.  It could use more thought.  Like how does that relate to
     // "deletions2" if at all.
-    pub fn delete_relation_to_group_and_all_recursively<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    pub fn delete_relation_to_group_and_all_recursively(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         group_id_in: i64,
     ) -> Result<(u64, u64), anyhow::Error> {
         let entity_ids: Vec<Vec<Option<DataType>>> = self.db_query(
@@ -786,8 +763,7 @@ impl PostgreSQLDatabase {
     /// This takes a db parameter for the same reasons as in the comment on fn get_entities_generic.
     pub fn add_new_entity_to_results(
         &self,
-        db: Rc<dyn Database>,
-        //transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
+        db: Rc<RefCell<dyn Database>>,
         final_results: &mut Vec<Entity>,
         intermediate_result_in: &Vec<Option<DataType>>,
     ) -> Result<(), anyhow::Error> {
@@ -1021,7 +997,7 @@ impl PostgreSQLDatabase {
     // making changes?
     pub fn get_entities_generic(
         &self,
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_object_index_in: i64,
         max_vals_in: Option<i64>,
@@ -1244,9 +1220,9 @@ impl PostgreSQLDatabase {
 
     /// Cloned from delete_objects: CONSIDER UPDATING BOTH if updating one.
     /// Returns the # of rows affected (archived or un-archived).
-    pub fn archive_objects<'a>(
-        &'a self,
-        transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    pub fn archive_objects(
+        &self,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         table_name_in: &str,
         where_clause_in: &str,
         rows_expected: u64, /*= 1*/
@@ -1254,23 +1230,22 @@ impl PostgreSQLDatabase {
     ) -> Result<u64, anyhow::Error> {
         //idea: enhance this to also check & return the # of rows deleted, to the caller to just make sure? If so would have to let caller handle transactions.
 
-        //BEGIN COPY/PASTED/DUPLICATED BLOCK-----------------------------------
-        // Try creating a local transaction whether we use it or not, to handle compiler errors
-        // about variable moves. I'm not seeing a better way to get around them by just using
-        // conditions and an Option (many errors):
-        // (I tried putting this in a function, then a macro, but it gets compile errors.
-        // So, copy/pasting this, unfortunately, until someone thinks of a better way. (You
-        // can see the macro, and one of the compile errors, in the commit of 2023-05-18.
-        // I didn't try a proc macro but based on some reading I think it would have the same
-        // problem.)
-        let local_tx: Transaction<Postgres> = self.begin_trans()?;
-        let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
-        let transaction = if transaction_in.clone().is_some() {
-            transaction_in.clone()
-        } else {
-            local_tx_option
+        //KEEP SYNCHRONIZED ALL PLACES THAT USED TO HAVE A COPY/PASTED/DUPLICATED BLOCK HERE as they are
+        //still similar to each other (marked by this comment):
+        if transaction_in.is_none() {
+            let local_tx: Transaction<Postgres> = self.begin_trans()?;
+            let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
+            // see comments in delete_objects about rollback (if next line returns due to error)
+            let id = self.archive_objects(
+                local_tx_option.clone(),
+                table_name_in,
+                where_clause_in,
+                rows_expected,
+                unarchive,
+            )?;
+            self.commit_local_trans(local_tx_option)?;
+            return Ok(id);
         };
-        //END OF COPY/PASTED/DUPLICATED BLOCK----------------------------------
 
         let archive = if unarchive { "false" } else { "true" };
         let archived_date = if unarchive {
@@ -1282,7 +1257,7 @@ impl PostgreSQLDatabase {
             "update {} set (archived, archived_date) = ({}, {}) {}",
             table_name_in, archive, archived_date, where_clause_in
         );
-        let rows_affected = self.db_action(transaction.clone(), sql.as_str(), true, false)?;
+        let rows_affected = self.db_action(transaction_in.clone(), sql.as_str(), true, false)?;
         if rows_expected > 0 && rows_affected != rows_expected {
             // No need to explicitly roll back a locally created transaction aka tx, though we
             // definitely don't want to archive an unexpected # of rows,
@@ -1293,31 +1268,13 @@ impl PostgreSQLDatabase {
                             Did not perform archive (or unarchive).  SQL is: \"{}\"",
                             rows_affected, rows_expected, sql)));
         } else {
-            //%%put this & similar places into a function like self.commit_or_err(tx)?;   ?  If so, include the rollback cmt from just above?
-            if transaction_in.is_none() && transaction.is_some() {
-                // see comments at similar location in delete_objects about local_tx
-                // see comments in delete_objects about rollback
-                let local_tx_cell: Option<RefCell<Transaction<Postgres>>> =
-                    Rc::into_inner(transaction.unwrap());
-                match local_tx_cell {
-                    Some(t) => {
-                        let unwrapped_local_tx = t.into_inner();
-                        if let Err(e) = self.commit_trans(unwrapped_local_tx) {
-                            return Err(anyhow!(e.to_string()));
-                        }
-                    }
-                    None => {
-                        return Err(anyhow!("Unexpectedly found None instead of Some<RefCell<Transaction<Postgres>>>. How?"));
-                    }
-                }
-            }
             Ok(rows_affected)
         }
     }
 
-    pub fn delete_object_by_id<'a>(
-        &'a self,
-        transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    pub fn delete_object_by_id(
+        &self,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         table_name_in: &str,
         id_in: i64,
     ) -> Result<u64, anyhow::Error> {
@@ -1329,9 +1286,9 @@ impl PostgreSQLDatabase {
         )
     }
 
-    pub fn delete_object_by_id2<'a>(
-        &'a self,
-        transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    pub fn delete_object_by_id2(
+        &self,
+        transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         table_name_in: &str,
         id_in: &str,
     ) -> Result<u64, anyhow::Error> {

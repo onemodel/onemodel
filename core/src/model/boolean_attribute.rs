@@ -28,7 +28,7 @@ pub struct BooleanAttribute {
     // For descriptions of the meanings of these variables, see the comments
     // on create_boolean_attribute(...) or create_tables() in PostgreSQLDatabase or Database structs,
     // and/or examples in the database testing code.
-    db: Rc<dyn Database>,
+    db: Rc<RefCell<dyn Database>>,
     id: i64,
     parent_id: i64,             /*= 0_i64*/
     attr_type_id: i64,          /*= 0_i64*/
@@ -45,7 +45,7 @@ impl BooleanAttribute {
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
     pub fn new(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         id: i64,
         parent_id: i64,
         attr_type_id: i64,
@@ -72,14 +72,14 @@ impl BooleanAttribute {
     /// when data is read, it reads the whole object from the DB). You can use Entity.add*Attribute() to
     /// create a new object.
     pub fn new2(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<BooleanAttribute, anyhow::Error> {
         // Not doing these checks if the object is at a remote site because doing it over REST would probably be too slow. Will
         // wait for an error later to see if there is a problem (ie, assuming usually not).
         // idea: And today having doubts about that.
-        if !db.is_remote() && !db.boolean_attribute_key_exists(transaction, id)? {
+        if !db.borrow().is_remote() && !db.borrow().boolean_attribute_key_exists(transaction, id)? {
             Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
         } else {
             Ok(BooleanAttribute {
@@ -116,7 +116,7 @@ impl BooleanAttribute {
     ) -> Result<(), anyhow::Error> {
         // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
         // it all goes with
-        self.db.clone().update_boolean_attribute(
+        self.db.clone().borrow().update_boolean_attribute(
             transaction.clone(),
             self.id,
             self.get_parent_id(transaction.clone())?,
@@ -145,7 +145,7 @@ impl Attribute for BooleanAttribute {
         simplify: bool,                 /* = false*/
     ) -> Result<String, anyhow::Error> {
         let attr_type_id = self.get_attr_type_id(None)?;
-        let type_name: String = match self.db.get_entity_name(None, attr_type_id)? {
+        let type_name: String = match self.db.borrow().get_entity_name(None, attr_type_id)? {
             None => "(None)".to_string(),
             Some(x) => x,
         };
@@ -171,7 +171,7 @@ impl Attribute for BooleanAttribute {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
         let data: Vec<Option<DataType>> =
-            self.db.get_boolean_attribute_data(transaction, self.id)?;
+            self.db.borrow().get_boolean_attribute_data(transaction, self.id)?;
         if data.len() == 0 {
             return Err(anyhow!(
                 "No results returned from data request for: {}",
@@ -224,11 +224,11 @@ impl Attribute for BooleanAttribute {
         Ok(())
     }
 
-    fn delete<'a>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+    fn delete(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<u64, anyhow::Error> {
-        self.db.delete_boolean_attribute(transaction, self.id)
+        self.db.borrow().delete_boolean_attribute(transaction, self.id)
     }
 
     // (Considered moving this to the Attribute trait with this signature:
@@ -249,7 +249,7 @@ impl Attribute for BooleanAttribute {
         // self.db.get_attribute_form_id(was in scala:  this.getClass.getSimpleName)
         //%%later: Since not using the reflection(?) from the line above, why not just return a constant
         //here?  What other places call the below method and its reverse? Do they matter now?
-        self.db.get_attribute_form_id(Util::BOOLEAN_TYPE)
+        self.db.borrow().get_attribute_form_id(Util::BOOLEAN_TYPE)
     }
 
     // fn assign_common_vars(parent_id_in: i64, attr_type_id_in: i64, sorting_index_in: i64) {
@@ -329,7 +329,7 @@ mod test {
         Util::initialize_tracing();
         // let mock_db = mock[PostgreSQLDatabase];
         //let mut mock_db = MockDatabase::new();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         //let tx = db.begin_trans().unwrap();
         //let tx = Some(Rc::new(RefCell::new(tx)));
         //let entity_id = 0;
@@ -355,7 +355,7 @@ mod test {
         //let mut boolean_attribute = BooleanAttribute::new(&db, boolean_attribute_id, entity_id,
         //                                                  other_entity_id, boolean_value, None, date, 0,
         //);
-        let bid = db
+        let bid = db.borrow()
             .create_boolean_attribute(
                 None, entity_id, //boolean_attribute_id,
                 entity_id, true, None, date, None,

@@ -22,7 +22,7 @@ use crate::model::entity::Entity;
 use sqlx::{Postgres, Transaction};
 use std::cell::RefCell;
 use std::rc::Rc;
-use tracing::*;
+//use tracing::*;
 
 //move this to some *relation* struct like RelationType?
 /// See comments on/in (Util or RelationType).ask_for_name_in_reverse_direction() and .ask_for_relation_directionality().
@@ -33,7 +33,7 @@ enum RelationDirectionality {
 }
 
 pub struct RelationType {
-    db: Rc<dyn Database>,
+    db: Rc<RefCell<dyn Database>>,
     entity_id: i64,
     name: String,
     /// For descriptions of the meanings of these variables, see the comments
@@ -53,7 +53,7 @@ impl RelationType {
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.
     pub fn new(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         entity_id: i64,
         name: String,
         name_in_reverse_direction: String,
@@ -73,12 +73,12 @@ impl RelationType {
     /// create a new object. Assumes caller just read it from the DB and the info is accurate (i.e., this may only
     /// ever need to be called by a Database instance?).
     pub fn new2(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<RelationType, anyhow::Error> {
         // (see comments at similar location in boolean_attribute.rs.)
-        if !db.is_remote() && !db.relation_type_key_exists(transaction, id)? {
+        if !db.borrow().is_remote() && !db.borrow().relation_type_key_exists(transaction, id)? {
             Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST))
         } else {
             Ok(RelationType {
@@ -161,7 +161,7 @@ impl RelationType {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
         let data: Vec<Option<DataType>> = self
-            .db
+            .db.borrow()
             .get_relation_type_data(transaction, self.entity_id)?;
         if data.len() == 0 {
             return Err(anyhow!(
@@ -200,7 +200,7 @@ impl RelationType {
             || name_in_reverse_direction_in != self.name_in_reverse_direction
             || directionality_in != self.directionality
         {
-            self.db.update_relation_type(
+            self.db.borrow().update_relation_type(
                 self.get_id(),
                 name_in,
                 name_in_reverse_direction_in,
@@ -218,7 +218,7 @@ impl RelationType {
         &'a mut self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
     ) -> Result<u64, anyhow::Error> {
-        self.db.delete_relation_type(transaction, self.entity_id)
+        self.db.borrow().delete_relation_type(transaction, self.entity_id)
     }
 
     pub fn get_id(&self) -> i64 {
