@@ -32,7 +32,7 @@ pub struct DateAttribute {
     // For descriptions of the meanings of these variables, see the comments
     // with create_date_attribute(...) or create_tables() in PostgreSQLDatabase or Database classes
     id: i64,
-    db: Rc<dyn Database>,
+    db: Rc<RefCell<dyn Database>>,
     date_value: i64,         /*= 0_i64*/
     already_read_data: bool, /*%%= false*/
     parent_id: i64,          /*%%= 0_i64*/
@@ -46,7 +46,7 @@ impl DateAttribute {
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
     pub fn new(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         id: i64,
         parent_id: i64,
         attr_type_id: i64,
@@ -67,7 +67,7 @@ impl DateAttribute {
     /// This constructor instantiates an existing object from the DB. You can use Entity.add*Attribute() to
     /// create a new object.
     pub fn new2(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<DateAttribute, anyhow::Error> {

@@ -30,7 +30,7 @@ pub struct TextAttribute {
     // on create_text_attribute(...) or create_tables() in PostgreSQLDatabase or Database structs,
     // and/or examples in the database testing code.
     id: i64,
-    db: Rc<dyn Database>,
+    db: Rc<RefCell<dyn Database>>,
     text: String,               /*%=null in scala.*/
     already_read_data: bool,    /*= false*/
     parent_id: i64,             /*= 0_i64*/
@@ -46,7 +46,7 @@ impl TextAttribute {
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
     pub fn new(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         id: i64,
         parent_id: i64,
         attr_type_id: i64,
@@ -72,7 +72,7 @@ impl TextAttribute {
     /// This constructor instantiates an existing object from the DB. You can use Entity.add*Attribute() to
     /// create a new object.
     pub fn new2(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<TextAttribute, anyhow::Error> {

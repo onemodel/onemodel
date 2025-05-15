@@ -56,19 +56,23 @@ impl std::fmt::Debug for dyn Database {
 
 pub trait Database {
     fn is_remote(&self) -> bool;
+
     fn id<'a>(
         &self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
     ) -> Result<String, anyhow::Error>;
+
     fn id_all<'a>(
         &self,
         transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
     ) -> Result<String, anyhow::Error>;
+
     // fn setup_db(&self) -> Result<(), String>;
 
     fn get_remote_address(&self) -> Option<String> {
         None
     }
+
     fn include_archived_entities(&self) -> bool;
     fn begin_trans(&self) -> Result<Transaction<Postgres>, anyhow::Error>;
     fn rollback_trans(&self, tx: Transaction<Postgres>) -> Result<(), anyhow::Error>;
@@ -356,6 +360,7 @@ pub trait Database {
     ) -> Result<i64, anyhow::Error>
     where
         'a: 'b;
+
     fn create_date_attribute<'a>(
         &'a self,
         transaction_in: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,

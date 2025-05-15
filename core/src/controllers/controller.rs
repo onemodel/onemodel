@@ -14,6 +14,7 @@ use crate::model::entity::Entity;
 use crate::model::postgres::postgresql_database::PostgreSQLDatabase;
 use crate::util::Util;
 use crate::TextUI;
+use std::cell::{RefCell, RefMut};
 use std::rc::Rc;
 
 /// This Controller is for user-interactive things.  The Controller class in the web module is for the REST API.  For shared code that does not fit
@@ -37,7 +38,7 @@ pub struct Controller {
     // NOTE: This should *not* be passed around as a parameter to everything, but rather those
     // places in the code should get the DB instance from the
     // entity (or other model object) being processed, to be sure the correct db instance is used.
-    db: Rc<dyn Database>,
+    db: Rc<RefCell<dyn Database>>,
     // putting this in a var instead of recalculating it every time (too frequent) inside find_default_display_entity_id:
     show_public_private_status_preference: Option<bool>,
     default_display_entity_id: Option<i64>,
@@ -66,17 +67,14 @@ impl Controller {
             eprintln!("{}", e.to_string().as_str());
             std::process::exit(1);
         });
-        //
-        let show_public_private_status_preference: Option<bool> = db.get_user_preference_boolean(
+        let show_public_private_status_preference: Option<bool> = db.borrow().get_user_preference_boolean(
             None,
             Util::SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE,
             None,
         )?;
-        //let default_display_entity_id: Option<i64> = Some(-9223372036854745151);
         let default_display_entity_id: Option<i64> = 
-             //localDb.get_user_preference_entity_id(Util::DEFAULT_ENTITY_PREFERENCE);
              //(see comment in call to expect() in get_default_entity() .)
-             db.get_user_preference_entity_id(None, Util::DEFAULT_ENTITY_PREFERENCE, None)
+             db.borrow().get_user_preference_entity_id(None, Util::DEFAULT_ENTITY_PREFERENCE, None)
                  .expect("Faiure in call to get_user_preference_entity_id()");
         Ok(Controller {
             ui,
@@ -89,7 +87,6 @@ impl Controller {
         })
     }
 
-    /*%%%%
     /// Returns the id and the entity, if they are available from the preferences lookup (id) 
     /// and then finding that in the db (Entity). 
     fn get_default_entity(&self) -> Option<(i64, Entity)> {
@@ -99,11 +96,11 @@ impl Controller {
                 // Calling expect() here because we generally handle Errors in the *Menu
                 // struct impls. Errors are not expected to occur here (and didn't, in long use
                 // of the version of OM written in Scala).
-                let entity: Option<Entity> = Entity::get_entity(self.db, None, ddei)
+                let entity: Option<Entity> = Entity::get_entity(self.db.clone(), None, ddei)
                     .expect("Failure in call to Entity::get_entity.");
                 match entity {
                     None => None,
-                    Some(entity) => {
+                    Some(mut entity) => {
                         if entity.is_archived(None).expect("Unable to determine if entity.is_archived.") {
                             let msg = format!("The default entity \n    {}: \"{} \"\n\
                                 ... was found but is archived.  You might run into problems \
@@ -111,12 +108,17 @@ impl Controller {
                                 the default, or display all archived entities then search for \
                                 this entity and un-archive it under its Entity Menu options 9, 4.",
                                 entity.get_id(), entity.get_name(None).expect("Error running entity.get_name(."));
-                            let ans = self.ui.ask_which(Some(vec!(msg)), vec!("Un-archive the default entity now", "Display archived entities"));
-                            if ans.is_defined() {
-                                if ans.get == 1 {
-                                    entity.unarchive();
-                                } else if ans.get == 2 {
-                                    self.db.set_include_archived_entities(true);
+                            let ans = self.ui.ask_which(Some(vec!(&msg.as_str())), 
+                                vec!("Un-archive the default entity now", "Display archived entities"),
+                                vec!(),
+                                true, None, None, None, None);
+                            if ans.is_some() {
+                                if ans.unwrap() == 1 {
+                                    entity.unarchive(None);
+                                } else if ans.unwrap() == 2 {
+                                    let db: Rc<RefCell<dyn Database>> = self.db.clone();
+                                    let mut db_mut: RefMut<'_, _> = db.borrow_mut();
+                                    db_mut.set_include_archived_entities(true);
                                 }
                             }
                         }
@@ -126,7 +128,7 @@ impl Controller {
             }
         }
     }
-*/
+
     pub fn start(&self) {
         // idea: wait for keystroke so they do see the copyright each time. (is also tracked):  
         // make it save their answer 'yes/i agree' or such in the DB, and don't make them press 
@@ -184,7 +186,7 @@ impl Controller {
         ui: &'a TextUI,
         default_username: Option<&String>,
         default_password: Option<&String>,
-    ) -> Result<Rc<dyn Database>, anyhow::Error> {
+    ) -> Result<Rc<RefCell<dyn Database>>, anyhow::Error> {
         if force_user_pass_prompt {
             //%%why had this assertion before?:  delete it now?  (it was a "require" in Controller.scala .)
             // assert!(default_username.is_none() && default_password.is_none());
@@ -209,7 +211,7 @@ impl Controller {
         }
     }
 
-    fn prompt_for_user_pass_and_login<'a>(ui: &TextUI) -> Result<Rc<dyn Database>, anyhow::Error> {
+    fn prompt_for_user_pass_and_login<'a>(ui: &TextUI) -> Result<Rc<RefCell<dyn Database>>, anyhow::Error> {
         loop {
             let usr = ui.ask_for_string1(vec!["Username"]);
             match usr {
@@ -240,7 +242,7 @@ impl Controller {
     }
 
     /// Tries the system username & default password, & if that doesn't work, prompts user.
-    fn try_other_logins_or_prompt(ui: &TextUI) -> Result<Rc<dyn Database>, anyhow::Error> {
+    fn try_other_logins_or_prompt(ui: &TextUI) -> Result<Rc<RefCell<dyn Database>>, anyhow::Error> {
         // (this loop is to simulate recursion, and let the user retry entering username/password)
         loop {
             // try logging in with some obtainable default values first, to save user the trouble, like if pwd is blank

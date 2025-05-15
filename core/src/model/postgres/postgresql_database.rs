@@ -540,7 +540,7 @@ impl PostgreSQLDatabase {
     pub fn new(
         username: &str,
         password: &str,
-    ) -> Result<Rc<dyn Database>, anyhow::Error> {
+    ) -> Result<Rc<RefCell<dyn Database>>, anyhow::Error> {
         let include_archived_entities = false;
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
@@ -559,7 +559,7 @@ impl PostgreSQLDatabase {
             include_archived_entities,
         };
         new_db.setup_db()?;
-        Ok(Rc::new(new_db))
+        Ok(Rc::new(RefCell::new(new_db)))
     }
 
     //Idea: why does having this here instead inline in new() (above) cause

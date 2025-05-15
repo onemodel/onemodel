@@ -21,7 +21,7 @@ use tracing::*;
 
 pub struct Group {
     id: i64,
-    db: Rc<dyn Database>,
+    db: Rc<RefCell<dyn Database>>,
     already_read_data: bool,        /*= false*/
     name: String,                   /*= null*/
     insertion_date: i64,            /*= 0L*/
@@ -32,7 +32,7 @@ pub struct Group {
 impl Group {
     /// Creates a new group in the database.
     fn create_group(
-        db_in: Rc<dyn Database>,
+        db_in: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_name: &str,
         allow_mixed_classes_in_group_in: bool, /*= false*/
@@ -52,7 +52,7 @@ impl Group {
 
     /// This is for times when you want None if it doesn't exist, instead of the exception thrown by the Entity constructor.  Or for convenience in tests.
     fn get_group(
-        db_in: Rc<dyn Database>,
+        db_in: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<Option<Group>, Error> {
@@ -75,7 +75,7 @@ impl Group {
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
     pub fn new(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         id: i64,
         name_in: &str,
         insertion_date: i64,
@@ -96,7 +96,7 @@ impl Group {
     /// See comments on similar methods in RelationToEntity (or maybe its subclasses%%).
     /// Groups don't contain remote entities (only those at the same DB as the group is), so some logic doesn't have to be written for that.
     pub fn new2(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<Group, Error>

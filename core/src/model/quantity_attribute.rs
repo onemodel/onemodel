@@ -30,7 +30,7 @@ pub struct QuantityAttribute {
     // on create_quantity_attribute(...) or create_tables() in PostgreSQLDatabase or Database structs,
     // and/or examples in the database testing code.
     id: i64,
-    db: Rc<dyn Database>,
+    db: Rc<RefCell<dyn Database>>,
     // **idea: make these members immutable?, by replacing them with something like:
     //           let (unit_id: i64, number: f64) = read_data_from_db();
     // BUT: have to figure out how to work with the
@@ -51,7 +51,7 @@ impl QuantityAttribute {
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.  It does not confirm that the id exists in the db.
     pub fn new(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         id: i64,
         parent_id: i64,
         attr_type_id: i64,
@@ -78,7 +78,7 @@ impl QuantityAttribute {
     /// This constructor instantiates an existing object from the DB. You can use Entity.add*Attribute() to
     /// create a new object.
     pub fn new2(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<QuantityAttribute, anyhow::Error> {

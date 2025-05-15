@@ -1875,23 +1875,54 @@ fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error
     Ok(())
 }
 
-    /*Just some leftover experimental test code once used to help isolate an issue:
+    /*Just some leftover experimental test code once used to help isolate/reproduce an issue:
 #[test]
 fn test_lifetime_issue() -> Result<(), Box<dyn std::error::Error>> {
     //why does the order of next 2 lines matter?? Or only sometimes?
     let tx = None;
-    //{
     //let db: PostgreSQLDatabase = Util::initialize_test_db()?;
     let db: String = "1234".to_string();
-    //{
-    //let test_struct_instance = TestStruct::new2(&db, tx.clone(), entity_id).unwrap();
-    let test_struct_instance = TestStruct::new2(&db, tx.clone()).unwrap();
-    let (_group_id, _created_rtg_id) = fn4(&db, tx.clone(), &test_struct_instance).unwrap();
-    //}}
+    //let test_struct_instance = TestStruct::new2(&db, tx.clone()).unwrap();
+    //let (_group_id, _created_rtg_id) = fn4(&db, tx.clone(), &test_struct_instance).unwrap();
     //let test_struct_instance = TestStruct{};
     //test_struct_instance.fn2(tx.clone());
+
     Ok(())
 }
+    fn add_quantity_attribute2<'a, 'b>(
+        &'a self,
+        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+        in_attr_type_id: i64,
+        in_unit_id: i64,
+        in_number: f64,
+        sorting_index_in: Option<i64>, /*= None*/
+        in_valid_on_date: Option<i64>,
+        observation_date_in: i64,
+    ) -> Result<QuantityAttribute, anyhow::Error>
+    where
+        'a: 'b,
+    {
+        // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
+        // it all goes with
+        //let db = &self.db.borrow();
+        //let new_id = {
+        let db: Ref<'b, dyn Database> = self.db.borrow();
+        //let id = &Ref::clone(&db).create_quantity_attribute(
+        let id: i64 = db.create_quantity_attribute(
+        //let ref id = &Ref::clone(&db).create_quantity_attribute(
+            transaction.clone(),
+            self.id,
+            in_attr_type_id,
+            in_unit_id,
+            in_number,
+            in_valid_on_date,
+            observation_date_in,
+            sorting_index_in,
+        )?;
+        //new_id
+        //};
+        return QuantityAttribute::new2(self.db.clone(), transaction.clone(), id);
+    }
 struct TestStruct<'a>{
     //db: &'a dyn Database,
     //db: &'a dyn String,

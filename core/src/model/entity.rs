@@ -26,14 +26,14 @@ use crate::util::Util;
 use anyhow::{anyhow, Result};
 use chrono::Utc;
 use sqlx::{/*Error, */ Postgres, Transaction};
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 use std::collections::HashSet;
 use std::rc::Rc;
 use tracing::*;
 
 #[derive(Clone)]
 pub struct Entity {
-    db: Rc<dyn Database>,
+    db: Rc<RefCell<dyn Database>>,
     id: i64,
     already_read_data: bool,        /*= false*/
     name: String,                   /*= _*/
@@ -53,7 +53,7 @@ impl Entity {
     /// that would have to occur if it only returned arrays of keys. This DOES NOT create a persistent object--but rather should reflect
     /// one that already exists.
     pub fn new(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         id: i64,
         name: String,
         class_id: Option<i64>, /*= None*/
@@ -87,12 +87,12 @@ impl Entity {
     // Idea: replace this w/ a mock? where used? same, for similar code elsewhere like in OmInstance? (and
     // EntityTest etc could be with mocks instead of real db use.)  Does this really skip that other check though?
     pub fn new2(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<Entity, anyhow::Error> {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
-        if !db.is_remote() && !db.entity_key_exists(transaction, id, true)? {
+        if !db.borrow().is_remote() && !db.borrow().entity_key_exists(transaction, id, true)? {
             return Err(anyhow!("Key {}{}", id, Util::DOES_NOT_EXIST));
         }
         Ok(Entity {
@@ -109,14 +109,15 @@ impl Entity {
     }
 
     pub fn create_entity(
-        db: Rc<dyn Database>,
+        db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_name: &str,
         in_class_id: Option<i64>,   /*= None*/
         is_public_in: Option<bool>, /*= None*/
     ) -> Result<Entity, anyhow::Error> {
-        let id: i64 = db.create_entity(transaction.clone(), in_name, in_class_id, is_public_in)?;
-        Entity::new2(db as Rc<dyn Database>, transaction.clone(), id)
+        let id: i64 = db.borrow().create_entity(transaction.clone(), in_name, in_class_id, is_public_in)?;
+        //Entity::new2(db as Rc<dyn Database>, transaction.clone(), id)
+        Entity::new2(db, transaction.clone(), id)
     }
 
     fn name_length() -> u32 {
@@ -135,7 +136,7 @@ impl Entity {
     /// This is for times when you want None if it doesn't exist, instead of the Error returned by
     /// the Entity constructor.  Or for convenience in tests.
     pub fn get_entity(
-        db_in: Rc<dyn Database>,
+        db_in: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
     ) -> Result<Option<Entity>, String> {
@@ -184,7 +185,7 @@ impl Entity {
             Some(id) => {
                 // let template_entity_id: Option<i64> = self.db.get_class_data(transaction, class_id.unwrap())
                 // .get(1).asInstanceOf[Option<i64>];
-                let row = self.db.get_class_data(transaction.clone(), id)?;
+                let row = self.db.borrow().get_class_data(transaction.clone(), id)?;
                 let template_entity_id: Result<Option<i64>> = match row.get(1) {
                     None => Err(anyhow!("In get_class_template_entity_id: How got not enough values in the row for id {} ?", id)),
                     Some(Some(DataType::Bigint(i))) => Ok(Some(*i)),
@@ -318,7 +319,7 @@ impl Entity {
         let result = if !self.is_archived(transaction.clone())? {
             ""
         } else {
-            if self.db.include_archived_entities() {
+            if self.db.borrow().include_archived_entities() {
                 "[ARCHIVED]"
             } else {
                 return Err(anyhow!("FYI in case this can be better understood and fixed:  due to an error, the program \
@@ -333,7 +334,7 @@ impl Entity {
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
-        let entity_data = self.db.get_entity_data(transaction, self.id)?;
+        let entity_data = self.db.borrow().get_entity_data(transaction, self.id)?;
         if entity_data.len() == 0 {
             return Err(anyhow!(
                 "No results returned from data request for: {}",
@@ -389,7 +390,7 @@ impl Entity {
     /// for that.  This one is like that other in a way, but more for human consumption (eg data
     /// export for human reading, not for re-import -- ?).
     fn get_readable_identifier(&self) -> String {
-        let remote_prefix = match self.db.get_remote_address() {
+        let remote_prefix = match self.db.borrow().get_remote_address() {
             None => "".to_string(),
             Some(s) => format!("{}_", s),
         };
@@ -404,7 +405,7 @@ impl Entity {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<String, anyhow::Error> {
-        Ok(format!("{}_{}", self.db.id(transaction)?, self.get_id()))
+        Ok(format!("{}_{}", self.db.borrow().id(transaction)?, self.get_id()))
     }
 
     fn get_attribute_count(
@@ -412,7 +413,7 @@ impl Entity {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         include_archived_entities_in: bool, /*= db.include_archived_entities*/
     ) -> Result<u64, anyhow::Error> {
-        self.db
+        self.db.borrow()
             .get_attribute_count(transaction, self.get_id(), include_archived_entities_in)
     }
 
@@ -420,7 +421,7 @@ impl Entity {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<u64, anyhow::Error> {
-        self.db
+        self.db.borrow()
             .get_relation_to_group_count(transaction, self.get_id())
     }
 
@@ -447,7 +448,7 @@ impl Entity {
             }
         };
         let count = self
-            .db
+            .db.borrow()
             .get_class_count(transaction.clone(), Some(self.get_id()))?;
         let definer_info = if count > 0 {
             "template (defining entity) for "
@@ -455,7 +456,7 @@ impl Entity {
             ""
         };
         let class_name: Option<String> = match self.get_class_id(transaction.clone())? {
-            Some(class_id) => self.db.get_class_name(transaction.clone(), class_id)?,
+            Some(class_id) => self.db.borrow().get_class_name(transaction.clone(), class_id)?,
             None => None,
         };
         let sometext = match class_name {
@@ -536,7 +537,12 @@ impl Entity {
     {
         // write it to the database table--w/ a record for all these attributes plus a key indicating which Entity
         // it all goes with
-        let id = self.db.create_quantity_attribute(
+        //let db = &self.db.borrow();
+        //let new_id = {
+        let db: Ref<'b, dyn Database> = self.db.borrow();
+        //let id = &Ref::clone(&db).create_quantity_attribute(
+        let id: i64 = db.create_quantity_attribute(
+        //let ref id = &Ref::clone(&db).create_quantity_attribute(
             transaction.clone(),
             self.id,
             in_attr_type_id,
@@ -546,7 +552,9 @@ impl Entity {
             observation_date_in,
             sorting_index_in,
         )?;
-        QuantityAttribute::new2(self.db.clone(), transaction.clone(), id)
+        //new_id
+        //};
+        return QuantityAttribute::new2(self.db.clone(), transaction.clone(), id);
     }
 
     fn get_quantity_attribute(
@@ -593,7 +601,7 @@ impl Entity {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<u64, anyhow::Error> {
-        self.db
+        self.db.borrow()
             .get_count_of_groups_containing_entity(transaction, self.get_id())
     }
 
@@ -601,7 +609,7 @@ impl Entity {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<Vec<i64>, anyhow::Error> {
-        self.db
+        self.db.borrow()
             .get_containing_groups_ids(transaction, self.get_id())
     }
 
@@ -739,7 +747,7 @@ impl Entity {
         let ref cloned = rc_db.clone();
         let tx = transaction.clone();
         let id = self.get_id();
-        cloned.renumber_sorting_indexes(tx, id, true)
+        cloned.borrow().renumber_sorting_indexes(tx, id, true)
     }
 
     fn update_attribute_sorting_index(
@@ -1580,7 +1588,7 @@ mod test {
     #[test]
     fn test_add_quantity_attribute() {
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<PostgreSQLDatabase> >= Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         let e = Entity::create_entity(db.clone(), None, "testEntityName", None, None).unwrap();
         //Using None instead of tx here for simplicity, but might have to change if
         //running tests in parallel.
@@ -1610,7 +1618,7 @@ mod test {
     #[test]
     fn test_add_text_attribute() {
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<PostgreSQLDatabase> >= Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         let entity = Entity::create_entity(db.clone(), None, "testEntityName", None, None).unwrap();
         //Using None instead of tx here for simplicity, but might have to change if
         //running tests in parallel.
@@ -1927,12 +1935,12 @@ mod test {
 
     fn test_get_count_of_containing_local_entities_etc() {
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<PostgreSQLDatabase> >= Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         let e1 = Entity::create_entity(db.clone(), None, "e1", None, None).unwrap();
-        let rel_type_id = db
+        let rel_type_id = db.borrow()
             .find_relation_type(None, Util::THE_HAS_RELATION_TYPE_NAME)
             .unwrap();
-        let (e2_id, rte_id) = db
+        let (e2_id, rte_id) = db.borrow()
             .create_entity_and_relation_to_local_entity(
                 None,
                 e1.get_id(),
@@ -1944,7 +1952,7 @@ mod test {
             )
             .unwrap();
         let e2 = Entity::new2(db.clone(), None, e2_id).unwrap();
-        let g1_id = db.create_group(None, "g1", false).unwrap();
+        let g1_id = db.borrow().create_group(None, "g1", false).unwrap();
         let g1 = Group::new2(db.clone(), None, g1_id).unwrap();
         //Using None instead of tx here for simplicity, but might have to change if
         //running tests in parallel.
