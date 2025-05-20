@@ -125,12 +125,12 @@ impl Entity {
     }
 
     fn is_duplicate(
-        db_in: Rc<dyn Database>,
+        db_in: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_name: &str,
         in_self_id_to_ignore: Option<i64>, /*= None*/
     ) -> Result<bool, anyhow::Error> {
-        db_in.is_duplicate_entity_name(transaction, in_name, in_self_id_to_ignore)
+        db_in.borrow().is_duplicate_entity_name(transaction, in_name, in_self_id_to_ignore)
     }
 
     /// This is for times when you want None if it doesn't exist, instead of the Error returned by
@@ -652,14 +652,17 @@ impl Entity {
             .find_relation_to_and_group_on_entity(transaction, self.get_id(), None)
     }
 
-    pub fn find_contained_local_entity_ids<'a, 'c>(
-        &'a self,
+    //pub fn find_contained_local_entity_ids<'a, 'c>(
+    //    &'a self,
+    pub fn find_contained_local_entity_ids(
+        &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        results_in_out: &'c mut HashSet<i64>,
+        results_in_out: &mut HashSet<i64>,
         search_string_in: &str,
         levels_remaining_in: i32,      /*= 20*/
         stop_after_any_found_in: bool, /*= true*/
-    ) -> Result<&'c mut HashSet<i64>, anyhow::Error> {
+    //) -> Result<&'c mut HashSet<i64>, anyhow::Error> {
+    ) -> Result<(), anyhow::Error> {
         self.db.borrow().find_contained_local_entity_ids(
             transaction,
             results_in_out,
@@ -1774,7 +1777,7 @@ mod test {
         //let tx = Some(Rc::new(RefCell::new(tx)));
         let tx = None;
         let class_name = "classname";
-        let (class_id, template_entity_id) = db
+        let (class_id, template_entity_id) = db.borrow()
             .create_class_and_its_template_entity(tx.clone(), class_name)
             .unwrap();
         // Entity without class
@@ -1800,7 +1803,7 @@ mod test {
     #[test]
     fn test_update_contained_entities_public_status() {
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         let container = Entity::create_entity(db.clone(), None, "container", None, None).unwrap();
         let mut entity1 =
             Entity::create_entity(db.clone(), None, "test object1", None, None).unwrap();
@@ -1812,7 +1815,7 @@ mod test {
             entity1.get_id(),
             entity2.get_id()
         );
-        let rel_type_id = db
+        let rel_type_id = db.borrow()
             .find_relation_type(None, Util::THE_HAS_RELATION_TYPE_NAME)
             .unwrap();
         let (group_id, _) = container
@@ -1950,7 +1953,7 @@ mod test {
             .unwrap();
         assert_eq!(entities.len(), 1);
         // Create e3 with relation from e1
-        db.create_entity_and_relation_to_local_entity(
+        db.borrow().create_entity_and_relation_to_local_entity(
             tx.clone(),
             e1.get_id(),
             rel_type_id,

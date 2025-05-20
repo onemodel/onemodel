@@ -820,10 +820,11 @@ mod test {
             db.borrow().create_entity(tx.clone(), "e2", None, None).unwrap(),
         )
         .unwrap();
-        let mut hs: HashSet<i64> = HashSet::new();
-        let results_in_out1: &HashSet<i64> = e2
-            .find_contained_local_entity_ids(tx.clone(), &mut hs, "e2", 20, true)
+        let mut results_in_out1: HashSet<i64> = HashSet::new();
+        //let results_in_out1: &HashSet<i64> = e2
+        e2.find_contained_local_entity_ids(tx.clone(), &mut results_in_out1, "e2", 20, true)
             .unwrap();
+        //let results_in_out1: HashSet<i64> = hs;
         assert!(results_in_out1.is_empty());
         // why doesnt this call take a transaction? See note at top of this test.
         group2
@@ -831,9 +832,9 @@ mod test {
             .unwrap();
         assert!(!group2.is_entity_in_group(tx.clone(), e1.get_id()).unwrap());
 
-        let mut hs2: HashSet<i64> = HashSet::new();
-        let results_in_out2: &HashSet<i64> = e2
-            .find_contained_local_entity_ids(tx.clone(), &mut hs2, "e1", 20, true)
+        let mut results_in_out2: HashSet<i64> = HashSet::new();
+        //let results_in_out2: &HashSet<i64> = 
+        e2.find_contained_local_entity_ids(tx.clone(), &mut results_in_out2, "e1", 20, true)
             .unwrap();
         assert_eq!(results_in_out2.len(), 1);
         assert!(results_in_out2.contains(&e1.get_id()));

@@ -565,19 +565,19 @@ mod test {
     }
 
     fn create_test_text_attribute_with_one_entity(
-        db: &Rc<PostgreSQLDatabase>,
+        db: Rc<RefCell<PostgreSQLDatabase>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_parent_id: i64,
         in_valid_on_date: Option<i64>, /*= None*/
     ) -> i64 {
-        let attr_type_id: i64 = db
+        let attr_type_id: i64 = db.borrow()
             .create_entity(None, "textAttributeTypeLikeSsn", None, None)
             .unwrap();
         let default_date: i64 = Utc::now().timestamp_millis();
         let valid_on_date: Option<i64> = in_valid_on_date;
         let observation_date: i64 = default_date;
         let text = "some test text";
-        let text_attribute_id: i64 = db
+        let text_attribute_id: i64 = db.borrow()
             .create_text_attribute(
                 transaction.clone(),
                 in_parent_id,
@@ -605,14 +605,14 @@ mod test {
     }
 
     fn create_test_date_attribute_with_one_entity(
-        db: &Rc<PostgreSQLDatabase>,
+        db: Rc<RefCell<PostgreSQLDatabase>>,
         in_parent_id: i64,
     ) -> i64 {
-        let attr_type_id: i64 = db
+        let attr_type_id: i64 = db.borrow()
             .create_entity(None, "dateAttributeType--likeDueOn", None, None)
             .unwrap();
         let date: i64 = Utc::now().timestamp_millis();
-        let date_attribute_id: i64 = db
+        let date_attribute_id: i64 = db.borrow()
             .create_date_attribute(None, in_parent_id, attr_type_id, date, None)
             .unwrap();
         let mut ba: DateAttribute =
@@ -624,7 +624,7 @@ mod test {
     }
 
     fn create_test_boolean_attribute_with_one_entity(
-        db: &Rc<PostgreSQLDatabase>,
+        db: Rc<RefCell<PostgreSQLDatabase>>,
         // purpose: see comment in delete_objects
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_parent_id: i64,
@@ -632,7 +632,7 @@ mod test {
         in_valid_on_date: Option<i64>, /*= None*/
         observation_date_in: i64,
     ) -> i64 {
-        let attr_type_id: i64 = db
+        let attr_type_id: i64 = db.borrow()
             .create_entity(
                 transaction.clone(),
                 "boolAttributeType-like-isDone",
@@ -640,7 +640,7 @@ mod test {
                 None,
             )
             .unwrap();
-        let boolean_attribute_id: i64 = db
+        let boolean_attribute_id: i64 = db.borrow()
             .create_boolean_attribute(
                 transaction.clone(),
                 in_parent_id,
@@ -726,20 +726,18 @@ mod test {
     }
     */
 
-    fn create_test_relation_to_local_entity_with_one_entity<'a, 'b>(
-        db: &'a Rc<PostgreSQLDatabase>,
-        tx: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+    //fn create_test_relation_to_local_entity_with_one_entity<'a, 'b>(
+    fn create_test_relation_to_local_entity_with_one_entity(
+        db: Rc<RefCell<PostgreSQLDatabase>>,
+        tx: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_entity_id: i64,
         in_rel_type_id: i64,
         in_valid_on_date: Option<i64>, /*= None*/
     ) -> i64 
-    where
-        'a: 'b
     {
         //Util::initialize_tracing();
-        //let db: PostgreSQLDatabase = Util::initialize_test_db().unwrap();
         // idea: could use here instead: db.create_entityAndRelationToLocalEntity
-        let related_entity_id: i64 = db
+        let related_entity_id: i64 = db.borrow()
             .create_entity(tx.clone(), RELATED_ENTITY_NAME, None, None)
             .unwrap();
         // let valid_on_date: Option<i64> = if in_valid_on_date.isEmpty { None } else { in_valid_on_date };
@@ -749,7 +747,7 @@ mod test {
         //let ref cloned = rc_db.clone();
         //let (id, _new_sorting_index) = db.clone()
         //let (id, _new_sorting_index) = cloned
-        let (id, _new_sorting_index) = db
+        let (id, _new_sorting_index) = db.borrow()
             .create_relation_to_local_entity(
                 tx.clone(),
                 in_rel_type_id,
@@ -786,18 +784,20 @@ mod test {
     #[test]
     fn escape_quotes_etc_allow_updating_db_with_single_quotes() {
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         let name = "This ' name contains a single-quote.";
-        let tx = db.begin_trans().unwrap();
-        let tx = Some(Rc::new(RefCell::new(tx)));
+        let temp = db.clone();
+        let temp1 = temp.borrow();
+        let tx1 = temp1.begin_trans().unwrap();
+        let tx = Some(Rc::new(RefCell::new(tx1)));
         //on a create:
-        let entity_id: i64 = db.create_entity(tx.clone(), name, None, None).unwrap();
-        let new_name = db.get_entity_name(tx.clone(), entity_id);
+        let entity_id: i64 = db.borrow().create_entity(tx.clone(), name, None, None).unwrap();
+        let new_name = db.borrow().get_entity_name(tx.clone(), entity_id);
         assert_eq!(name, new_name.unwrap().unwrap().as_str());
 
         //and on an update:
         let text_attribute_id: i64 =
-            create_test_text_attribute_with_one_entity(&db, tx.clone(), entity_id, None);
+            create_test_text_attribute_with_one_entity(db.clone(), tx.clone(), entity_id, None);
         let a_text_value = "as'dfjkl";
         let mut ta =
             TextAttribute::new2(db.clone(), tx.clone(), text_attribute_id).unwrap();
@@ -805,7 +805,7 @@ mod test {
             ta.get_parent_id(tx.clone()).unwrap(),
             ta.get_attr_type_id(tx.clone()).unwrap(),
         );
-        db.update_text_attribute(
+        db.borrow().update_text_attribute(
             tx.clone(),
             text_attribute_id,
             pid1,
@@ -827,22 +827,24 @@ mod test {
     /// With transaction rollback, this should create one new entity, work right, then have none.
     fn test_entity_creation_and_update() {
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         let name = "test: org.onemodel.PSQLDbTest.entitycreation...";
+        //is there a simpler way to do this?:
         let temp = db.clone();
-        let tx1 = temp.begin_trans().unwrap();
+        let temp1 = temp.borrow();
+        let tx1 = temp1.begin_trans().unwrap();
         let tx = Some(Rc::new(RefCell::new(tx1)));
 
-        let entity_count_before_creating: u64 = db.get_entity_count(tx.clone()).unwrap();
-        let entities_only_first_count: u64 = db
+        let entity_count_before_creating: u64 = db.borrow().get_entity_count(tx.clone()).unwrap();
+        let entities_only_first_count: u64 = db.borrow()
             .get_entities_only_count(tx.clone(), false, None, None)
             .unwrap();
 
-        let id: i64 = db.create_entity(tx.clone(), name, None, None).unwrap();
-        let new_name = db.get_entity_name(tx.clone(), id);
+        let id: i64 = db.borrow().create_entity(tx.clone(), name, None, None).unwrap();
+        let new_name = db.borrow().get_entity_name(tx.clone(), id);
         assert_eq!(name, new_name.unwrap().unwrap().as_str());
-        let entity_count_after_1st_create = db.get_entity_count(tx.clone()).unwrap();
-        let entities_only_new_count = db
+        let entity_count_after_1st_create = db.borrow().get_entity_count(tx.clone()).unwrap();
+        let entities_only_new_count = db.borrow()
             .get_entities_only_count(tx.clone(), false, None, None)
             .unwrap();
 
@@ -855,29 +857,29 @@ mod test {
                    entity_count_before_creating,  entities_only_first_count, entity_count_after_1st_create, entities_only_new_count);
         }
 
-        assert!(db.entity_key_exists(tx.clone(), id, true).unwrap());
+        assert!(db.borrow().entity_key_exists(tx.clone(), id, true).unwrap());
 
         let new_name = "test: ' org.onemodel.PSQLDbTest.entityupdate...";
-        db.update_entity_only_name(tx.clone(), id, new_name)
+        db.borrow().update_entity_only_name(tx.clone(), id, new_name)
             .unwrap();
         // have to create new instance to re-read the data:
         let mut updated_entity = Entity::new2(db.clone(), tx.clone(), id).unwrap();
         let name3 = updated_entity.get_name(tx.clone()).unwrap().as_str();
         assert_eq!(name3, new_name);
 
-        assert!(db.entity_only_key_exists(tx.clone(), id).unwrap());
+        assert!(db.borrow().entity_only_key_exists(tx.clone(), id).unwrap());
         let local_tx_cell: Option<RefCell<Transaction<Postgres>>> = Rc::into_inner(tx.unwrap());
         let unwrapped_local_tx = local_tx_cell.unwrap().into_inner();
-        db.rollback_trans(unwrapped_local_tx).unwrap();
+        db.borrow().rollback_trans(unwrapped_local_tx).unwrap();
 
         // now should not exist
 
         // Next assert_eq fails when run concurrently with other tests, because the other tests
         // create data:
-        let entity_count_after_rollback = db.get_entity_count(None).unwrap();
+        let entity_count_after_rollback = db.borrow().get_entity_count(None).unwrap();
         assert_eq!(entity_count_after_rollback, entity_count_before_creating);
 
-        assert!(!db.entity_key_exists(None, id, true).unwrap());
+        assert!(!db.borrow().entity_key_exists(None, id, true).unwrap());
     }
 
     #[test]
@@ -921,8 +923,8 @@ mod test {
     #[test]
     fn get_attr_count_and_get_attribute_sorting_rows_count() {
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
-        let id: i64 = db
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
+        let id: i64 = db.borrow()
             .create_entity(
                 None, //tx.clone(),
                 "test: org.onemodel.PSQLDbTest.getAttrCount...",
@@ -932,46 +934,46 @@ mod test {
             .unwrap();
         let entity: Entity = Entity::new2(db.clone(), None /*tx.clone*/, id).unwrap();
         let temp = db.clone();
-        let tx = temp.begin_trans().unwrap();
+        let temp1 = temp.borrow();
+        let tx = temp1.begin_trans().unwrap();
         let tx: Option<Rc<RefCell<Transaction<Postgres>>>> = Some(Rc::new(RefCell::new(tx)));
 
         let initial_num_sorting_rows: u64 =
-            db.get_attribute_sorting_rows_count(None, Some(id)).unwrap();
-        assert!(db.get_attribute_count(tx.clone(), id, false).unwrap() == 0);
+            db.borrow().get_attribute_sorting_rows_count(None, Some(id)).unwrap();
+        assert!(db.borrow().get_attribute_count(tx.clone(), id, false).unwrap() == 0);
         assert!(initial_num_sorting_rows == 0);
 
-        create_test_quantity_attribute_with_two_entities(&db, tx.clone(), id, None);
-        create_test_quantity_attribute_with_two_entities(&db, tx.clone(), id, None);
-        assert!(db.clone().get_attribute_count(tx.clone(), id, false).unwrap() == 2);
+        create_test_quantity_attribute_with_two_entities(db.clone(), tx.clone(), id, None);
+        create_test_quantity_attribute_with_two_entities(db.clone(), tx.clone(), id, None);
+        assert!(db.clone().borrow().get_attribute_count(tx.clone(), id, false).unwrap() == 2);
         assert!(
-            db.clone().get_attribute_sorting_rows_count(tx.clone(), Some(id))
+            db.clone().borrow().get_attribute_sorting_rows_count(tx.clone(), Some(id))
                 .unwrap()
                 == 2
         );
 
-        create_test_text_attribute_with_one_entity(&db, tx.clone(), id, None);
-        assert!(db.get_attribute_count(tx.clone(), id, false).unwrap() == 3);
+        create_test_text_attribute_with_one_entity(db.clone(), tx.clone(), id, None);
+        assert!(db.borrow().get_attribute_count(tx.clone(), id, false).unwrap() == 3);
         assert!(
-            db.get_attribute_sorting_rows_count(tx.clone(), Some(id))
+            db.borrow().get_attribute_sorting_rows_count(tx.clone(), Some(id))
                 .unwrap()
                 == 3
         );
 
         //whatever, just need some relation type to go with:
-        let rel_type_id: i64 = db
+        let rel_type_id: i64 = db.borrow()
             .create_relation_type(tx.clone(), "contains", "", RelationType::UNIDIRECTIONAL)
             .unwrap();
         create_test_relation_to_local_entity_with_one_entity(
-            //db.clone(),
-            &db,
+            db.clone(),
             tx.clone(),
             id,
             rel_type_id,
             None,
         );
-        assert!(db.clone().get_attribute_count(tx.clone(), id, false).unwrap() == 4);
+        assert!(db.clone().borrow().get_attribute_count(tx.clone(), id, false).unwrap() == 4);
         assert!(
-            db.get_attribute_sorting_rows_count(tx.clone(), Some(id))
+            db.borrow().get_attribute_sorting_rows_count(tx.clone(), Some(id))
                 .unwrap()
                 == 4
         );
@@ -986,15 +988,15 @@ mod test {
             true,
         )
         .unwrap();
-        assert_eq!(db.get_attribute_count(tx.clone(), id, false).unwrap(), 5);
+        assert_eq!(db.borrow().get_attribute_count(tx.clone(), id, false).unwrap(), 5);
         assert_eq!(
-            db.get_attribute_sorting_rows_count(tx.clone(), Some(id))
+            db.borrow().get_attribute_sorting_rows_count(tx.clone(), Some(id))
                 .unwrap(),
             5
         );
 
         let unwrapped_local_tx = Rc::into_inner(tx.unwrap()).unwrap().into_inner();
-        db.rollback_trans(unwrapped_local_tx).unwrap();
+        db.borrow().rollback_trans(unwrapped_local_tx).unwrap();
 
         //%%idea: (tracked in tasks): find out: WHY do the next lines fail, because the attrCount(id) is 
         //the same (4) after rolling back as before rolling back??
@@ -1017,7 +1019,7 @@ mod test {
     //fn create_and_add_test_relation_to_group_on_to_entity<'a, 'b>(db_in: &'a dyn Database,
     //fn create_and_add_test_relation_to_group_on_to_entity<'a, 'b, 'c>(
     fn create_and_add_test_relation_to_group_on_to_entity<'b, 'c>(
-        db_in: Rc<dyn Database>,
+        db_in: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         in_entity: &'c Entity,
         in_rel_type_id: i64,
@@ -1067,14 +1069,15 @@ mod test {
     #[test]
     fn quantity_create_update_delete_methods() {
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
-
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         // Begin transaction
-        let tx = db.begin_trans().unwrap();
+        let temp = db.clone();
+        let temp1 = temp.borrow();
+        let tx = temp1.begin_trans().unwrap();
         let tx: Option<Rc<RefCell<Transaction<Postgres>>>> = Some(Rc::new(RefCell::new(tx)));
 
-        let starting_entity_count = db.get_entity_count(tx.clone()).unwrap();
-        let entity_id = db
+        let starting_entity_count = db.borrow().get_entity_count(tx.clone()).unwrap();
+        let entity_id = db.borrow()
             .create_entity(
                 tx.clone(),
                 "test: org.onemodel.PSQLDbTest.quantityAttrs()",
@@ -1082,14 +1085,13 @@ mod test {
                 None,
             )
             .unwrap();
-        let initial_total_sorting_rows_count = db
+        let initial_total_sorting_rows_count = db.borrow()
             .get_attribute_sorting_rows_count(tx.clone(), None)
             .unwrap();
-
         let quantity_attribute_id: i64 =
-            create_test_quantity_attribute_with_two_entities(&db, tx.clone(), entity_id, None);
+            create_test_quantity_attribute_with_two_entities(db.clone(), tx.clone(), entity_id, None);
         assert!(
-            db.get_attribute_sorting_rows_count(tx.clone(), None)
+            db.borrow().get_attribute_sorting_rows_count(tx.clone(), None)
                 .unwrap()
                 > initial_total_sorting_rows_count
         );
@@ -1102,7 +1104,7 @@ mod test {
         );
         assert!(entity_id == pid1);
 
-        db.update_quantity_attribute(
+        db.borrow().update_quantity_attribute(
             tx.clone(),
             quantity_attribute_id,
             pid1,
@@ -1132,37 +1134,37 @@ mod test {
         assert_eq!(vod2, Some(5 as i64));
         assert_eq!(od2, 6);
 
-        let q_attr_count = db
+        let q_attr_count = db.borrow()
             .get_quantity_attribute_count(tx.clone(), entity_id)
             .unwrap();
         assert_eq!(q_attr_count, 1);
         assert_eq!(
-            db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id))
+            db.borrow().get_attribute_sorting_rows_count(tx.clone(), Some(entity_id))
                 .unwrap()
                , 1
         );
 
         // Delete the quantity attribute and check correctness
-        let entity_count_before_quantity_deletion: u64 = db.get_entity_count(tx.clone()).unwrap();
-        db.delete_quantity_attribute(tx.clone(), quantity_attribute_id)
+        let entity_count_before_quantity_deletion: u64 = db.borrow().get_entity_count(tx.clone()).unwrap();
+        db.borrow().delete_quantity_attribute(tx.clone(), quantity_attribute_id)
             .unwrap();
 
         // next 2 assert! lines should work because of the database logic (triggers as of this writing)
         // that removes sorting rows when attrs are removed):
         assert_eq!(
-            db.get_attribute_sorting_rows_count(tx.clone(), None)
+            db.borrow().get_attribute_sorting_rows_count(tx.clone(), None)
                 .unwrap()
                , initial_total_sorting_rows_count
         );
         assert_eq!(
-            db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id))
+            db.borrow().get_attribute_sorting_rows_count(tx.clone(), Some(entity_id))
                 .unwrap()
                , 0
         );
 
-        let entity_count_after_quantity_deletion: u64 = db.get_entity_count(tx.clone()).unwrap();
+        let entity_count_after_quantity_deletion: u64 = db.borrow().get_entity_count(tx.clone()).unwrap();
         assert_eq!(
-            db.get_quantity_attribute_count(tx.clone(), entity_id)
+            db.borrow().get_quantity_attribute_count(tx.clone(), entity_id)
                 .unwrap()
                , 0
         );
@@ -1174,13 +1176,13 @@ mod test {
         );
         }
 
-        db.delete_entity(tx.clone(), entity_id).unwrap();
-        let ending_entity_count = db.get_entity_count(tx.clone()).unwrap();
+        db.borrow().delete_entity(tx.clone(), entity_id).unwrap();
+        let ending_entity_count = db.borrow().get_entity_count(tx.clone()).unwrap();
         // 2 more entities came during quantity creation (units & quantity type), it's OK to leave 
         // them in this kind of situation)
         assert_eq!(ending_entity_count, starting_entity_count + 2);
         assert_eq!(
-            db.get_quantity_attribute_count(tx.clone(), entity_id)
+            db.borrow().get_quantity_attribute_count(tx.clone(), entity_id)
                 .unwrap()
                , 0
         );
@@ -1192,28 +1194,28 @@ mod test {
     #[test]
     fn attribute_and_attribute_sorting_row_deletion_both_happen_automatically_upon_entity_deletion() {
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         //Not needing to deal w/ complexity of a tx in this method.
         //let tx = db.begin_trans().unwrap();
         //let tx: Option<Rc<RefCell<Transaction<Postgres>>>> = Some(Rc::new(RefCell::new(tx)));
-        let entity_id = db.create_entity(None, "test: org.onemodel.PSQLDbTest sorting rows stuff", None, None)
+        let entity_id = db.borrow().create_entity(None, "test: org.onemodel.PSQLDbTest sorting rows stuff", None, None)
             .unwrap();
-        create_test_quantity_attribute_with_two_entities(&db, None, entity_id, None);
+        create_test_quantity_attribute_with_two_entities(db.clone(), None, entity_id, None);
         assert_eq!(
-            db.get_attribute_sorting_rows_count(None, Some(entity_id)).unwrap(),
+            db.borrow().get_attribute_sorting_rows_count(None, Some(entity_id)).unwrap(),
             1
         );
         assert_eq!(
-            db.get_quantity_attribute_count(None, entity_id).unwrap(),
+            db.borrow().get_quantity_attribute_count(None, entity_id).unwrap(),
             1
         );
-        db.delete_entity(None, entity_id).unwrap();
+        db.borrow().delete_entity(None, entity_id).unwrap();
         assert_eq!(
-            db.get_attribute_sorting_rows_count(None, Some(entity_id)).unwrap(),
+            db.borrow().get_attribute_sorting_rows_count(None, Some(entity_id)).unwrap(),
             0
         );
         assert_eq!(
-            db.get_quantity_attribute_count(None, entity_id).unwrap(),
+            db.borrow().get_quantity_attribute_count(None, entity_id).unwrap(),
             0
         );
         // no need to db.rollback_trans(), because that is automatic when tx goes out of scope, per sqlx docs.
@@ -1222,21 +1224,26 @@ mod test {
     #[test]
     fn text_attribute_create_delete_update_methods() {
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
-        let tx = db.begin_trans().unwrap();
-        let tx: Option<Rc<RefCell<Transaction<Postgres>>>> = Some(Rc::new(RefCell::new(tx)));
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
+        let temp = db.clone();
+        let temp1 = temp.borrow();
+        let tx1 = temp1.begin_trans().unwrap();
+        let tx = Some(Rc::new(RefCell::new(tx1)));
+        //let tx = db.clone().borrow().begin_trans().unwrap();
+        //let tx: Option<Rc<RefCell<Transaction<Postgres>>>> = Some(Rc::new(RefCell::new(tx)));
 
-        let starting_entity_count = db.get_entity_count(tx.clone()).unwrap();
-        let entity_id = db.create_entity(tx.clone(), "test: org.onemodel.PSQLDbTest.testTextAttrs", None, None).unwrap();
-        assert_eq!(db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id)).unwrap(), 0);
-        let text_attribute_id: i64 = create_test_text_attribute_with_one_entity(&db, tx.clone(), entity_id, None);
-        assert_eq!(db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id)).unwrap(), 1);
+        let starting_entity_count = db.borrow().get_entity_count(tx.clone()).unwrap();
+        let entity_id = db.borrow().create_entity(tx.clone(), 
+            "test: org.onemodel.PSQLDbTest.testTextAttrs", None, None).unwrap();
+        assert_eq!(db.borrow().get_attribute_sorting_rows_count(tx.clone(), Some(entity_id)).unwrap(), 0);
+        let text_attribute_id: i64 = create_test_text_attribute_with_one_entity(db.clone(), tx.clone(), entity_id, None);
+        assert_eq!(db.clone().borrow().get_attribute_sorting_rows_count(tx.clone(), Some(entity_id)).unwrap(), 1);
         let a_text_value = "asdfjkl";
 
         let mut ta = TextAttribute::new2(db.clone(), tx.clone(), text_attribute_id).unwrap();
         let (pid1, atid1) = (ta.get_parent_id(tx.clone()).unwrap(), ta.get_attr_type_id(tx.clone()).unwrap());
         assert_eq!(entity_id, pid1);
-        db.update_text_attribute(tx.clone(), text_attribute_id, pid1, atid1, a_text_value, Some(123), 456).unwrap();
+        db.borrow().update_text_attribute(tx.clone(), text_attribute_id, pid1, atid1, a_text_value, Some(123), 456).unwrap();
         // have to create new instance to re-read the data: immutability makes programs easier to work with
         let mut ta2 = TextAttribute::new2(db.clone(), tx.clone(), text_attribute_id).unwrap();
         let pid2 = ta2.get_parent_id(tx.clone()).unwrap();
@@ -1253,30 +1260,30 @@ mod test {
         assert_eq!(pid2, pid1);
         assert_eq!(atid2, atid1);
         assert_eq!(od2, 456);
-        assert_eq!(db.get_text_attribute_count(tx.clone(), entity_id).unwrap(), 1);
+        assert_eq!(db.borrow().get_text_attribute_count(tx.clone(), entity_id).unwrap(), 1);
 
-        let entity_count_before_text_deletion: u64 = db.get_entity_count(tx.clone()).unwrap();
-        db.delete_text_attribute(tx.clone(), text_attribute_id).unwrap();
-        assert_eq!(db.get_text_attribute_count(tx.clone(), entity_id).unwrap(), 0);
+        let entity_count_before_text_deletion: u64 = db.borrow().get_entity_count(tx.clone()).unwrap();
+        db.borrow().delete_text_attribute(tx.clone(), text_attribute_id).unwrap();
+        assert_eq!(db.borrow().get_text_attribute_count(tx.clone(), entity_id).unwrap(), 0);
         // next line should work because of the database logic (triggers as of this writing) 
         // that removes sorting rows when attrs are removed):
-        assert_eq!(db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id)).unwrap(), 0);
-        let entity_count_after_text_deletion: u64 = db.get_entity_count(tx.clone(), ).unwrap();
+        assert_eq!(db.borrow().get_attribute_sorting_rows_count(tx.clone(), Some(entity_id)).unwrap(), 0);
+        let entity_count_after_text_deletion: u64 = db.borrow().get_entity_count(tx.clone(), ).unwrap();
         if entity_count_after_text_deletion != entity_count_before_text_deletion {
             panic!("Got constraint backwards? Deleting text attribute changed Entity count from {} to {}",
                 entity_count_before_text_deletion, 
                 entity_count_after_text_deletion);
         }
         // then recreate the text attribute (to verify its auto-deletion when Entity is deleted, below)
-        create_test_text_attribute_with_one_entity(&db, tx.clone(), entity_id, None);
-        db.delete_entity(tx.clone(), entity_id).unwrap();
-        if db.get_text_attribute_count(tx.clone(), entity_id).unwrap() > 0 {
+        create_test_text_attribute_with_one_entity(db.clone(), tx.clone(), entity_id, None);
+        db.clone().borrow().delete_entity(tx.clone(), entity_id).unwrap();
+        if db.borrow().get_text_attribute_count(tx.clone(), entity_id).unwrap() > 0 {
             panic!("Deleting the model entity should also have deleted its text \
                 attributes; get_text_attribute_count(entity_idInNewTransaction) is {}.", 
-                db.get_text_attribute_count(tx.clone(), entity_id).unwrap());
+                db.borrow().get_text_attribute_count(tx.clone(), entity_id).unwrap());
         }
 
-        let ending_entity_count = db.get_entity_count(tx.clone()).unwrap();
+        let ending_entity_count = db.borrow().get_entity_count(tx.clone()).unwrap();
         // 2 more entities came during text attribute creation, which we don't care about either way, for this test
         assert_eq!(ending_entity_count, starting_entity_count + 2);
     }
@@ -1284,13 +1291,13 @@ mod test {
     #[test]
     fn date_attribute_create_delete_update_methods() {
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         
         // If tests are run in parallel, we probably need to start using transactions in this test.
         // See other examples, and parameters to all fns. Some might need a transaction parameter
         // to be added.
-        let starting_entity_count = db.get_entity_count(None).unwrap();
-        let entity_id = db
+        let starting_entity_count = db.borrow().get_entity_count(None).unwrap();
+        let entity_id = db.borrow()
             .create_entity(
                 None,
                 "test: org.onemodel.PSQLDbTest.testDateAttrs",
@@ -1298,16 +1305,16 @@ mod test {
                 None,
             )
             .unwrap();
-        assert_eq!(db.get_attribute_sorting_rows_count(None, Some(entity_id)).unwrap(), 0);
-        let date_attribute_id: i64 = create_test_date_attribute_with_one_entity(&db, entity_id);
-        assert_eq!(db.get_attribute_sorting_rows_count(None, Some(entity_id)).unwrap(), 1);
+        assert_eq!(db.borrow().get_attribute_sorting_rows_count(None, Some(entity_id)).unwrap(), 0);
+        let date_attribute_id: i64 = create_test_date_attribute_with_one_entity(db.clone(), entity_id);
+        assert_eq!(db.borrow().get_attribute_sorting_rows_count(None, Some(entity_id)).unwrap(), 1);
         
         let mut da = DateAttribute::new2(db.clone(), None, date_attribute_id).unwrap();
         let (pid1, atid1) = (da.get_parent_id(None).unwrap(), da.get_attr_type_id(None).unwrap());
         assert_eq!(entity_id, pid1);
         
         let date = Utc::now().timestamp_millis();
-        db.update_date_attribute(None, date_attribute_id, pid1, date, atid1).unwrap();
+        db.borrow().update_date_attribute(None, date_attribute_id, pid1, date, atid1).unwrap();
         
         // Have to create new instance to re-read the data: immutability makes the program easier to debug/reason about.
         let mut da2 = DateAttribute::new2(db.clone(), None, date_attribute_id).unwrap();
@@ -1331,34 +1338,38 @@ mod test {
         assert_eq!(atid3, atid1);
         assert_eq!(date3, date);
         
-        assert_eq!(db.clone().get_date_attribute_count(None, entity_id).unwrap(), 1);
+        assert_eq!(db.clone().borrow().get_date_attribute_count(None, entity_id).unwrap(), 1);
         
-        let entity_count_before_date_deletion: u64 = db.get_entity_count(None).unwrap();
-        db.delete_date_attribute(None, date_attribute_id).unwrap();
-        assert_eq!(db.get_date_attribute_count(None, entity_id).unwrap(), 0);
+        let entity_count_before_date_deletion: u64 = db.borrow().get_entity_count(None).unwrap();
+        db.borrow().delete_date_attribute(None, date_attribute_id).unwrap();
+        assert_eq!(db.borrow().get_date_attribute_count(None, entity_id).unwrap(), 0);
         
         // next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed):
-        assert_eq!(db.get_attribute_sorting_rows_count(None, Some(entity_id)).unwrap(), 0);
-        assert_eq!(db.get_entity_count(None).unwrap(), entity_count_before_date_deletion);
+        assert_eq!(db.borrow().get_attribute_sorting_rows_count(None, Some(entity_id)).unwrap(), 0);
+        assert_eq!(db.borrow().get_entity_count(None).unwrap(), entity_count_before_date_deletion);
         
         // then recreate the attribute (to verify its auto-deletion when Entity is deleted, below)
-        create_test_date_attribute_with_one_entity(&db, entity_id);
-        db.delete_entity(None, entity_id).unwrap();
-        assert_eq!(db.get_date_attribute_count(None, entity_id).unwrap(), 0);
+        create_test_date_attribute_with_one_entity(db.clone(), entity_id);
+        db.borrow().delete_entity(None, entity_id).unwrap();
+        assert_eq!(db.borrow().get_date_attribute_count(None, entity_id).unwrap(), 0);
         
         // 2 more entities came during attribute creation, which we don't care about either way, for this test
-        assert_eq!(db.get_entity_count(None).unwrap(), starting_entity_count + 2);
+        assert_eq!(db.borrow().get_entity_count(None).unwrap(), starting_entity_count + 2);
     }
     
     #[test]
     fn boolean_create_delete_update_methods() {
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
-        let tx = db.begin_trans().unwrap();
-        let tx: Option<Rc<RefCell<Transaction<Postgres>>>> = Some(Rc::new(RefCell::new(tx)));
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
+        let temp = db.clone();
+        let temp1 = temp.borrow();
+        let tx1 = temp1.begin_trans().unwrap();
+        let tx = Some(Rc::new(RefCell::new(tx1)));
+        //let tx = db.begin_trans().unwrap();
+        //let tx: Option<Rc<RefCell<Transaction<Postgres>>>> = Some(Rc::new(RefCell::new(tx)));
 
-        let starting_entity_count = db.get_entity_count(tx.clone()).unwrap();
-        let entity_id = db
+        let starting_entity_count = db.borrow().get_entity_count(tx.clone()).unwrap();
+        let entity_id = db.borrow()
             .create_entity(
                 tx.clone(),
                 "test: org.onemodel.PSQLDbTest.testBooleanAttrs",
@@ -1370,12 +1381,12 @@ mod test {
         let observation_date: i64 = Utc::now().timestamp_millis();
         let valid_on_date: Option<i64> = Some(1234);
         assert!(
-            db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id))
+            db.borrow().get_attribute_sorting_rows_count(tx.clone(), Some(entity_id))
                 .unwrap()
                 == 0
         );
         let boolean_attribute_id: i64 = create_test_boolean_attribute_with_one_entity(
-            &db,
+            db.clone(),
             tx.clone(),
             entity_id,
             val1,
@@ -1383,7 +1394,7 @@ mod test {
             observation_date,
         );
         assert!(
-            db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id))
+            db.borrow().get_attribute_sorting_rows_count(tx.clone(), Some(entity_id))
                 .unwrap()
                 == 1
         );
@@ -1396,7 +1407,7 @@ mod test {
         assert!(entity_id == pid1);
 
         let val2 = false;
-        db.update_boolean_attribute(
+        db.borrow().update_boolean_attribute(
             tx.clone(),
             boolean_attribute_id,
             pid1,
@@ -1422,27 +1433,27 @@ mod test {
         assert!(od2 == 456);
 
         assert!(
-            db.get_boolean_attribute_count(tx.clone(), entity_id)
+            db.borrow().get_boolean_attribute_count(tx.clone(), entity_id)
                 .unwrap()
                 == 1
         );
 
-        let entity_count_before_attr_deletion: u64 = db.get_entity_count(tx.clone()).unwrap();
-        db.delete_boolean_attribute(tx.clone(), boolean_attribute_id)
+        let entity_count_before_attr_deletion: u64 = db.borrow().get_entity_count(tx.clone()).unwrap();
+        db.borrow().delete_boolean_attribute(tx.clone(), boolean_attribute_id)
             .unwrap();
         assert!(
-            db.get_boolean_attribute_count(tx.clone(), entity_id)
+            db.borrow().get_boolean_attribute_count(tx.clone(), entity_id)
                 .unwrap()
                 == 0
         );
         // Next line should work because of the database logic (triggers as of this writing)
         // that removes sorting rows when attrs are removed):
         assert!(
-            db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id))
+            db.borrow().get_attribute_sorting_rows_count(tx.clone(), Some(entity_id))
                 .unwrap()
                 == 0
         );
-        let entity_count_after_attr_deletion: u64 = db.get_entity_count(tx.clone()).unwrap();
+        let entity_count_after_attr_deletion: u64 = db.borrow().get_entity_count(tx.clone()).unwrap();
         if entity_count_after_attr_deletion != entity_count_before_attr_deletion {
             panic!("Got constraint backwards? Deleting boolean attribute changed Entity count from {} to {}",
                entity_count_before_attr_deletion, entity_count_after_attr_deletion);
@@ -1451,7 +1462,7 @@ mod test {
         // then recreate the attribute (to verify its auto-deletion when Entity is deleted, below; and to verify behavior with other values)
         let testval2: bool = true;
         let valid_on_date2: Option<i64> = None;
-        let bool_attribute_id2: i64 = db
+        let bool_attribute_id2: i64 = db.borrow()
             .create_boolean_attribute(
                 tx.clone(),
                 pid1,
@@ -1466,14 +1477,14 @@ mod test {
             BooleanAttribute::new2(db.clone(), tx.clone(), bool_attribute_id2).unwrap();
         assert!(ba3.get_boolean(tx.clone()).unwrap() == testval2);
         assert!(ba3.get_valid_on_date(tx.clone()).unwrap().is_none());
-        db.delete_entity(tx.clone(), entity_id).unwrap();
+        db.borrow().delete_entity(tx.clone(), entity_id).unwrap();
         assert!(
-            db.get_boolean_attribute_count(tx.clone(), entity_id)
+            db.borrow().get_boolean_attribute_count(tx.clone(), entity_id)
                 .unwrap()
                 == 0
         );
 
-        let ending_entity_count = db.get_entity_count(tx).unwrap();
+        let ending_entity_count = db.borrow().get_entity_count(tx).unwrap();
         // 2 more entities came during attribute creation, but we deleted one and (unlike similar tests) didn't recreate it.
         assert!(ending_entity_count == starting_entity_count + 1)
 
@@ -1551,59 +1562,62 @@ mod test {
 #[test]
 fn relation_to_entity_methods_and_relation_type_methods() {
     Util::initialize_tracing();
-    let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+    let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
     let tx = None;
     
-    let starting_entity_only_count = db.get_entities_only_count(tx.clone(), false, None, None).unwrap();
-    let starting_relation_type_count = db.get_relation_type_count(tx.clone()).unwrap();
-    let entity_id = db.create_entity(tx.clone(), "test: org.onemodel.PSQLDbTest.testRelsNRelTypes()", None, None).unwrap();
-    let starting_rel_count = db.get_relation_types(db.clone(), tx.clone(), 0, Some(25)).unwrap().len();
-    let rel_type_id: i64 = db.create_relation_type(tx.clone(), "contains", "", RelationType::UNIDIRECTIONAL).unwrap();
+    let starting_entity_only_count = db.borrow().get_entities_only_count(tx.clone(), false, None, None).unwrap();
+    let starting_relation_type_count = db.borrow().get_relation_type_count(tx.clone()).unwrap();
+    let entity_id = db.borrow().create_entity(tx.clone(), "test: org.onemodel.PSQLDbTest.testRelsNRelTypes()", None, None).unwrap();
+    let starting_rel_count = db.borrow().get_relation_types(db.clone(), tx.clone(), 0, Some(25)).unwrap().len();
+    let rel_type_id: i64 = db.borrow().create_relation_type(tx.clone(), 
+        "contains", "", RelationType::UNIDIRECTIONAL).unwrap();
 
     // Verify a bugfix from 2013-10-31 or 2013-11-4 in how SELECT is written.
-    assert_eq!(db.get_relation_types(db.clone(), tx.clone(), 0, Some(25)).unwrap().len(), starting_rel_count + 1);
-    assert_eq!(db.get_entities_only_count(tx.clone(), false, None, None).unwrap(), starting_entity_only_count + 1);
+    assert_eq!(db.borrow().get_relation_types(db.clone(), tx.clone(), 0, Some(25)).unwrap().len(), starting_rel_count + 1);
+    assert_eq!(db.borrow().get_entities_only_count(tx.clone(), false, None, None).unwrap(), starting_entity_only_count + 1);
 
-    assert_eq!(db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id)).unwrap(), 0);
+    assert_eq!(db.borrow().get_attribute_sorting_rows_count(tx.clone(), Some(entity_id)).unwrap(), 0);
 
-    let related_entity_id: i64 = create_test_relation_to_local_entity_with_one_entity(&db, tx.clone(), entity_id, rel_type_id, None);
-    assert_eq!(db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id)).unwrap(), 1);
+    let related_entity_id: i64 = create_test_relation_to_local_entity_with_one_entity(db.clone(), tx.clone(), 
+        entity_id, rel_type_id, None);
+    assert_eq!(db.borrow().get_attribute_sorting_rows_count(tx.clone(), Some(entity_id)).unwrap(), 1);
 
-    let check_relation = db.get_relation_to_local_entity_data(tx.clone(), rel_type_id, entity_id, related_entity_id).unwrap();
+    let check_relation = db.borrow().get_relation_to_local_entity_data(tx.clone(), rel_type_id, 
+        entity_id, related_entity_id).unwrap();
     let check_valid_on_date = check_relation.get(1).unwrap();
     // should get back None when created with None: see description for table's field in create_tables method.
     assert!(check_valid_on_date.is_none());
-    assert_eq!(db.get_relation_to_local_entity_count(tx.clone(), entity_id, true).unwrap(), 1);
+    assert_eq!(db.borrow().get_relation_to_local_entity_count(tx.clone(), entity_id, true).unwrap(), 1);
 
     let new_name = "test: org.onemodel.PSQLDbTest.relationupdate...";
     let name_in_reverse = "nameinreverse;!@#$%^&*()-_=+{}[]:\"'<>?,./`~"; // And verify can handle some variety of chars;
     
-    db.update_relation_type(rel_type_id, new_name, name_in_reverse, RelationType::BIDIRECTIONAL).unwrap();
-    
+    db.borrow().update_relation_type(rel_type_id, new_name, name_in_reverse, RelationType::BIDIRECTIONAL).unwrap();
+        
     // Have to create new instance to re-read the data:
     let mut updated_relation_type = RelationType::new2(db.clone(), tx.clone(), rel_type_id).unwrap();
     assert_eq!(updated_relation_type.get_name(tx.clone()).unwrap(), new_name);
     assert_eq!(updated_relation_type.get_name_in_reverse_direction(tx.clone()).unwrap(), name_in_reverse);
     assert_eq!(updated_relation_type.get_directionality(tx.clone()).unwrap(), RelationType::BIDIRECTIONAL);
 
-    db.delete_relation_to_local_entity(tx.clone(), rel_type_id, entity_id, related_entity_id).unwrap();
-    assert_eq!(db.get_relation_to_local_entity_count(tx.clone(), entity_id, true).unwrap(), 0);
+    db.borrow().delete_relation_to_local_entity(tx.clone(), rel_type_id, entity_id, related_entity_id).unwrap();
+    assert_eq!(db.borrow().get_relation_to_local_entity_count(tx.clone(), entity_id, true).unwrap(), 0);
     // Next line should work because of the database logic (triggers as of this writing) that removes sorting rows when attrs are removed:
-    assert_eq!(db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id)).unwrap(), 0);
+    assert_eq!(db.borrow().get_attribute_sorting_rows_count(tx.clone(), Some(entity_id)).unwrap(), 0);
 
-    let entity_only_count_before_relation_type_deletion: u64 = db.get_entities_only_count(tx.clone(), false, None, None).unwrap();
-    db.delete_relation_type(tx.clone(), rel_type_id).unwrap();
-    assert_eq!(db.get_relation_type_count(tx.clone()).unwrap(), starting_relation_type_count);
+    let entity_only_count_before_relation_type_deletion: u64 = db.borrow().get_entities_only_count(tx.clone(), false, None, None).unwrap();
+    db.borrow().delete_relation_type(tx.clone(), rel_type_id).unwrap();
+    assert_eq!(db.borrow().get_relation_type_count(tx.clone()).unwrap(), starting_relation_type_count);
     // Ensure that removing rel type doesn't remove more entities than it should, and that the 'onlyCount' works right.
     // i.e. as above, verify a bugfix from 2013-10-31 or 2013-11-4 in how SELECT is written.
-    assert_eq!(entity_only_count_before_relation_type_deletion, db.get_entities_only_count(tx.clone(), false, None, None).unwrap());
+    assert_eq!(entity_only_count_before_relation_type_deletion, db.borrow().get_entities_only_count(tx.clone(), false, None, None).unwrap());
 
-    db.delete_entity(tx.clone(), entity_id).unwrap();
+    db.borrow().delete_entity(tx.clone(), entity_id).unwrap();
 }
     #[test]
     fn get_containing_groups_ids_finds_groups_containing_the_test_group() {
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         // Using None for simplicity for now but if tests run in parallel, might
         // need a real one, like in other examples.
         //let tx = None; 
@@ -1617,7 +1631,7 @@ fn relation_to_entity_methods_and_relation_type_methods() {
                                                group2
          ...(and then checks in the middle that entity2 has 1 containing group, before adding entity3/group3)
          ...and then checks that entity2 has 2 containing groups. */
-        let entity_id1 = db
+        let entity_id1 = db.borrow()
             .create_entity(
                 None, //tx.clone(),
                 "test-get_containing_groups_ids-entity1",
@@ -1626,7 +1640,7 @@ fn relation_to_entity_methods_and_relation_type_methods() {
             )
             .unwrap();
         let entity1 = Entity::new2(db.clone(), None /*tx.clone()*/, entity_id1).unwrap();
-        let rel_type_id: i64 = db.clone()
+        let rel_type_id: i64 = db.clone().borrow()
             .create_relation_type(
                 None, //tx.clone(),
                 "test-get_containing_groups_ids-reltype1",
@@ -1645,7 +1659,7 @@ fn relation_to_entity_methods_and_relation_type_methods() {
         ).unwrap();
         let group1 = Group::new2(db.clone(), None /*tx.clone()*/, group_id1).unwrap();
         
-        let entity_id2 = db.clone()
+        let entity_id2 = db.clone().borrow()
             .create_entity(
                 None, //tx.clone(),
                 "test-get_containing_groups_ids-entity2",
@@ -1667,7 +1681,7 @@ fn relation_to_entity_methods_and_relation_type_methods() {
         let group2 = Group::new2(db.clone(), None /*tx.clone()*/, group_id2).unwrap();
         // this is a list of rows (query results) of (in this case) one element in each row.
         let containing_groups: Vec<Vec<Option<DataType>>> = 
-            db.get_groups_containing_entitys_groups_ids(None /*tx.clone()*/, group2.get_id(), Some(5)).unwrap();
+            db.borrow().get_groups_containing_entitys_groups_ids(None /*tx.clone()*/, group2.get_id(), Some(5)).unwrap();
         assert_eq!(containing_groups.len(), 1);
         let first_group_id: i64 = match containing_groups[0].clone()[0].clone().unwrap() {
             DataType::Bigint(x) => x,
@@ -1675,7 +1689,7 @@ fn relation_to_entity_methods_and_relation_type_methods() {
         };
         assert_eq!(first_group_id, group_id1);
         
-        let entity_id3 = db
+        let entity_id3 = db.borrow()
             .create_entity(
                 None, //tx.clone(),
                 "test-get_containing_groups_ids-entity3",
@@ -1698,7 +1712,7 @@ fn relation_to_entity_methods_and_relation_type_methods() {
         group3.add_entity(None /*tx.clone()*/, entity_id2, None).unwrap();
         
         let containing_groups2: Vec<Vec<Option<DataType>>> = 
-            db.get_groups_containing_entitys_groups_ids(None /*tx.clone()*/, group2.get_id(), Some(5)).unwrap();
+            db.borrow().get_groups_containing_entitys_groups_ids(None /*tx.clone()*/, group2.get_id(), Some(5)).unwrap();
         assert_eq!(containing_groups2.len(), 2);
         let first_group_id: i64 = match containing_groups2[0].clone()[0].clone().unwrap() {
             DataType::Bigint(x) => x,
@@ -1715,7 +1729,7 @@ fn relation_to_entity_methods_and_relation_type_methods() {
 #[test]
 fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error>> {
     Util::initialize_tracing();
-    let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db()?);
+    let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db()?));
     let rel_to_group_name = "test: PSQLDbTest.testRelsNRelTypes()";
     let entity_name = format!("{}--theEntity", rel_to_group_name);
     
@@ -1725,11 +1739,11 @@ fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error
     //created. To reproduce, move one of the lines, like the last one, to below the "let tx = None"
     //line.
     //let entity_id = db.create_entity(tx.clone(), entity_name.as_str(), None, None)?;
-    let entity_id = db.clone().create_entity(None, entity_name.as_str(), None, None)?;
+    let entity_id = db.clone().borrow().create_entity(None, entity_name.as_str(), None, None)?;
     //let entity = Entity::new2(db.clone(), tx.clone(), entity_id).unwrap();
     let entity = Entity::new2(db.clone(), None, entity_id).unwrap();
     //let rel_type_id = cloned.create_relation_type(tx.clone(), "contains", "", RelationType::UNIDIRECTIONAL)?;
-    let rel_type_id = db.clone().create_relation_type(None, "contains", "", RelationType::UNIDIRECTIONAL)?;
+    let rel_type_id = db.clone().borrow().create_relation_type(None, "contains", "", RelationType::UNIDIRECTIONAL)?;
     let valid_on_date = 12345;
     let (group_id, created_rtg_id) = create_and_add_test_relation_to_group_on_to_entity(
         //db.clone(), tx.clone(), &entity, rel_type_id, rel_to_group_name, Some(valid_on_date), true)?;
@@ -1746,17 +1760,21 @@ fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error
     // Was set to None, but variable exists in case we want to test with a transaction.
     // Other tests also check transactions. But having the transaction exposed a db deadlock
     // in call to group.delete_with_entities, below.
-    let tx = db.begin_trans().unwrap();
-    let tx: Option<Rc<RefCell<Transaction<Postgres>>>> = Some(Rc::new(RefCell::new(tx)));
+    let temp = db.clone();
+    let temp1 = temp.borrow();
+    let tx1 = temp1.begin_trans().unwrap();
+    let tx = Some(Rc::new(RefCell::new(tx1)));
+    //let tx = db.begin_trans().unwrap();
+    //let tx: Option<Rc<RefCell<Transaction<Postgres>>>> = Some(Rc::new(RefCell::new(tx)));
 
-    assert_eq!(db.get_attribute_sorting_rows_count(tx.clone(), Some(entity_id))?, 2);
+    assert_eq!(db.borrow().get_attribute_sorting_rows_count(tx.clone(), Some(entity_id))?, 2);
 
     let mut rtg = RelationToGroup::new2(db.clone(), tx.clone(), created_rtg_id, entity_id, rel_type_id, group_id).unwrap();
 
     assert!(group.get_mixed_classes_allowed(tx.clone()).unwrap());
     assert_eq!(group.get_name(tx.clone()).unwrap(), rel_to_group_name);
 
-    let check_relation = db.get_relation_to_group_data_by_keys(tx.clone(), rtg.get_parent_id(tx.clone()).unwrap(), rtg.get_attr_type_id(tx.clone()).unwrap(), rtg.get_group_id(tx.clone()).unwrap()).unwrap();
+    let check_relation = db.borrow().get_relation_to_group_data_by_keys(tx.clone(), rtg.get_parent_id(tx.clone()).unwrap(), rtg.get_attr_type_id(tx.clone()).unwrap(), rtg.get_group_id(tx.clone()).unwrap()).unwrap();
     if let DataType::Bigint(x) = check_relation[0].as_ref().unwrap() {
         assert_eq!(*x, rtg.get_id());
     } else {
@@ -1782,7 +1800,7 @@ fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error
     } else {
         panic!("How did we get here with {:?}?", check_relation[4]);
     }
-    let check_again = db.get_relation_to_group_data(tx.clone(), rtg.get_id())?;
+    let check_again = db.borrow().get_relation_to_group_data(tx.clone(), rtg.get_id())?;
     if let DataType::Bigint(x) = check_again[0].as_ref().unwrap() {
         assert_eq!(*x, rtg.get_id());
     } else {
@@ -1810,7 +1828,7 @@ fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error
     }
     assert_eq!(group.get_size(tx.clone(), 3).unwrap(), 0);
 
-    let entity_id2 = db.create_entity(tx.clone(), format!("{}2", entity_name).as_str(), None, None).unwrap();
+    let entity_id2 = db.borrow().create_entity(tx.clone(), format!("{}2", entity_name).as_str(), None, None).unwrap();
     group.add_entity(tx.clone(), entity_id2, None).unwrap();
     //group.add_entity(None, entity_id2, None).unwrap();
     assert_eq!(group.get_size(tx.clone(), 3)?, 1);
@@ -1827,27 +1845,27 @@ fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error
 
     // next line should work because of the database logic (triggers as of this writing) that 
     // removes sorting rows when attrs are removed):
-    assert_eq!(db.clone().get_attribute_sorting_rows_count(tx.clone(), Some(entity_id)).unwrap(), 1);
+    assert_eq!(db.clone().borrow().get_attribute_sorting_rows_count(tx.clone(), Some(entity_id)).unwrap(), 1);
     
     assert_eq!(group2.get_size(tx.clone(), 3).unwrap(), 0);
 
-    let entity_id3 = db.create_entity(tx.clone(), format!("{}3", entity_name).as_str(), None, None).unwrap();
+    let entity_id3 = db.borrow().create_entity(tx.clone(), format!("{}3", entity_name).as_str(), None, None).unwrap();
     group2.add_entity(tx.clone(), entity_id3, None).unwrap();
     assert_eq!(group2.get_size(tx.clone(), 3).unwrap(), 1);
 
-    let entity_id4 = db.clone().create_entity(tx.clone(), format!("{}4", entity_name).as_str(), None, None).unwrap();
+    let entity_id4 = db.clone().borrow().create_entity(tx.clone(), format!("{}4", entity_name).as_str(), None, None).unwrap();
     group2.add_entity(tx.clone(), entity_id4, None).unwrap();
 
-    let entity_id5 = db.create_entity(tx.clone(), format!("{}5", entity_name).as_str(), None, None).unwrap();
+    let entity_id5 = db.borrow().create_entity(tx.clone(), format!("{}5", entity_name).as_str(), None, None).unwrap();
     group2.add_entity(tx.clone(), entity_id5, None).unwrap();
 
-    db.get_group_entry_sorting_index(tx.clone(), group_id2, entity_id5).unwrap();
+    db.borrow().get_group_entry_sorting_index(tx.clone(), group_id2, entity_id5).unwrap();
 
     assert_eq!(group2.get_size(tx.clone(), 3).unwrap(), 3);
-    assert_eq!(db.get_group_entry_ids(tx.clone(), group2.get_id(), 0, None).unwrap().len(), 3);
+    assert_eq!(db.borrow().get_group_entry_ids(tx.clone(), group2.get_id(), 0, None).unwrap().len(), 3);
 
     group2.remove_entity(tx.clone(), entity_id5).unwrap();
-    assert_eq!(db.get_group_entry_ids(tx.clone(), group2.get_id(), 0, None).unwrap().len(), 2);
+    assert_eq!(db.borrow().get_group_entry_ids(tx.clone(), group2.get_id(), 0, None).unwrap().len(), 2);
 
     group2.delete(tx.clone()).unwrap();
     let result = Group::new2(db.clone(), tx.clone(), group_id2);
@@ -1867,7 +1885,7 @@ fn relation_to_group_and_group_methods() -> Result<(), Box<dyn std::error::Error
                                //assert(updatedRelationType.get_name_in_reverse_direction == name_in_reverse)
                                //assert(updatedRelationType.get_directionality == RelationType.BIDIRECTIONAL)
 
-    assert_eq!(db.get_relation_to_group_count(tx.clone(), entity_id)?, 0);
+    assert_eq!(db.borrow().get_relation_to_group_count(tx.clone(), entity_id)?, 0);
  
     Ok(())
 }
@@ -1946,32 +1964,32 @@ impl TestStruct<'_>{
     #[test]
     fn get_groups_works() {
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         //Using None instead of tx here for simplicity, but probably would have to change if 
         //running tests in parallel.
         //let tx = db.begin_trans().unwrap();
         //let tx = Some(Rc::new(RefCell::new(tx)));
-        let group3id = db.create_group(None /*tx.clone()*/, "g3", false).unwrap();
-        let number = db.get_groups(db.clone(), None /*tx.clone()*/, 0, None, None).unwrap().len();
-        let number2 = db.get_groups(db.clone(), None /*tx.clone()*/, 0, None, Some(group3id)).unwrap().len();
+        let group3id = db.borrow().create_group(None /*tx.clone()*/, "g3", false).unwrap();
+        let number = db.borrow().get_groups(db.clone(), None /*tx.clone()*/, 0, None, None).unwrap().len();
+        let number2 = db.borrow().get_groups(db.clone(), None /*tx.clone()*/, 0, None, Some(group3id)).unwrap().len();
         assert_eq!(number, number2 + 1);
-        let number3 = db.get_groups(db.clone(), None /*tx.clone()*/, 1, None, None).unwrap().len();
+        let number3 = db.borrow().get_groups(db.clone(), None /*tx.clone()*/, 1, None, None).unwrap().len();
         assert_eq!(number, number3 + 1);
     }
 
     #[test]
     fn deleting_entity_works_even_if_entity_is_in_a_relationtogroup() {
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         //Using None instead of tx here for simplicity, but might have to change if 
         //running tests in parallel.
         //let tx = db.begin_trans().unwrap();
         //let tx = Some(Rc::new(RefCell::new(tx)));
         
-        let starting_entity_count = db.get_entities_only_count(None, false, None, None).unwrap();
+        let starting_entity_count = db.borrow().get_entities_only_count(None, false, None, None).unwrap();
         let rel_to_group_name = "test:PSQLDbTest.testDelEntity_InGroup";
         let entity_name = format!("{}--theEntity", rel_to_group_name);
-        let entity_id = db
+        let entity_id = db.borrow()
             .create_entity(
                 None,
                 &entity_name.as_str(),
@@ -1980,7 +1998,7 @@ impl TestStruct<'_>{
             )
             .unwrap();
         let entity = Entity::new2(db.clone(), None, entity_id).unwrap();
-        let rel_type_id: i64 = db
+        let rel_type_id: i64 = db.borrow()
             .create_relation_type(
                 None,
                 "contains",
@@ -1999,7 +2017,7 @@ impl TestStruct<'_>{
             true,
         ).unwrap();
         let group = Group::new2(db.clone(), None, group_id).unwrap();
-        let entity_id1 = db
+        let entity_id1 = db.borrow()
             .create_entity(
                 None,
                 &format!("{}{}", entity_name, 1),
@@ -2008,10 +2026,10 @@ impl TestStruct<'_>{
             )
             .unwrap();
         group.add_entity(None, entity_id1, None).unwrap();
-        assert_eq!(db.get_entities_only_count(None, false, None, None).unwrap(), starting_entity_count + 2);
-        assert_eq!(db.get_group_size(None, group_id, 3).unwrap(), 1);
+        assert_eq!(db.borrow().get_entities_only_count(None, false, None, None).unwrap(), starting_entity_count + 2);
+        assert_eq!(db.borrow().get_group_size(None, group_id, 3).unwrap(), 1);
         
-        let entity_id2 = db
+        let entity_id2 = db.borrow()
             .create_entity(
                 None,
                 &format!("{}{}", entity_name, 2),
@@ -2019,31 +2037,31 @@ impl TestStruct<'_>{
                 None,
             )
             .unwrap();
-        assert_eq!(db.get_entities_only_count(None, false, None, None).unwrap(), starting_entity_count + 3);
-        assert_eq!(db.get_count_of_groups_containing_entity(None, entity_id2).unwrap(), 0);
+        assert_eq!(db.borrow().get_entities_only_count(None, false, None, None).unwrap(), starting_entity_count + 3);
+        assert_eq!(db.borrow().get_count_of_groups_containing_entity(None, entity_id2).unwrap(), 0);
         group.add_entity(None, entity_id2, None).unwrap();
-        assert_eq!(db.get_group_size(None, group_id, 3).unwrap(), 2);
-        assert_eq!(db.get_count_of_groups_containing_entity(None, entity_id2).unwrap(), 1);
+        assert_eq!(db.borrow().get_group_size(None, group_id, 3).unwrap(), 2);
+        assert_eq!(db.borrow().get_count_of_groups_containing_entity(None, entity_id2).unwrap(), 1);
         
-        let descriptions = db.get_containing_relation_to_group_descriptions(None, entity_id2, Some(9999)).unwrap();
+        let descriptions = db.borrow().get_containing_relation_to_group_descriptions(None, entity_id2, Some(9999)).unwrap();
         assert_eq!(descriptions.len(), 1);
         assert_eq!(descriptions[0], format!("{}->{}", entity_name, rel_to_group_name));
         // Doesn't get an error
-        db.delete_entity(None, entity_id2).unwrap();
+        db.borrow().delete_entity(None, entity_id2).unwrap();
         
-        let descriptions2 = db.get_containing_relation_to_group_descriptions(None, entity_id2, Some(9999)).unwrap();
+        let descriptions2 = db.borrow().get_containing_relation_to_group_descriptions(None, entity_id2, Some(9999)).unwrap();
         assert_eq!(descriptions2.len(), 0);
-        assert_eq!(db.get_count_of_groups_containing_entity(None, entity_id2).unwrap(), 0);
-        assert_eq!(db.get_entities_only_count(None, false, None, None).unwrap(), starting_entity_count + 2);
+        assert_eq!(db.borrow().get_count_of_groups_containing_entity(None, entity_id2).unwrap(), 0);
+        assert_eq!(db.borrow().get_entities_only_count(None, false, None, None).unwrap(), starting_entity_count + 2);
         // Check that creating an Entity with deleted id returns error
         let result = Entity::new2(db.clone(), None, entity_id2);
         assert!(result.is_err());
         let error_message = format!("{}", result.err().unwrap());
         assert!(error_message.contains("does not exist"));
         
-        assert_eq!(db.get_group_size(None, group_id, 3).unwrap(), 1);
+        assert_eq!(db.borrow().get_group_size(None, group_id, 3).unwrap(), 1);
         
-        let list = db.get_group_entry_ids(None, group_id, 0, None).unwrap();
+        let list = db.borrow().get_group_entry_ids(None, group_id, 0, None).unwrap();
         assert_eq!(list.len(), 1);
         let remaining_contained_entity_id = list[0];
         //Ensure the first entities still exist: not deleted by that delete command
@@ -2056,19 +2074,19 @@ impl TestStruct<'_>{
     #[test]
     fn get_sorted_attributes_returns_them_all_and_correctly() {
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         //Using None instead of tx here for simplicity, but might have to change if 
         //running tests in parallel. 
         //let tx = db.begin_trans().unwrap();
         //let tx = Some(Rc::new(RefCell::new(tx)));
 
-        let entity_id = db
+        let entity_id = db.borrow()
             .create_entity(None, "test: org.onemodel.PSQLDbTest.testRelsNRelTypes()", None, None)
             .unwrap();
         let entity = Entity::new2(db.clone(), None, entity_id).unwrap();
-        create_test_text_attribute_with_one_entity(&db.clone(), None, entity_id, None);
-        create_test_quantity_attribute_with_two_entities(&db.clone(), None, entity_id, None);
-        let rel_type_id: i64 = db
+        create_test_text_attribute_with_one_entity(db.clone(), None, entity_id, None);
+        create_test_quantity_attribute_with_two_entities(db.clone(), None, entity_id, None);
+        let rel_type_id: i64 = db.borrow()
             .create_relation_type(
                 None,
                 "contains",
@@ -2077,7 +2095,7 @@ impl TestStruct<'_>{
             )
             .unwrap();
         let related_entity_id: i64 = create_test_relation_to_local_entity_with_one_entity(
-            &db.clone(),
+            db.clone(),
             None,
             entity_id,
             rel_type_id,
@@ -2087,20 +2105,20 @@ impl TestStruct<'_>{
             db.clone(), None, &entity, rel_type_id, "test-relation-to-group", None, true,
         ).unwrap();
         // if using transactions, might have to add such a parameter to the next-called function:
-        create_test_date_attribute_with_one_entity(&db.clone(), entity_id);
-        create_test_boolean_attribute_with_one_entity(&db.clone(), None, entity_id, false, None, 0);
+        create_test_date_attribute_with_one_entity(db.clone(), entity_id);
+        create_test_boolean_attribute_with_one_entity(db.clone(), None, entity_id, false, None, 0);
         //%%file_attr: latertests after FileAttribute is more completed.
         //create_test_file_attribute_and_one_entity(&entity, "desc", 2, false);
-        db.update_entity_only_public_status(None, related_entity_id, None).unwrap();
-        let (_, only_public_total_attrs_available1) = db.get_sorted_attributes(db.clone(), None, entity_id, 0, 999, true).unwrap();
-        db.update_entity_only_public_status(None, related_entity_id, Some(false)).unwrap();
-        let (_, only_public_total_attrs_available2) = db.get_sorted_attributes(db.clone(), None, entity_id, 0, 999, true).unwrap();
-        db.update_entity_only_public_status(None, related_entity_id, Some(true)).unwrap();
-        let (_, only_public_total_attrs_available3) = db.get_sorted_attributes(db.clone(), None, entity_id, 0, 999, true).unwrap();
+        db.borrow().update_entity_only_public_status(None, related_entity_id, None).unwrap();
+        let (_, only_public_total_attrs_available1) = db.borrow().get_sorted_attributes(db.clone(), None, entity_id, 0, 999, true).unwrap();
+        db.borrow().update_entity_only_public_status(None, related_entity_id, Some(false)).unwrap();
+        let (_, only_public_total_attrs_available2) = db.borrow().get_sorted_attributes(db.clone(), None, entity_id, 0, 999, true).unwrap();
+        db.borrow().update_entity_only_public_status(None, related_entity_id, Some(true)).unwrap();
+        let (_, only_public_total_attrs_available3) = db.borrow().get_sorted_attributes(db.clone(), None, entity_id, 0, 999, true).unwrap();
         assert_eq!(only_public_total_attrs_available1, only_public_total_attrs_available2);
         assert_eq!((only_public_total_attrs_available3 - 1), only_public_total_attrs_available2);
         
-        let (attr_tuples, total_attrs_available) = db.get_sorted_attributes(db.clone(), None, entity_id, 0, 999, false).unwrap();
+        let (attr_tuples, total_attrs_available) = db.borrow().get_sorted_attributes(db.clone(), None, entity_id, 0, 999, false).unwrap();
         assert!(total_attrs_available > only_public_total_attrs_available1);
         let counter = attr_tuples.len();
         // Should be the same since we didn't create enough to span screens (requested them all)
@@ -2127,38 +2145,38 @@ impl TestStruct<'_>{
                 //if let Some(qa) = <attr as Any>::downcast_ref::<QuantityAttribute>() {
                 //if let Some(qa) = (*attr).downcast_ref::<QuantityAttribute>() {
                 //if let Some(qa) = (*attr).is::<QuantityAttribute>() {
-                if db.get_attribute_form_name(form_id).unwrap() == Util::QUANTITY_TYPE {
+                if db.borrow().get_attribute_form_name(form_id).unwrap() == Util::QUANTITY_TYPE {
                     let mut qa: QuantityAttribute = QuantityAttribute::new2(db.clone(), None, attr.get_id()).unwrap();
                     assert_eq!(qa.get_number(None).unwrap(), 50.0);
                     found_qa = true;
                 }
                 //else if let Some(ta) = attr.downcast_ref::<TextAttribute>() {
-                else if db.get_attribute_form_name(form_id).unwrap() == Util::TEXT_TYPE {
+                else if db.borrow().get_attribute_form_name(form_id).unwrap() == Util::TEXT_TYPE {
                     let mut ta: TextAttribute = TextAttribute::new2(db.clone(), None, attr.get_id()).unwrap();
                     assert_eq!(ta.get_text(None).unwrap(), "some test text");
                     found_ta = true;
                 }
                 //else if let Some(rtle) = attr.downcast_ref::<RelationToLocalEntity>() {
-                else if db.get_attribute_form_name(form_id).unwrap() == Util::RELATION_TO_LOCAL_ENTITY_TYPE {
+                else if db.borrow().get_attribute_form_name(form_id).unwrap() == Util::RELATION_TO_LOCAL_ENTITY_TYPE {
                     let mut rtle: RelationToLocalEntity = RelationToLocalEntity::new3(db.clone(), None, attr.get_id()).unwrap().unwrap(); 
                     assert_eq!(rtle.get_attr_type_id(None).unwrap(), rel_type_id);
                     found_rte = true;
                 }
                 //Attribute::RelationToGroup(_) => {
                 //else if let Some(a) = attr.downcast_ref::<RelationToGroup>() {
-                else if db.get_attribute_form_name(form_id).unwrap() == Util::RELATION_TO_GROUP_TYPE {
+                else if db.borrow().get_attribute_form_name(form_id).unwrap() == Util::RELATION_TO_GROUP_TYPE {
                     found_rtg = true;
                 }
                 //else if let Some(a) = attr.downcast_ref::<DateAttribute>() {
-                else if db.get_attribute_form_name(form_id).unwrap() == Util::DATE_TYPE {
+                else if db.borrow().get_attribute_form_name(form_id).unwrap() == Util::DATE_TYPE {
                     found_da = true;
                 }
                 //else if let Some(a) = attr.downcast_ref::<BooleanAttribute>() {
-                else if db.get_attribute_form_name(form_id).unwrap() == Util::BOOLEAN_TYPE {
+                else if db.borrow().get_attribute_form_name(form_id).unwrap() == Util::BOOLEAN_TYPE {
                     found_ba = true;
                 }
                 //else if let Some(a) = attr.downcast_ref::<FileAttribute>() {
-                else if db.get_attribute_form_name(form_id).unwrap() == Util::FILE_TYPE {
+                else if db.borrow().get_attribute_form_name(form_id).unwrap() == Util::FILE_TYPE {
                     found_fa = true;
                 }
                 else { 
@@ -2213,10 +2231,10 @@ impl TestStruct<'_>{
     #[test]
     fn om_instance_read_data_from_db() {
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         let trans = None;
 
-        let entity_id = db.create_entity(trans.clone(), "test: om_instance_read_data_from_db", None, None).unwrap();
+        let entity_id = db.borrow().create_entity(trans.clone(), "test: om_instance_read_data_from_db", None, None).unwrap();
         let uuid = uuid::Uuid::new_v4();
         let omi = OmInstance::create(db.clone(), trans.clone(), uuid.to_string().as_str(), "address", Some(entity_id)).unwrap();
         let mut omi_retrieved = OmInstance::new2(db, trans.clone(), omi.get_id().unwrap()).unwrap();
@@ -2228,106 +2246,106 @@ impl TestStruct<'_>{
     #[test]
     fn entity_deletion_should_also_delete_relation_to_local_entity_attributes() {
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         let trans = None;
 
-        let entity_id = db.create_entity(trans.clone(), "test: org.onemodel.PSQLDbTest.testRelsNRelTypes()", None, None).unwrap();
-        let rel_type_id = db.create_relation_type(trans.clone(), "is sitting next to", "", RelationType::UNIDIRECTIONAL).unwrap();
-        let starting_local_count = db.get_relation_to_local_entity_count(trans.clone(), entity_id, true).unwrap();
-        let starting_remote_count = db.get_relation_to_remote_entity_count(trans.clone(), entity_id).unwrap();
-        let related_entity_id = create_test_relation_to_local_entity_with_one_entity(&db, trans.clone(), entity_id, rel_type_id, None);
+        let entity_id = db.borrow().create_entity(trans.clone(), "test: org.onemodel.PSQLDbTest.testRelsNRelTypes()", None, None).unwrap();
+        let rel_type_id = db.borrow().create_relation_type(trans.clone(), "is sitting next to", "", RelationType::UNIDIRECTIONAL).unwrap();
+        let starting_local_count = db.borrow().get_relation_to_local_entity_count(trans.clone(), entity_id, true).unwrap();
+        let starting_remote_count = db.borrow().get_relation_to_remote_entity_count(trans.clone(), entity_id).unwrap();
+        let related_entity_id = create_test_relation_to_local_entity_with_one_entity(db.clone(), trans.clone(), entity_id, rel_type_id, None);
         assert_eq!(
-            db.get_relation_to_local_entity_count(trans.clone(), entity_id, true).unwrap(),
+            db.borrow().get_relation_to_local_entity_count(trans.clone(), entity_id, true).unwrap(),
             starting_local_count + 1
         );
 
-        let oi_info = db.get_local_om_instance_data(trans.clone()).unwrap();
+        let oi_info = db.borrow().get_local_om_instance_data(trans.clone()).unwrap();
         let oi_id: String = oi_info.0;
         let remote_entity_id = 1234;
-        db.create_relation_to_remote_entity(trans.clone(), rel_type_id, entity_id, remote_entity_id, None, 0, oi_id.as_str(), None).unwrap();
+        db.borrow().create_relation_to_remote_entity(trans.clone(), rel_type_id, entity_id, remote_entity_id, None, 0, oi_id.as_str(), None).unwrap();
         assert_eq!(
-            db.get_relation_to_local_entity_count(trans.clone(), entity_id, true).unwrap(),
+            db.borrow().get_relation_to_local_entity_count(trans.clone(), entity_id, true).unwrap(),
             starting_local_count + 1
         );
         assert_eq!(
-            db.get_relation_to_remote_entity_count(trans.clone(), entity_id).unwrap(),
+            db.borrow().get_relation_to_remote_entity_count(trans.clone(), entity_id).unwrap(),
             starting_remote_count + 1
         );
-        assert!(!db
+        assert!(!db.borrow()
             .get_relation_to_remote_entity_data(trans.clone(), rel_type_id, entity_id, oi_id.clone(), remote_entity_id)
             .unwrap()
             .is_empty());
 
-        db.delete_entity(trans.clone(), entity_id).unwrap();
-        if db.get_relation_to_local_entity_count(trans.clone(), entity_id, true).unwrap() != 0 {
+        db.borrow().delete_entity(trans.clone(), entity_id).unwrap();
+        if db.borrow().get_relation_to_local_entity_count(trans.clone(), entity_id, true).unwrap() != 0 {
             panic!(
                 "Deleting the model entity should also have deleted its RelationToLocalEntity objects. \
                  get_relation_to_local_entity_count(entity_idInNewTransaction) is {}",
-                db.get_relation_to_local_entity_count(trans.clone(), entity_id, true).unwrap()
+                db.borrow().get_relation_to_local_entity_count(trans.clone(), entity_id, true).unwrap()
             );
         }
         let local_entity_result = 
-            db.get_relation_to_local_entity_data(trans.clone(), rel_type_id, entity_id, related_entity_id);
+            db.borrow().get_relation_to_local_entity_data(trans.clone(), rel_type_id, entity_id, related_entity_id);
         assert!(local_entity_result.is_err());
         assert!(local_entity_result
             .unwrap_err()
             .to_string()
             .contains("Got 0 instead of 1 result"));
         let remote_entity_result = 
-            db.get_relation_to_remote_entity_data(trans.clone(), rel_type_id, entity_id, oi_id.clone(), remote_entity_id);
+            db.borrow().get_relation_to_remote_entity_data(trans.clone(), rel_type_id, entity_id, oi_id.clone(), remote_entity_id);
         assert!(remote_entity_result.is_err());
         assert!(remote_entity_result
             .unwrap_err()
             .to_string()
             .contains("Got 0 instead of 1 result"));
-        db.delete_relation_type(trans.clone(), rel_type_id).unwrap();
+        db.borrow().delete_relation_type(trans.clone(), rel_type_id).unwrap();
     }
 
 #[test]
 fn attributes_handle_valid_on_dates_properly_in_and_out_of_db() {
-    let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+    let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
     Util::initialize_tracing();
     let tx=None;
 
-    let entity_id = db.create_entity(tx.clone(), "test: org.onemodel.PSQLDbTest.attributes...", None, None).unwrap();
-    let rel_type_id = db.create_relation_type(tx.clone(), RELATION_TYPE_NAME, "", RelationType::UNIDIRECTIONAL).unwrap();
+    let entity_id = db.borrow().create_entity(tx.clone(), "test: org.onemodel.PSQLDbTest.attributes...", None, None).unwrap();
+    let rel_type_id = db.borrow().create_relation_type(tx.clone(), RELATION_TYPE_NAME, "", RelationType::UNIDIRECTIONAL).unwrap();
 
     // Create attributes & read back / other values (None already done above) as entered (confirms read back correctly)
     // (These methods do the checks, internally)
-    create_test_relation_to_local_entity_with_one_entity(&db, tx.clone(), entity_id, rel_type_id, Some(0));
-    create_test_relation_to_local_entity_with_one_entity(&db, tx.clone(), entity_id, rel_type_id, Some(Utc::now().timestamp_millis()));
-    create_test_quantity_attribute_with_two_entities(&db, tx.clone(), entity_id, None);
-    create_test_quantity_attribute_with_two_entities(&db, tx.clone(), entity_id, Some(0));
-    create_test_text_attribute_with_one_entity(&db, tx.clone(), entity_id, None);
-    create_test_text_attribute_with_one_entity(&db, tx.clone(), entity_id, Some(0));
+    create_test_relation_to_local_entity_with_one_entity(db.clone(), tx.clone(), entity_id, rel_type_id, Some(0));
+    create_test_relation_to_local_entity_with_one_entity(db.clone(), tx.clone(), entity_id, rel_type_id, Some(Utc::now().timestamp_millis()));
+    create_test_quantity_attribute_with_two_entities(db.clone(), tx.clone(), entity_id, None);
+    create_test_quantity_attribute_with_two_entities(db.clone(), tx.clone(), entity_id, Some(0));
+    create_test_text_attribute_with_one_entity(db.clone(), tx.clone(), entity_id, None);
+    create_test_text_attribute_with_one_entity(db.clone(), tx.clone(), entity_id, Some(0));
 }
 
     #[test]
     #[should_panic]
     fn test_add_quantity_attribute_with_bad_parent_id_does_not_work() {
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         //Using None instead of tx here for simplicity, but might have to change if
         //running tests in parallel.
         //let tx = db.begin_trans().unwrap();
         //let tx = Some(Rc::new(RefCell::new(tx)));
         println!("starting test_add_quantity_attribute_with_bad_parent_id");
         // Database should not allow adding quantity with a bad parent (Entity) ID!
-        let bad_parent_id: i64 = db.find_id_which_is_not_key_of_any_entity(None).unwrap();
+        let bad_parent_id: i64 = db.borrow().find_id_which_is_not_key_of_any_entity(None).unwrap();
         // idea: make it a more specific failure type, so we catch only the error we want...?
-        let _quantity_id = create_test_quantity_attribute_with_two_entities(&db.clone(), None, bad_parent_id, None);
+        let _quantity_id = create_test_quantity_attribute_with_two_entities(db.clone(), None, bad_parent_id, None);
     }
 
     fn create_test_quantity_attribute_with_two_entities(
-        db: &Rc<PostgreSQLDatabase>,
+        db: Rc<RefCell<PostgreSQLDatabase>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_parent_id: i64,
         in_valid_on_date: Option<i64>, /*= None*/
     ) -> i64 {
-        let unit_id: i64 = db
+        let unit_id: i64 = db.borrow()
             .create_entity(transaction.clone(), "centimeters", None, None)
             .unwrap();
-        let attr_type_id: i64 = db
+        let attr_type_id: i64 = db.borrow()
             .create_entity(transaction.clone(), QUANTITY_TYPE_NAME, None, None)
             .unwrap();
         let default_date: i64 = Utc::now().timestamp_millis();
@@ -2337,7 +2355,7 @@ fn attributes_handle_valid_on_dates_properly_in_and_out_of_db() {
 
         //let ref rc_db = &db.clone();
         //let ref cloned = rc_db.clone();
-        let quantity_id: i64 = db
+        let quantity_id: i64 = db.borrow()
             .create_quantity_attribute(
                 transaction.clone(),
                 in_parent_id,
@@ -2532,15 +2550,15 @@ This conversion maintains the test's intent: verifying that when an error occurs
         // find_contained_entries and find_relation_to_group_on_entity, that they all worked right 
         // in earlier db setup and now.
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         //Using None instead of tx here for simplicity, but might have to change if
         //running tests in parallel.
         //let tx = db.begin_trans().unwrap();
         //let tx = Some(Rc::new(RefCell::new(tx)));
         
         let person_template: String = format!("person{}", Util::TEMPLATE_NAME_SUFFIX);
-        let system_entity_id = db.get_system_entity_id(None).unwrap();
-        let group_id_of_class_templates = db.find_relation_to_and_group_on_entity(
+        let system_entity_id = db.borrow().get_system_entity_id(None).unwrap();
+        let group_id_of_class_templates = db.borrow().find_relation_to_and_group_on_entity(
             None,
             system_entity_id,
             Some(Util::CLASS_TEMPLATE_ENTITY_GROUP_NAME.to_string()),
@@ -2552,11 +2570,11 @@ This conversion maintains the test's intent: verifying that when an error occurs
         let mut group = Group::new2(db.clone(), None, group_id_of_class_templates.unwrap()).unwrap();
         assert!(group.get_mixed_classes_allowed(None).unwrap());
         
-        let person_template_entity_id: i64 = db.find_entity_only_ids_by_name(None, person_template.clone()).unwrap()[0];
+        let person_template_entity_id: i64 = db.borrow().find_entity_only_ids_by_name(None, person_template.clone()).unwrap()[0];
         // idea: make this next part more idiomatic Rust? (but only if still very simple to read 
         // for programmers who are used to other languages?):
         let mut found = false;
-        let entity_ids_in_group: Vec<i64> = db.get_group_entry_ids(None, group_id_of_class_templates.unwrap(), 0, None)
+        let entity_ids_in_group: Vec<i64> = db.borrow().get_group_entry_ids(None, group_id_of_class_templates.unwrap(), 0, None)
             .unwrap();
         for entity_id in &entity_ids_in_group {
             if *entity_id == person_template_entity_id {
@@ -2565,7 +2583,7 @@ This conversion maintains the test's intent: verifying that when an error occurs
         }
         assert!(found); 
         // make sure the other approach also works, even with deeply nested data:
-        let rel_type_id: i64 = db
+        let rel_type_id: i64 = db.borrow()
             .create_relation_type(
                 None,
                 "contains",
@@ -2574,7 +2592,7 @@ This conversion maintains the test's intent: verifying that when an error occurs
             )
             .unwrap();
         let te1 = create_test_relation_to_local_entity_with_one_entity(
-            &db.clone(),
+            db.clone(),
             None,
             person_template_entity_id,
             rel_type_id,
@@ -2582,7 +2600,7 @@ This conversion maintains the test's intent: verifying that when an error occurs
         );
         
         let te2 = create_test_relation_to_local_entity_with_one_entity(
-            &db.clone(),
+            db.clone(),
             None,
             te1,
             rel_type_id,
@@ -2590,7 +2608,7 @@ This conversion maintains the test's intent: verifying that when an error occurs
         );
         
         let te3 = create_test_relation_to_local_entity_with_one_entity(
-            &db.clone(),
+            db.clone(),
             None,
             te2,
             rel_type_id,
@@ -2598,14 +2616,14 @@ This conversion maintains the test's intent: verifying that when an error occurs
         );
         
         let te4 = create_test_relation_to_local_entity_with_one_entity(
-            &db.clone(),
+            db.clone(),
             None,
             te3,
             rel_type_id,
             None,
         );
         let mut found_ids = std::collections::HashSet::new();
-        db.find_contained_local_entity_ids(
+        db.borrow().find_contained_local_entity_ids(
             None,
             &mut found_ids,
             system_entity_id,
@@ -2620,7 +2638,7 @@ This conversion maintains the test's intent: verifying that when an error occurs
             person_template_entity_id
         );
         let mut all_contained_with_name = std::collections::HashSet::new();
-        db.find_contained_local_entity_ids(
+        db.borrow().find_contained_local_entity_ids(
             None,
             &mut all_contained_with_name,
             system_entity_id,
@@ -2650,7 +2668,7 @@ This conversion maintains the test's intent: verifying that when an error occurs
             Some(0),
         ).unwrap();
         let mut all_contained_with_name2 = std::collections::HashSet::new();
-        db.find_contained_local_entity_ids(
+        db.borrow().find_contained_local_entity_ids(
             None,
             &mut all_contained_with_name2,
             system_entity_id,
@@ -2675,7 +2693,7 @@ This conversion maintains the test's intent: verifying that when an error occurs
             Some(0),
         ).unwrap();
         let mut all_contained_with_name3 = std::collections::HashSet::new();
-        db.find_contained_local_entity_ids(
+        db.borrow().find_contained_local_entity_ids(
             None,
             &mut all_contained_with_name3,
             system_entity_id,
@@ -2699,7 +2717,7 @@ This conversion maintains the test's intent: verifying that when an error occurs
             Some(0),
         ).unwrap();
         let mut all_contained_with_name4 = std::collections::HashSet::new();
-        db.find_contained_local_entity_ids(
+        db.borrow().find_contained_local_entity_ids(
             None,
             &mut all_contained_with_name4,
             system_entity_id,
@@ -2718,7 +2736,7 @@ This conversion maintains the test's intent: verifying that when an error occurs
         
         // make sure this was also set up probably by the db set code, as with some other things
         // above.
-        let editor_cmd = db.get_text_editor_command(None).unwrap();
+        let editor_cmd = db.borrow().get_text_editor_command(None).unwrap();
         if Util::is_windows() {
             assert!(editor_cmd.contains("notepad"));
         } else {
@@ -2818,42 +2836,42 @@ This conversion maintains the test's intent: verifying that when an error occurs
     #[test]
     fn is_duplicate_entity_class_and_class_update_deletion_works() {
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         //Using None instead of tx here for simplicity, but might have to change if
         //running tests in parallel.
         //let tx = db.begin_trans().unwrap();
         //let tx = Some(Rc::new(RefCell::new(tx)));
         
         let name: String = "testing is_duplicateEntityClass".to_string();
-        let (class_id, entity_id) = db
+        let (class_id, entity_id) = db.borrow()
             .create_class_and_its_template_entity(None, &name)
             .unwrap();
         assert!(EntityClass::is_duplicate(db.clone(), None, &name, None).unwrap());
         assert!(!EntityClass::is_duplicate(db.clone(), None, &name, Some(class_id)).unwrap());
         
-        db.update_class_name(None, class_id, name.to_lowercase()).unwrap();
+        db.borrow().update_class_name(None, class_id, name.to_lowercase()).unwrap();
         assert!(!EntityClass::is_duplicate(db.clone(), None, &name, Some(class_id)).unwrap());
         assert!(EntityClass::is_duplicate(db.clone(), None, &name.to_lowercase(), None).unwrap());
         assert!(!EntityClass::is_duplicate(db.clone(), None, &name.to_lowercase(), Some(class_id)).unwrap());
         
-        db.update_class_name(None, class_id, name.clone()).unwrap();
-        db.update_class_create_default_attributes(None, class_id, Some(false)).unwrap();
+        db.borrow().update_class_name(None, class_id, name.clone()).unwrap();
+        db.borrow().update_class_create_default_attributes(None, class_id, Some(false)).unwrap();
         let mut entity_class = EntityClass::new2(db.clone(), None, class_id).unwrap();
         let should1: Option<bool> = entity_class.get_create_default_attributes(None).unwrap();
         assert!(!should1.unwrap());
         
-        db.update_class_create_default_attributes(None, class_id, None).unwrap();
+        db.borrow().update_class_create_default_attributes(None, class_id, None).unwrap();
         let mut entity_class = EntityClass::new2(db.clone(), None, class_id).unwrap();
         let should2: Option<bool> = entity_class.get_create_default_attributes(None).unwrap();
         assert!(should2.is_none());
         
-        db.update_class_create_default_attributes(None, class_id, Some(true)).unwrap();
+        db.borrow().update_class_create_default_attributes(None, class_id, Some(true)).unwrap();
         let mut entity_class = EntityClass::new2(db.clone(), None, class_id).unwrap();
         let should3: Option<bool> = entity_class.get_create_default_attributes(None).unwrap();
         assert!(should3.unwrap());
         
-        db.update_entitys_class(None, entity_id, None).unwrap();
-        db.delete_class_and_its_template_entity(class_id).unwrap();
+        db.borrow().update_entitys_class(None, entity_id, None).unwrap();
+        db.borrow().delete_class_and_its_template_entity(class_id).unwrap();
         assert!(!EntityClass::is_duplicate(db.clone(), None, &name, Some(class_id)).unwrap());
         assert!(!EntityClass::is_duplicate(db.clone(), None, &name, None).unwrap());
     }
@@ -2864,7 +2882,7 @@ This conversion maintains the test's intent: verifying that when an error occurs
         // ...for now anyway. See comments at this table in psqld.create_tables and/or hasMixedClasses.
 
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         //Using None instead of tx here for simplicity, but might have to change if
         //running tests in parallel.
         //let tx = db.begin_trans().unwrap();
@@ -2872,23 +2890,23 @@ This conversion maintains the test's intent: verifying that when an error occurs
         
         // This also tests db.create_entity and db.updateEntityOnlyClass.
         let entity_name = "test: PSQLDbTest.testgroup-class-uniqueness--theEntity";
-        let (class_id, entity_id) = db
+        let (class_id, entity_id) = db.borrow()
             .create_class_and_its_template_entity(None, entity_name)
             .unwrap();
-        let (class_id2, entity_id2) = db
+        let (class_id2, entity_id2) = db.borrow()
             .create_class_and_its_template_entity(
                 None,
                 &format!("{}{}", entity_name, 2),
             )
             .unwrap();
-        let class_count = db.get_class_count(None, None).unwrap();
-        let classes = db.get_classes(db.clone(), None, 0, None).unwrap();
+        let class_count = db.borrow().get_class_count(None, None).unwrap();
+        let classes = db.borrow().get_classes(db.clone(), None, 0, None).unwrap();
         assert_eq!(class_count, classes.len());
-        let class_count_limited = db.get_class_count(None, Some(entity_id2)).unwrap();
+        let class_count_limited = db.borrow().get_class_count(None, Some(entity_id2)).unwrap();
         assert_eq!(class_count_limited, 1);
         
         // Whatever, just need some relation type to go with:
-        let rel_type_id: i64 = db
+        let rel_type_id: i64 = db.borrow()
             .create_relation_type(None, "contains", "", RelationType::UNIDIRECTIONAL)
             .unwrap();
         let entity = Entity::new2(db.clone(), None, entity_id).unwrap();
@@ -2903,10 +2921,10 @@ This conversion maintains the test's intent: verifying that when an error occurs
         ).unwrap();
         let group = Group::new2(db.clone(), None, group_id).unwrap();
         
-        assert!(!db.is_entity_in_group(None, group_id, entity_id).unwrap());
+        assert!(!db.borrow().is_entity_in_group(None, group_id, entity_id).unwrap());
         group.add_entity(None, entity_id, None).unwrap();
-        assert!(db.is_entity_in_group(None, group_id, entity_id).unwrap());
-        assert!(!db.is_entity_in_group(None, group_id, entity_id2).unwrap());
+        assert!(db.borrow().is_entity_in_group(None, group_id, entity_id).unwrap());
+        assert!(!db.borrow().is_entity_in_group(None, group_id, entity_id2).unwrap());
         // Should fail due to mismatched classId (a long):
         let result = group.add_entity(None, entity_id2, None);
         assert!(result.is_err());
@@ -2914,20 +2932,20 @@ This conversion maintains the test's intent: verifying that when an error occurs
         assert!(error_message.contains(Util::MIXED_CLASSES_EXCEPTION));
         
         // Should succeed (same class now):
-        db.update_entitys_class(None, entity_id2, Some(class_id)).unwrap();
+        db.borrow().update_entitys_class(None, entity_id2, Some(class_id)).unwrap();
         group.add_entity(None, entity_id2, None).unwrap();
         // ...and for convenience while here, make sure we can't make mixed classes with changing the *entity* either:
-        let result = db.update_entitys_class(None, entity_id2, Some(class_id2));
+        let result = db.borrow().update_entitys_class(None, entity_id2, Some(class_id2));
         assert!(result.is_err());
         let error_message = format!("{}", result.err().unwrap());
         assert!(error_message.contains(Util::MIXED_CLASSES_EXCEPTION));
-        let result = db.update_entitys_class(None, entity_id2, None);
+        let result = db.borrow().update_entitys_class(None, entity_id2, None);
         assert!(result.is_err());
         let error_message = format!("{}", result.err().unwrap());
         assert!(error_message.contains(Util::MIXED_CLASSES_EXCEPTION));
         
         // Should fail due to mismatched classId (NULL):
-        let entity_id3 = db
+        let entity_id3 = db.borrow()
             .create_entity(None, &format!("{}{}", entity_name, 3), None, None)
             .unwrap();
         let result = group.add_entity(None, entity_id3, None);
@@ -2935,36 +2953,36 @@ This conversion maintains the test's intent: verifying that when an error occurs
         let error_message = format!("{}", result.err().unwrap());
         assert!(error_message.contains(Util::MIXED_CLASSES_EXCEPTION));
         
-        assert!(!db.are_mixed_classes_allowed(None, &group_id).unwrap());
+        assert!(!db.borrow().are_mixed_classes_allowed(None, &group_id).unwrap());
         
-        let system_entity_id = db.get_system_entity_id(None).unwrap();
+        let system_entity_id = db.borrow().get_system_entity_id(None).unwrap();
         //let (_, _, class_group_id) = db.find_relation_to_and_group_on_entity(
         let vals: (Option<i64>, Option<i64>, Option<i64>, Option<std::string::String>, bool) 
-            = db.find_relation_to_and_group_on_entity(
+            = db.borrow().find_relation_to_and_group_on_entity(
             None,
             system_entity_id,
             Some(Util::CLASS_TEMPLATE_ENTITY_GROUP_NAME.to_string()),
         ).unwrap();
         let class_group_id = vals.2;
         
-        assert!(db.are_mixed_classes_allowed(None, &class_group_id.unwrap()).unwrap());
+        assert!(db.borrow().are_mixed_classes_allowed(None, &class_group_id.unwrap()).unwrap());
         
-        let group_size_before_removal = db.get_group_size(None, group_id, 3).unwrap();
-        assert_eq!(db.get_group_size(None, group_id, 2).unwrap(), 0);
-        assert_eq!(db.get_group_size(None, group_id, 1).unwrap(), group_size_before_removal);
-        assert_eq!(db.get_group_size(None, group_id, 3).unwrap(), group_size_before_removal);
+        let group_size_before_removal = db.borrow().get_group_size(None, group_id, 3).unwrap();
+        assert_eq!(db.borrow().get_group_size(None, group_id, 2).unwrap(), 0);
+        assert_eq!(db.borrow().get_group_size(None, group_id, 1).unwrap(), group_size_before_removal);
+        assert_eq!(db.borrow().get_group_size(None, group_id, 3).unwrap(), group_size_before_removal);
         
-        db.archive_entity(None, entity_id2).unwrap();
-        assert_eq!(db.get_group_size(None, group_id, 2).unwrap(), 1);
-        assert_eq!(db.get_group_size(None, group_id, 1).unwrap(), group_size_before_removal - 1);
-        assert_eq!(db.get_group_size(None, group_id, 3).unwrap(), group_size_before_removal);
+        db.borrow().archive_entity(None, entity_id2).unwrap();
+        assert_eq!(db.borrow().get_group_size(None, group_id, 2).unwrap(), 1);
+        assert_eq!(db.borrow().get_group_size(None, group_id, 1).unwrap(), group_size_before_removal - 1);
+        assert_eq!(db.borrow().get_group_size(None, group_id, 3).unwrap(), group_size_before_removal);
         
-        db.remove_entity_from_group(None, group_id, entity_id2).unwrap();
-        let group_size_after_removal = db.get_group_size(None, group_id, 3).unwrap();
+        db.borrow().remove_entity_from_group(None, group_id, entity_id2).unwrap();
+        let group_size_after_removal = db.borrow().get_group_size(None, group_id, 3).unwrap();
         assert!(group_size_after_removal < group_size_before_removal);
-        assert_eq!(db.get_group_size(None, group_id, 2).unwrap(), 0);
-        assert_eq!(db.get_group_size(None, group_id, 1).unwrap(), group_size_before_removal - 1);
-        assert_eq!(db.get_group_size(None, group_id, 3).unwrap(), group_size_before_removal - 1);
+        assert_eq!(db.borrow().get_group_size(None, group_id, 2).unwrap(), 0);
+        assert_eq!(db.borrow().get_group_size(None, group_id, 1).unwrap(), group_size_before_removal - 1);
+        assert_eq!(db.borrow().get_group_size(None, group_id, 3).unwrap(), group_size_before_removal - 1);
     }
 
     #[test]
@@ -2973,14 +2991,14 @@ This conversion maintains the test's intent: verifying that when an error occurs
         // Idea: this could be rewritten to not depend on pre-existing data to fail when it's supposed to fail.
 
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         //Using None instead of tx here for simplicity, but might have to change if
         //running tests in parallel.
         //let tx = db.begin_trans().unwrap();
         //let tx = Some(Rc::new(RefCell::new(tx)));
         
-        let starting_entity_count = db.get_entities_only_count(None, false, None, None).unwrap();
-        let row: Vec<Option<DataType>> = db.db_query_wrapper_for_one_row(None, 
+        let starting_entity_count = db.borrow().get_entities_only_count(None, false, None, None).unwrap();
+        let row: Vec<Option<DataType>> = db.borrow().db_query_wrapper_for_one_row(None, 
             "select id from class limit 1", 
             "i64")
             .unwrap();
@@ -2990,22 +3008,22 @@ This conversion maintains the test's intent: verifying that when an error occurs
             DataType::Bigint(x) => x,
             _ => panic!("Unexpected value from query"),
         };
-        let num_entities_in_class = db.extract_row_count_from_count_query(None, &format!("select count(1) from entity where class_id={}", some_class_id)).unwrap();
+        let num_entities_in_class = db.borrow().extract_row_count_from_count_query(None, &format!("select count(1) from entity where class_id={}", some_class_id)).unwrap();
         assert!(starting_entity_count > num_entities_in_class);
         
-        let all_entities_in_class = db.get_entities_only(db.clone(), None, 0, None, Some(some_class_id), true, None, None).unwrap();
-        let all_entities_in_class_count1 = db.get_entities_only_count(None, true, Some(some_class_id), None).unwrap();
-        let all_entities_in_class_count2 = db.get_entities_only_count(None, true, Some(some_class_id), None).unwrap();
+        let all_entities_in_class = db.borrow().get_entities_only(db.clone(), None, 0, None, Some(some_class_id), true, None, None).unwrap();
+        let all_entities_in_class_count1 = db.borrow().get_entities_only_count(None, true, Some(some_class_id), None).unwrap();
+        let all_entities_in_class_count2 = db.borrow().get_entities_only_count(None, true, Some(some_class_id), None).unwrap();
         assert_eq!(all_entities_in_class_count1, all_entities_in_class_count2);
         
         let template_class_id: i64 
             = EntityClass::new2(db.clone(), None, some_class_id).unwrap()
             .get_template_entity_id(None).unwrap();
-        let all_entities_in_class_count_wo_class = db.get_entities_only_count(None, true, Some(some_class_id), Some(template_class_id)).unwrap();
+        let all_entities_in_class_count_wo_class = db.borrow().get_entities_only_count(None, true, Some(some_class_id), Some(template_class_id)).unwrap();
         assert_eq!(all_entities_in_class_count_wo_class, all_entities_in_class_count1 - 1);
         assert_eq!(all_entities_in_class.len(), all_entities_in_class_count1 as usize);
         assert!(all_entities_in_class.len() 
-            < db.get_entities_only(db.clone(), None, 0, None, Some(some_class_id), false, None, None).unwrap().len());
+            < db.borrow().get_entities_only(db.clone(), None, 0, None, Some(some_class_id), false, None, None).unwrap().len());
         assert_eq!(all_entities_in_class.len(), num_entities_in_class as usize);
         
         let mut e: Entity = all_entities_in_class[0].clone();
@@ -3013,9 +3031,9 @@ This conversion maintains the test's intent: verifying that when an error occurs
 
         // part 2:
         // some setup, confirm good
-        let starting_entity_count2 = db.get_entities_only_count(None, false, None, None).unwrap();
-        let rel_type_id: i64 = db.create_relation_type(None, "contains", "", RelationType::UNIDIRECTIONAL).unwrap();
-        let id1: i64 = db.create_entity(None, "name1", None, None).unwrap();
+        let starting_entity_count2 = db.borrow().get_entities_only_count(None, false, None, None).unwrap();
+        let rel_type_id: i64 = db.borrow().create_relation_type(None, "contains", "", RelationType::UNIDIRECTIONAL).unwrap();
+        let id1: i64 = db.borrow().create_entity(None, "name1", None, None).unwrap();
         let entity1 = Entity::new2(db.clone(), None, id1).unwrap();
         let (group_id, rtg_id) = entity1.add_group_and_relation_to_group(
             None, 
@@ -3027,24 +3045,24 @@ This conversion maintains the test's intent: verifying that when an error occurs
             None
         ).unwrap();
         let mut rtg = RelationToGroup::new2(db.clone(), None, rtg_id, id1, rel_type_id, group_id).unwrap();
-        assert!(db.relation_to_group_keys_exist(None, rtg.get_parent_id(None).unwrap(), 
+        assert!(db.borrow().relation_to_group_keys_exist(None, rtg.get_parent_id(None).unwrap(), 
                 rtg.get_attr_type_id(None).unwrap(), 
                 rtg.get_group_id(None).unwrap()).unwrap());
-        assert!(db.attribute_key_exists(None, rtg.get_form_id().unwrap(), rtg.get_id()).unwrap());
+        assert!(db.borrow().attribute_key_exists(None, rtg.get_form_id().unwrap(), rtg.get_id()).unwrap());
         
-        let id2: i64 = db.create_entity(None, "name2", None, None).unwrap();
+        let id2: i64 = db.borrow().create_entity(None, "name2", None, None).unwrap();
         let group: Group = Group::new2(db.clone(), None, group_id).unwrap();
         group.add_entity(None, id2, None).unwrap();
-        let entity_count_after_creating = db.get_entities_only_count(None, false, None, None).unwrap();
+        let entity_count_after_creating = db.borrow().get_entities_only_count(None, false, None, None).unwrap();
         assert_eq!(entity_count_after_creating, starting_entity_count2 + 2);
         
-        let result_size = db.get_entities_only(db.clone(), None, 0, None, None, false, None, None).unwrap().len();
+        let result_size = db.borrow().get_entities_only(db.clone(), None, 0, None, None, false, None, None).unwrap().len();
         assert_eq!(entity_count_after_creating as usize, result_size);
         
-        let result_size_with_none_parameter = db.get_entities_only(db.clone(), None, 0, None, None, false, None, None).unwrap().len();
+        let result_size_with_none_parameter = db.borrow().get_entities_only(db.clone(), None, 0, None, None, false, None, None).unwrap().len();
         assert_eq!(entity_count_after_creating as usize, result_size_with_none_parameter); 
         // the real part 2 test (or prev line?)
-        let result_size_with_group_omission = db.get_entities_only(db.clone(), None, 0, None, None, false, None, Some(group.get_id())).unwrap().len();
+        let result_size_with_group_omission = db.borrow().get_entities_only(db.clone(), None, 0, None, None, false, None, Some(group.get_id())).unwrap().len();
         assert_eq!(entity_count_after_creating as usize - 1, result_size_with_group_omission);
     }
 
@@ -3053,15 +3071,15 @@ This conversion maintains the test's intent: verifying that when an error occurs
         // ...for now anyway.  See comments at this table in psqld.create_tables and/or hasMixedClasses.
         
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         //Using None instead of tx here for simplicity, but might have to change if
         //running tests in parallel.
         //let tx = db.begin_trans().unwrap();
         //let tx = Some(Rc::new(RefCell::new(tx)));
         
         let entity_name = "test: PSQLDbTest.testgroup-class-allowsAllNulls--theEntity";
-        let (class_id, entity_id) = db.create_class_and_its_template_entity(None, entity_name).unwrap();
-        let rel_type_id: i64 = db.create_relation_type(None, "contains", "", RelationType::UNIDIRECTIONAL).unwrap();
+        let (class_id, entity_id) = db.borrow().create_class_and_its_template_entity(None, entity_name).unwrap();
+        let rel_type_id: i64 = db.borrow().create_relation_type(None, "contains", "", RelationType::UNIDIRECTIONAL).unwrap();
         let entity = Entity::new2(db.clone(), None, entity_id).unwrap();
         let (group_id, _) = create_and_add_test_relation_to_group_on_to_entity(
             db.clone(),
@@ -3075,16 +3093,16 @@ This conversion maintains the test's intent: verifying that when an error occurs
         
         let group: Group = Group::new2(db.clone(), None, group_id).unwrap();
         // 1st one has a NULL class_id
-        let entity_id3 = db.create_entity(None, &format!("{}{}", entity_name, 3), None, None).unwrap();
+        let entity_id3 = db.borrow().create_entity(None, &format!("{}{}", entity_name, 3), None, None).unwrap();
         // ...so it works to add another one that's NULL
         group.add_entity(None, entity_id3, None).unwrap();
         
-        let entity_id4 = db.create_entity(None, &format!("{}{}", entity_name, 4), None, None).unwrap();
+        let entity_id4 = db.borrow().create_entity(None, &format!("{}{}", entity_name, 4), None, None).unwrap();
         // ...so it works to add another one that's NULL
         group.add_entity(None, entity_id4, None).unwrap();
         
         // but adding one with a class_id fails w/ mismatch:
-        let entity_id5 = db.create_entity(None, &format!("{}{}", entity_name, 5), Some(class_id), None).unwrap();
+        let entity_id5 = db.borrow().create_entity(None, &format!("{}{}", entity_name, 5), Some(class_id), None).unwrap();
         let result = group.add_entity(None, entity_id5, None);
         assert!(result.is_err());
         let error_message = format!("{}", result.err().unwrap());
@@ -3095,24 +3113,24 @@ This conversion maintains the test's intent: verifying that when an error occurs
     fn test_get_entities_only_count() {
         // ...should_not_count_entities_used_as_relation_types_or_attribute_types.
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         //Using None instead of tx here for simplicity, but might have to change if
         //running tests in parallel.
         //let tx = db.begin_trans().unwrap();
         //let tx = Some(Rc::new(RefCell::new(tx)));
         
-        let entity_id = db.create_entity(None, "test: org.onemodel.PSQLDbTest.get_entities_only_count", None, None).unwrap();
-        let c1 = db.get_entities_only_count(None, false, None, None).unwrap();
-        assert_eq!(db.get_entities_only_count(None, false, None, None).unwrap(), c1);
-        let rel_type_id: i64 = db.create_relation_type(None, "contains", "", RelationType::UNIDIRECTIONAL).unwrap();
-        assert_eq!(db.get_entities_only_count(None, false, None, None).unwrap(), c1);
+        let entity_id = db.borrow().create_entity(None, "test: org.onemodel.PSQLDbTest.get_entities_only_count", None, None).unwrap();
+        let c1 = db.borrow().get_entities_only_count(None, false, None, None).unwrap();
+        assert_eq!(db.borrow().get_entities_only_count(None, false, None, None).unwrap(), c1);
+        let rel_type_id: i64 = db.borrow().create_relation_type(None, "contains", "", RelationType::UNIDIRECTIONAL).unwrap();
+        assert_eq!(db.borrow().get_entities_only_count(None, false, None, None).unwrap(), c1);
         
-        create_test_relation_to_local_entity_with_one_entity(&db.clone(), None, entity_id, rel_type_id, None);
+        create_test_relation_to_local_entity_with_one_entity(db.clone(), None, entity_id, rel_type_id, None);
         let c2 = c1 + 1;
-        assert_eq!(db.get_entities_only_count(None, false, None, None).unwrap(), c2);
+        assert_eq!(db.borrow().get_entities_only_count(None, false, None, None).unwrap(), c2);
         
         // this kind shouldn't matter--confirming:
-        let rel_type_id2: i64 = db.create_relation_type(None, "contains2", "", RelationType::UNIDIRECTIONAL).unwrap();
+        let rel_type_id2: i64 = db.borrow().create_relation_type(None, "contains2", "", RelationType::UNIDIRECTIONAL).unwrap();
         let entity = Entity::new2(db.clone(), None, entity_id).unwrap();
         create_and_add_test_relation_to_group_on_to_entity(
             db.clone(),
@@ -3123,22 +3141,22 @@ This conversion maintains the test's intent: verifying that when an error occurs
             None,
             true,
         ).unwrap();
-        assert_eq!(db.get_entities_only_count(None, false, None, None).unwrap(), c2);
+        assert_eq!(db.borrow().get_entities_only_count(None, false, None, None).unwrap(), c2);
         
-        let prev_entities_used_as_attribute_types = db.get_count_of_entities_used_as_attribute_types(
+        let prev_entities_used_as_attribute_types = db.borrow().get_count_of_entities_used_as_attribute_types(
             None, 
             Util::DATE_TYPE.to_string(), 
             false
         ).unwrap();
-        let date_attribute_id = create_test_date_attribute_with_one_entity(&db.clone(), entity_id);
+        let date_attribute_id = create_test_date_attribute_with_one_entity(db.clone(), entity_id);
         let mut date_attribute = DateAttribute::new2(db.clone(), None, date_attribute_id).unwrap();
         assert_eq!(
-            db.get_count_of_entities_used_as_attribute_types(None, Util::DATE_TYPE.to_string(), false).unwrap(), 
+            db.borrow().get_count_of_entities_used_as_attribute_types(None, Util::DATE_TYPE.to_string(), false).unwrap(), 
             prev_entities_used_as_attribute_types + 1
         );
-        assert_eq!(db.get_entities_only_count(None, false, None, None).unwrap(), c2);
+        assert_eq!(db.borrow().get_entities_only_count(None, false, None, None).unwrap(), c2);
         
-        let date_attribute_type_entities: Vec<Entity> = db.get_entities_used_as_attribute_types(
+        let date_attribute_type_entities: Vec<Entity> = db.borrow().get_entities_used_as_attribute_types(
             db.clone(),
             None, 
             Util::DATE_TYPE.to_string(), 
@@ -3155,8 +3173,8 @@ This conversion maintains the test's intent: verifying that when an error occurs
         }
         assert!(found);
         
-        create_test_boolean_attribute_with_one_entity(&db.clone(), None, entity_id, false, None, 0);
-        assert_eq!(db.get_entities_only_count(None, false, None, None).unwrap(), c2);
+        create_test_boolean_attribute_with_one_entity(db.clone(), None, entity_id, false, None, 0);
+        assert_eq!(db.borrow().get_entities_only_count(None, false, None, None).unwrap(), c2);
         
         let entity = Entity::new2(db.clone(), None, entity_id).unwrap();
         //%%file_attr latertests after FileAttribute is more completed.
@@ -3167,26 +3185,26 @@ This conversion maintains the test's intent: verifying that when an error occurs
     #[test]
     fn get_matching_entities_and_groups_should_work() {
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         //Using None instead of tx here for simplicity, but might have to change if
         //running tests in parallel.
         //let tx = db.begin_trans().unwrap();
         //let tx = Some(Rc::new(RefCell::new(tx)));
         
-        let entity_id1 = db.create_entity(None, "test: org.onemodel.PSQLDbTest.get_matching_entities1--abc", 
+        let entity_id1 = db.borrow().create_entity(None, "test: org.onemodel.PSQLDbTest.get_matching_entities1--abc", 
             None, None).unwrap();
         let entity1 = Entity::new2(db.clone(), None, entity_id1).unwrap();
-        let entity_id2 = db.create_entity(None, "test: org.onemodel.PSQLDbTest.get_matching_entities2", None, None).unwrap();
-        db.create_text_attribute(None, entity_id1, entity_id2, "defg", None, 0, None).unwrap();
+        let entity_id2 = db.borrow().create_entity(None, "test: org.onemodel.PSQLDbTest.get_matching_entities2", None, None).unwrap();
+        db.borrow().create_text_attribute(None, entity_id1, entity_id2, "defg", None, 0, None).unwrap();
         
-        let entities1 = db.get_matching_entities(db.clone(), None, 0, None, None, "abc".to_string()).unwrap();
+        let entities1 = db.borrow().get_matching_entities(db.clone(), None, 0, None, None, "abc".to_string()).unwrap();
         assert_eq!(entities1.len(), 1);
         
-        db.create_text_attribute(None, entity_id2, entity_id1, "abc", None, 0, None).unwrap();
-        let entities2 = db.get_matching_entities(db.clone(), None, 0, None, None, "abc".to_string()).unwrap();
+        db.borrow().create_text_attribute(None, entity_id2, entity_id1, "abc", None, 0, None).unwrap();
+        let entities2 = db.borrow().get_matching_entities(db.clone(), None, 0, None, None, "abc".to_string()).unwrap();
         assert_eq!(entities2.len(), 2);
         
-        let rel_type_id: i64 = db.create_relation_type(None, "contains", "", RelationType::UNIDIRECTIONAL).unwrap();
+        let rel_type_id: i64 = db.borrow().create_relation_type(None, "contains", "", RelationType::UNIDIRECTIONAL).unwrap();
         let group_name = "someRelToGroupName";
         entity1.add_group_and_relation_to_group(
             None,
@@ -3198,25 +3216,25 @@ This conversion maintains the test's intent: verifying that when an error occurs
             None
         ).unwrap();
         
-        let empty_results = db.get_matching_groups(db.clone(), None, 0, None, None, 
+        let empty_results = db.borrow().get_matching_groups(db.clone(), None, 0, None, None, 
             "some-xyz-not a grp name".to_string()).unwrap();
         assert_eq!(empty_results.len(), 0);
         
-        let results = db.get_matching_groups(db.clone(), None, 0, None, None, group_name.to_string()).unwrap();
+        let results = db.borrow().get_matching_groups(db.clone(), None, 0, None, None, group_name.to_string()).unwrap();
         assert!(results.len() > 0);
     }
 
     #[test]
     fn get_journal_should_show_activity_during_a_date_range() {
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
         //Using None instead of tx here for simplicity, but might have to change if
         //running tests in parallel.
         //let tx = db.begin_trans().unwrap();
         //let tx = Some(Rc::new(RefCell::new(tx)));
         
         let start_data_setup_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
-        let entity_id: i64 = db.create_entity(None, "test object", None, None).unwrap();
+        let entity_id: i64 = db.borrow().create_entity(None, "test object", None, None).unwrap();
         let entity: Entity = Entity::new2(db.clone(), None, entity_id).unwrap();
         /*%% later: put this back when ImportExport is moved to Rust
         let import_export = ImportExport::new(
@@ -3255,17 +3273,17 @@ This conversion maintains the test's intent: verifying that when an error occurs
     #[test]
     fn get_text_attribute_by_name_for_entity() {
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
-        let system_entity_id = db.get_system_entity_id(None).unwrap();
-        let result = db.get_text_attribute_by_type_id(None, system_entity_id, 1, Some(1));
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
+        let system_entity_id = db.borrow().get_system_entity_id(None).unwrap();
+        let result = db.borrow().get_text_attribute_by_type_id(None, system_entity_id, 1, Some(1));
         assert!(result.is_err());
     }
 
     #[test]
     fn get_relations_to_group_containing_this_group_and_get_containing_relations_to_group() {
         Util::initialize_tracing();
-        let db: Rc<PostgreSQLDatabase> = Rc::new(Util::initialize_test_db().unwrap());
-        let entity_id: i64 = db
+        let db: Rc<RefCell<PostgreSQLDatabase>> = Rc::new(RefCell::new(Util::initialize_test_db().unwrap()));
+        let entity_id: i64 = db.borrow()
             .create_entity(
                 None, 
                 "test: get_relations_to_group_containing_this_group...",
@@ -3273,7 +3291,7 @@ This conversion maintains the test's intent: verifying that when an error occurs
                 None,
             )
             .unwrap();
-        let entity_id2: i64 = db
+        let entity_id2: i64 = db.borrow()
             .create_entity(
                 None,
                 "test: get_relations_to_group_containing_this_group2...",
@@ -3281,7 +3299,7 @@ This conversion maintains the test's intent: verifying that when an error occurs
                 None,
             )
             .unwrap();
-        let rel_type_id: i64 = db
+        let rel_type_id: i64 = db.borrow()
             .create_relation_type(
                 None,
                 "contains in get_relations_to_group_containing_this_group", 
@@ -3302,12 +3320,12 @@ This conversion maintains the test's intent: verifying that when an error occurs
         let group = Group::new2(db.clone(), None, group_id).unwrap();
         group.add_entity(None, entity_id2, None).unwrap();
         
-        let rtg_data = db.get_relations_to_group_containing_this_group(None, group_id, 0, None).unwrap();
+        let rtg_data = db.borrow().get_relations_to_group_containing_this_group(None, group_id, 0, None).unwrap();
         assert_eq!(rtg_data.len(), 1);
         assert_eq!(rtg_data[0].0, rtg_id);
         assert_eq!(rtg_data[0].4, Some(1));
         
-        let same_rtgs = db.get_containing_relations_to_group(None, entity_id2, 0, None).unwrap();
+        let same_rtgs = db.borrow().get_containing_relations_to_group(None, entity_id2, 0, None).unwrap();
         assert_eq!(same_rtgs.len(), 1);
         assert_eq!(same_rtgs[0].0, rtg_id);
         // no need to db.rollback_trans(), because that is automatic when tx goes out of scope, per sqlx docs.

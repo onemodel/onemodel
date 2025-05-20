@@ -41,6 +41,7 @@ if [[ $# -gt 0 && $1 == 'd' ]]; then
 	#java $DEBUG -Duser.name="$USER" -jar target/onemodel-core-0.2.0-SNAPSHOT.jar $*
 	target/debug/onemodel $*
 	RESULT=$?
+	echo $RESULT
 	set -e
 else
 	set +e
@@ -48,6 +49,7 @@ else
 	# target/debug/onemodel $*
 	target/release/onemodel $*
 	RESULT=$?
+	echo $RESULT
 	set -e
 fi
 

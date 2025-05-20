@@ -197,10 +197,11 @@ impl PostgreSQLDatabase {
         // have a default entity set at the *top* level of the preferences under the system entity, and there are links there to entities with many links
         // to others, then it still won't take too long to traverse them all at startup when searching for the default entity.  But still allowing for
         // preferences to be nested up to that many levels (3 as of this writing).
-        let mut set: HashSet<i64> = HashSet::new();
-        let found_preferences: &mut HashSet<i64> = self.find_contained_local_entity_ids(
+        let mut found_preferences: HashSet<i64> = HashSet::new();
+        //let found_preferences: &mut HashSet<i64> = self.find_contained_local_entity_ids(
+        self.find_contained_local_entity_ids(
             transaction.clone(),
-            &mut set,
+            &mut found_preferences,
             preferences_container_id_in,
             preference_name_in,
             3,

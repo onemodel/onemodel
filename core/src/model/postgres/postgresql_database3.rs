@@ -374,17 +374,18 @@ impl Database for PostgreSQLDatabase {
     /// not following any RelationTo[Local|Remote]Entity links (which defeats the ability to organize
     /// the preferences in a hierarchy), or flagging certain ones to skip by marking them as a preference
     /// (not a link to follow in the preferences hierarchy), but those all seemed more complicated.
-    fn find_contained_local_entity_ids<'a, 'b>(
-        &'a self,
+    fn find_contained_local_entity_ids(
+        &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        results_in_out: &'b mut HashSet<i64>,
+        results_in_out: &mut HashSet<i64>,
         from_entity_id_in: i64,
         search_string_in: &str,
         levels_remaining: i32,      /*= 20*/
         stop_after_any_found: bool, /*= true*/
-    ) -> Result<&'b mut HashSet<i64>, anyhow::Error>
-    where
-        'b: 'a,
+    //) -> Result<&mut HashSet<i64>, anyhow::Error>
+    ) -> Result<(), anyhow::Error>
+    //where
+    //    'b: 'a,
     {
         // Idea for optimizing: don't re-traverse dup ones (eg, circular links or entities in same two
         // places).  But that has other complexities: see comments on
@@ -426,7 +427,8 @@ impl Database for PostgreSQLDatabase {
                     _ => return Err(anyhow!("How did we get here for {:?}?", row.get(1))),
                 };
 
-                // NOTE: this line, similar lines just below, and the prompt inside EntityMenu.entitySearchSubmenu __should all match__.
+                // NOTE: this line, similar lines just below, and the prompt inside 
+                // EntityMenu.entitySearchSubmenu __should all match__.
                 if name
                     .to_lowercase()
                     .contains(&search_string_in.to_lowercase())
@@ -451,8 +453,10 @@ impl Database for PostgreSQLDatabase {
                 } else {
                     ""
                 };
-                let sql2 = format!("select eiag.entity_id, e.name from RelationToGroup rtg, EntitiesInAGroup eiag, entity e \
-                    where rtg.entity_id={} and rtg.group_id=eiag.group_id and eiag.entity_id=e.id {}", from_entity_id_in, condition);
+                let sql2 = format!("select eiag.entity_id, e.name \
+                    from RelationToGroup rtg, EntitiesInAGroup eiag, entity e \
+                    where rtg.entity_id={} and rtg.group_id=eiag.group_id and eiag.entity_id=e.id {}", 
+                    from_entity_id_in, condition);
                 let entities_in_groups =
                     self.db_query(transaction.clone(), sql2.as_str(), "i64,String")?;
                 for row in entities_in_groups {
@@ -511,7 +515,8 @@ impl Database for PostgreSQLDatabase {
                 }
             }
         }
-        Ok(results_in_out)
+        //Ok(results_in_out)
+        Ok(())
     }
 
     /// Returns the class_id and entity_id, in a tuple.

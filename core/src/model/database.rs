@@ -57,14 +57,14 @@ impl std::fmt::Debug for dyn Database {
 pub trait Database {
     fn is_remote(&self) -> bool;
 
-    fn id<'a>(
+    fn id(
         &self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<String, anyhow::Error>;
 
-    fn id_all<'a>(
+    fn id_all(
         &self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<String, anyhow::Error>;
 
     // fn setup_db(&self) -> Result<(), String>;
@@ -203,8 +203,8 @@ pub trait Database {
         sorting_index_in: Option<i64>,
     ) -> Result<(i64, i64), anyhow::Error>;
 
-    fn create_entity<'a>(
-        &'a self,
+    fn create_entity(
+        &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         name_in: &str,
         class_id_in: Option<i64>,   /*= None*/
@@ -237,8 +237,8 @@ pub trait Database {
         contained_entity_id_in: i64,
         sorting_index_in: Option<i64>, /*= None*/
     ) -> Result<(), anyhow::Error>;
-    fn create_om_instance<'a>(
-        &'a self,
+    fn create_om_instance(
+        &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: String,
         is_local_in: bool,
@@ -258,17 +258,18 @@ pub trait Database {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         class_name_in: &str,
     ) -> Result<(i64, i64), anyhow::Error>;
-    fn find_contained_local_entity_ids<'a, 'b>(
-        &'a self,
+    fn find_contained_local_entity_ids(
+        &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        results_in_out: &'b mut HashSet<i64>,
+        results_in_out: &mut HashSet<i64>,
         from_entity_id_in: i64,
         search_string_in: &str,
         levels_remaining: i32,      /* = 20*/
         stop_after_any_found: bool, /* = true*/
-    ) -> Result<&'b mut HashSet<i64>, anyhow::Error>
-    where
-        'b: 'a;
+    //) -> Result<&'b mut HashSet<i64>, anyhow::Error>
+    ) -> Result<(), anyhow::Error>;
+    //where
+        //'b: 'a;
     fn entity_key_exists(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
