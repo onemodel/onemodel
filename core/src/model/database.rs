@@ -77,7 +77,10 @@ pub trait Database {
     fn begin_trans(&self) -> Result<Transaction<Postgres>, anyhow::Error>;
     fn rollback_trans(&self, tx: Transaction<Postgres>) -> Result<(), anyhow::Error>;
     fn commit_trans(&self, tx: Transaction<Postgres>) -> Result<(), anyhow::Error>;
-    fn commit_local_trans(&self, local_tx_option: Option<Rc<RefCell<Transaction<Postgres>>>>) -> Result<(), anyhow::Error>;
+    fn commit_local_trans(
+        &self,
+        local_tx_option: Option<Rc<RefCell<Transaction<Postgres>>>>,
+    ) -> Result<(), anyhow::Error>;
 
     // where we create the table also calls this.
     // Longer than the old 60 (needed), and a likely familiar length to many people (for ease in knowing when done), seems a decent balance. If any longer
@@ -266,10 +269,7 @@ pub trait Database {
         search_string_in: &str,
         levels_remaining: i32,      /* = 20*/
         stop_after_any_found: bool, /* = true*/
-    //) -> Result<&'b mut HashSet<i64>, anyhow::Error>
     ) -> Result<(), anyhow::Error>;
-    //where
-        //'b: 'a;
     fn entity_key_exists(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
@@ -572,9 +572,9 @@ pub trait Database {
         entity_id_in: i64,
         group_name_in: Option<String>, /* = None*/
     ) -> Result<(Option<i64>, Option<i64>, Option<i64>, Option<String>, bool), anyhow::Error>;
-    fn get_entities_containing_group<'a>(
+    fn get_entities_containing_group(
         &self,
-        transaction: Option<Rc<RefCell<Transaction<'a, Postgres>>>>,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         group_id_in: i64,
         starting_index_in: i64,
         max_vals_in: Option<i64>, /*= None*/
@@ -1027,8 +1027,8 @@ pub trait Database {
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
     ) -> Result<u64, anyhow::Error>;
-    fn update_group<'a>(
-        &'a self,
+    fn update_group(
+        &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         group_id_in: i64,
         name_in: String,

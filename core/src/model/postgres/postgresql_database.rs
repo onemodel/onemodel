@@ -23,8 +23,8 @@ use chrono::Utc;
 use sqlx::postgres::*;
 // Specifically omitting sql::Error from use statements so that it is *clearer* which Error type is
 // in use, in the code.
-use sqlx::{Column, PgPool, Postgres, Row, Transaction, ValueRef};
 use sqlx::types::Uuid;
+use sqlx::{Column, PgPool, Postgres, Row, Transaction, ValueRef};
 use std::cell::{RefCell, RefMut};
 use std::rc::Rc;
 // use std::collections::HashSet;
@@ -140,7 +140,7 @@ impl PostgreSQLDatabase {
                             //was: row(column_counter) = Some(rs.getFloat(column_counter))
                             let decode_mbe: Result<_, sqlx::Error> = sqlx_row.try_get(column_counter);
                             //unwrap() can't panic due to if is_null check above?? Wait & see I guess.
-                            let x: f64 = decode_mbe.unwrap(); 
+                            let x: f64 = decode_mbe.unwrap();
                             debug!("in db_query1: x is {} .", x);
                             let y = DataType::Float(x);
                             row.push(Some(y));
@@ -170,7 +170,7 @@ impl PostgreSQLDatabase {
                             let decode_mbe = sqlx_row.try_get(column_counter);
                             // let decode_mbe = sqlx_row.try_column(column_counter);
                             //unwrap() can't panic due to if is_null check above?? Wait & see I guess.
-                            let x: i64 = decode_mbe.unwrap(); 
+                            let x: i64 = decode_mbe.unwrap();
                             debug!("in db_query4: x is {} .", x);
                             row.push(Some(DataType::Bigint(x)));
                         //u64 here unsupported by sqlx as of v 0.6.3:
@@ -183,7 +183,7 @@ impl PostgreSQLDatabase {
                             //was: row(column_counter) = Some(rs.get_boolean(column_counter))
                             let decode_mbe: Result<_, sqlx::Error> = sqlx_row.try_get(column_counter);
                             //unwrap() can't panic due to if is_null check above?? Wait & see I guess.
-                            let x: bool = decode_mbe.unwrap(); 
+                            let x: bool = decode_mbe.unwrap();
                             debug!("in db_query5: x is {} .", x);
                             let y = DataType::Boolean(x);
                             row.push(Some(y));
@@ -191,7 +191,7 @@ impl PostgreSQLDatabase {
                             //was: row(column_counter) = Some(rs.getInt(column_counter))
                             let decode_mbe: Result<_, sqlx::Error> = sqlx_row.try_get(column_counter);
                             //unwrap() can't panic due to if is_null check above?? Wait & see I guess.
-                            let x: i32 = decode_mbe.unwrap(); 
+                            let x: i32 = decode_mbe.unwrap();
                             debug!("in db_query6: x is {} .", x);
                             let y = DataType::Smallint(x);
                             row.push(Some(y));
@@ -358,7 +358,6 @@ impl PostgreSQLDatabase {
     }
 
     //idea: change sql_type to take an enum, not a string.
-    // fn drop<'a, E>(&self, executor: Option<E>, sql_type: &str, name: &str) -> Result<(), String>
     pub fn drop(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
@@ -429,8 +428,8 @@ impl PostgreSQLDatabase {
     }
 
     /// Returns the # of rows affected.
-    /// @param skip_check_for_bad_sql_in  SET TO false EXCEPT *RARELY*, WITH CAUTION AND ONLY WHEN THE SQL HAS 
-    /// NO USER-PROVIDED STRING IN IT!!  SEE THE (hopefully still just one) PLACE USING IT NOW (in method 
+    /// @param skip_check_for_bad_sql_in  SET TO false EXCEPT *RARELY*, WITH CAUTION AND ONLY WHEN THE SQL HAS
+    /// NO USER-PROVIDED STRING IN IT!!  SEE THE (hopefully still just one) PLACE USING IT NOW (in method
     /// create_attribute_sorting_deletion_trigger) AND PROBABLY LIMIT USE TO THAT!
     // (Idea: change that parm name to remove "skip_" so it is not a double-negative when false? And reverse
     // all parameters appropriately, and fix the comment.)
@@ -537,10 +536,7 @@ impl PostgreSQLDatabase {
     /// was with jdbc.)
     ///
     /// In the scala code this was called login().
-    pub fn new(
-        username: &str,
-        password: &str,
-    ) -> Result<Rc<RefCell<dyn Database>>, anyhow::Error> {
+    pub fn new(username: &str, password: &str) -> Result<Rc<RefCell<dyn Database>>, anyhow::Error> {
         let include_archived_entities = false;
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
@@ -1402,24 +1398,24 @@ impl PostgreSQLDatabase {
             false,
         )?;
 
-        /* This current database is one OM instance, and known (remote or local) databases 
+        /* This current database is one OM instance, and known (remote or local) databases
          * to which this one might refer are other instances.
           Design musings:
-        This is being implemented in an explicit table instead of just with the features around EntityClass 
+        This is being implemented in an explicit table instead of just with the features around EntityClass
         objects & the "class" table, to avoid a chicken/egg problem:
-        imagine a new OM instance, or one where the user deleted via the UI the relevant entity class(es) 
+        imagine a new OM instance, or one where the user deleted via the UI the relevant entity class(es)
         for handling remote OM instances: how would the user
-        retrieve those classes from others' shared OM data if the feature to connect to remote ones is 
-        broken?  Still, it is debatable whether it would have worked just as well to put this info in an 
+        retrieve those classes from others' shared OM data if the feature to connect to remote ones is
+        broken?  Still, it is debatable whether it would have worked just as well to put this info in an
         entity under the .system entity, like user preferences are, and try to prevent deleting it or something,
-        because other info might be needed on it in the future such as security settings, and using the entity_id 
-        field for links to that info could become just as awkward as having an entity to begin with.  But doing 
+        because other info might be needed on it in the future such as security settings, and using the entity_id
+        field for links to that info could become just as awkward as having an entity to begin with.  But doing
         it the way it is now might make db-level constraints on such things
         more reliable, especially given that the OM-level constraints via classes/code on entities isn't developed yet.
 
         This might have some design overlap with the ".system" entity; maybe that should have been put here?
          */
-        // The "local" field doesn't mean whether the instance is found on localhost, but rather whether 
+        // The "local" field doesn't mean whether the instance is found on localhost, but rather whether
         // the row is for *this* instance: the OneModel instance whose database we are connected to right now.
         // See Controller.ask_for_and_write_om_instance_info.ask_and_save for more description for the address column.
         // Idea: Is it worth having to know future address formats, to enforce validity in a
@@ -1725,7 +1721,7 @@ impl PostgreSQLDatabase {
         // }
     }
 
-    /// Returns the class_id and entity_id, in a tuple. 
+    /// Returns the class_id and entity_id, in a tuple.
     pub fn create_class_and_its_template_entity2(
         &self,
         transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,

@@ -1228,20 +1228,17 @@ impl Entity {
     }
 
     /// Like others, returns the new things' IDs. */
-    pub fn add_group_and_relation_to_group<'a, 'b>(
-        &'a self,
-        transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
+    pub fn add_group_and_relation_to_group(
+        &self,
+        transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         rel_type_id_in: i64,
         new_group_name_in: &str,
         allow_mixed_classes_in_group_in: bool, /*= false*/
         valid_on_date_in: Option<i64>,
         observation_date_in: i64,
         sorting_index_in: Option<i64>,
-    ) -> Result<(i64, i64), anyhow::Error>
-    where
-        'a: 'b,
-    {
-        let ref rc_db = &self.db;
+    ) -> Result<(i64, i64), anyhow::Error> {
+        let ref rc_db = self.db;
         let ref cloned = rc_db.clone();
         let tx = transaction.clone();
         let id = self.get_id();

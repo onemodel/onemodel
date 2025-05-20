@@ -125,7 +125,7 @@ impl PostgreSQLDatabase {
     }
 
     // Cloned to archive_objects: CONSIDER UPDATING BOTH if updating one.  Returns the # of rows deleted.
-    /// Unless the parameter rows_expected==-1, it will allow any # of rows to be deleted; 
+    /// Unless the parameter rows_expected==-1, it will allow any # of rows to be deleted;
     /// otherwise if the # of rows is wrong it will abort tran & fail.
     pub fn delete_objects(
         &self,
@@ -1077,17 +1077,16 @@ impl PostgreSQLDatabase {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<String, anyhow::Error> {
         let system_entity_id = self.get_system_entity_id(transaction.clone())?;
-        let has_relation_type_id: i64 = self.find_relation_type(
-            transaction.clone(),
-            Util::THE_HAS_RELATION_TYPE_NAME,
-        )?;
-        let editor_info_system_entities: Vec<i64> = self.get_entities_from_relations_to_local_entity(
-            transaction.clone(),
-            system_entity_id,
-            Util::EDITOR_INFO_ENTITY_NAME,
-            Some(has_relation_type_id),
-            Some(1),
-        )?;
+        let has_relation_type_id: i64 =
+            self.find_relation_type(transaction.clone(), Util::THE_HAS_RELATION_TYPE_NAME)?;
+        let editor_info_system_entities: Vec<i64> = self
+            .get_entities_from_relations_to_local_entity(
+                transaction.clone(),
+                system_entity_id,
+                Util::EDITOR_INFO_ENTITY_NAME,
+                Some(has_relation_type_id),
+                Some(1),
+            )?;
         if editor_info_system_entities.len() < 1 {
             return Err(anyhow!(
                 "In get_text_editor_command, Unexpected # of results in get_text_editor_command a: {}",
@@ -1095,13 +1094,14 @@ impl PostgreSQLDatabase {
             ));
         }
         let id = editor_info_system_entities[0];
-        let text_editor_info_system_entities: Vec<i64> = self.get_entities_from_relations_to_local_entity(
-            transaction.clone(),
-            id,
-            Util::TEXT_EDITOR_INFO_ENTITY_NAME,
-            Some(has_relation_type_id),
-            Some(1),
-        )?;
+        let text_editor_info_system_entities: Vec<i64> = self
+            .get_entities_from_relations_to_local_entity(
+                transaction.clone(),
+                id,
+                Util::TEXT_EDITOR_INFO_ENTITY_NAME,
+                Some(has_relation_type_id),
+                Some(1),
+            )?;
         if text_editor_info_system_entities.len() < 1 {
             return Err(anyhow!(
                 "In get_text_editor_command, Unexpected # of results in get_text_editor_command b: {}",
@@ -1109,13 +1109,14 @@ impl PostgreSQLDatabase {
             ));
         }
         let text_editor_info_system_entity_id = text_editor_info_system_entities[0];
-        let text_editor_command_name_attr_types: Vec<i64> = self.get_entities_from_relations_to_local_entity(
-            transaction.clone(),
-            text_editor_info_system_entity_id,
-            Util::TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME,
-            Some(has_relation_type_id),
-            Some(1),
-        )?;
+        let text_editor_command_name_attr_types: Vec<i64> = self
+            .get_entities_from_relations_to_local_entity(
+                transaction.clone(),
+                text_editor_info_system_entity_id,
+                Util::TEXT_EDITOR_COMMAND_ATTRIBUTE_TYPE_NAME,
+                Some(has_relation_type_id),
+                Some(1),
+            )?;
         if text_editor_command_name_attr_types.len() < 1 {
             return Err(anyhow!(
                 "In get_text_editor_command, Unexpected # of results in get_text_editor_command c: {}",
@@ -1123,12 +1124,13 @@ impl PostgreSQLDatabase {
             ));
         }
         let text_editor_command_name_attr_type_id = text_editor_command_name_attr_types[0];
-        let tas: Vec<(i64, i64, i64, String, Option<i64>, i64, i64)> = self.get_text_attribute_by_type_id(
-            transaction.clone(),
-            text_editor_info_system_entity_id,
-            text_editor_command_name_attr_type_id,
-            Some(1),
-        )?;
+        let tas: Vec<(i64, i64, i64, String, Option<i64>, i64, i64)> = self
+            .get_text_attribute_by_type_id(
+                transaction.clone(),
+                text_editor_info_system_entity_id,
+                text_editor_command_name_attr_type_id,
+                Some(1),
+            )?;
         if tas.len() < 1 {
             return Err(anyhow!(
                 "In get_text_editor_command, Unexpected # of results in get_text_editor_command d: {}",
@@ -1138,7 +1140,7 @@ impl PostgreSQLDatabase {
         //return the text value
         Ok(tas[0].3.clone())
     }
-    
+
     fn get_entities_from_relations_to_local_entity(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,

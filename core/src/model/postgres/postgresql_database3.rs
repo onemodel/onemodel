@@ -335,8 +335,10 @@ impl Database for PostgreSQLDatabase {
             }
             None => {
                 // see comments in delete_objects() about rollback
-                return Err(anyhow!("Data not saved. Unexpectedly found None instead of \
-                        Some<RefCell<Transaction<Postgres>>>. How did the caller send that value?"));
+                return Err(anyhow!(
+                    "Data not saved. Unexpectedly found None instead of \
+                        Some<RefCell<Transaction<Postgres>>>. How did the caller send that value?"
+                ));
             }
         }
     }
@@ -382,11 +384,7 @@ impl Database for PostgreSQLDatabase {
         search_string_in: &str,
         levels_remaining: i32,      /*= 20*/
         stop_after_any_found: bool, /*= true*/
-    //) -> Result<&mut HashSet<i64>, anyhow::Error>
-    ) -> Result<(), anyhow::Error>
-    //where
-    //    'b: 'a,
-    {
+    ) -> Result<(), anyhow::Error> {
         // Idea for optimizing: don't re-traverse dup ones (eg, circular links or entities in same two
         // places).  But that has other complexities: see comments on
         // ImportExport.exportItsChildrenToHtmlFiles for more info.  But since we are limiting the # of
@@ -427,7 +425,7 @@ impl Database for PostgreSQLDatabase {
                     _ => return Err(anyhow!("How did we get here for {:?}?", row.get(1))),
                 };
 
-                // NOTE: this line, similar lines just below, and the prompt inside 
+                // NOTE: this line, similar lines just below, and the prompt inside
                 // EntityMenu.entitySearchSubmenu __should all match__.
                 if name
                     .to_lowercase()
@@ -1057,11 +1055,7 @@ impl Database for PostgreSQLDatabase {
             let local_tx: Transaction<Postgres> = self.begin_trans()?;
             let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
             // see comments in delete_objects about rollback (if next line returns due to error)
-            let id = self.update_entitys_class(
-                local_tx_option.clone(),
-                entity_id,
-                class_id,
-            )?;
+            let id = self.update_entitys_class(local_tx_option.clone(), entity_id, class_id)?;
             self.commit_local_trans(local_tx_option)?;
             return Ok(id);
         };
@@ -1102,7 +1096,9 @@ impl Database for PostgreSQLDatabase {
             };
             let mixed_classes_allowed: bool =
                 self.are_mixed_classes_allowed(transaction_in.clone(), &group_id)?;
-            if !mixed_classes_allowed && self.has_mixed_classes(transaction_in.clone(), &group_id)? {
+            if !mixed_classes_allowed
+                && self.has_mixed_classes(transaction_in.clone(), &group_id)?
+            {
                 return Err(anyhow!(
                     "In update_entitys_class: {}",
                     Util::MIXED_CLASSES_EXCEPTION
@@ -1185,7 +1181,6 @@ impl Database for PostgreSQLDatabase {
                                        // The "where..." on the next line means "where 'a outlives (or is >=) 'b" and is explained in
                                        // the Rust reference (as quoted by) and in chapter 7 of the helpful site:
                                        // https://tfpk.github.io/lifetimekata/chapter_7.html .
-                                       //) -> Result<i64, anyhow::Error> where 'a: 'b {
     ) -> Result<i64, anyhow::Error> {
         //KEEP SYNCHRONIZED ALL PLACES THAT USED TO HAVE A COPY/PASTED/DUPLICATED BLOCK HERE as they are
         //still similar to each other (marked by this comment):
@@ -1462,7 +1457,8 @@ impl Database for PostgreSQLDatabase {
         };
 
         debug!("in create_relation_to_local_entity 1");
-        let rte_id: i64 = self.get_new_key(transaction_in.clone(), "RelationToEntityKeySequence")?;
+        let rte_id: i64 =
+            self.get_new_key(transaction_in.clone(), "RelationToEntityKeySequence")?;
         let sorting_index = self.add_attribute_sorting_row(
             transaction_in.clone(),
             entity_id1_in,
@@ -2279,11 +2275,17 @@ impl Database for PostgreSQLDatabase {
                 }
                 _ => self.max_id_value() - 99999,
             };
-            let is_in_use: bool =
-                self.is_group_entry_sorting_index_in_use(transaction_in.clone(), group_id_in, index)?;
+            let is_in_use: bool = self.is_group_entry_sorting_index_in_use(
+                transaction_in.clone(),
+                group_id_in,
+                index,
+            )?;
             if is_in_use {
-                let find_unused_result: i64 =
-                    self.find_unused_group_sorting_index(transaction_in.clone(), group_id_in, None)?;
+                let find_unused_result: i64 = self.find_unused_group_sorting_index(
+                    transaction_in.clone(),
+                    group_id_in,
+                    None,
+                )?;
                 find_unused_result
             } else {
                 index
@@ -2436,7 +2438,7 @@ impl Database for PostgreSQLDatabase {
         transaction_in: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id_in: i64,
     ) -> Result<(), anyhow::Error> {
-        // idea: (also on task list i think but) we should not delete entities until dealing with 
+        // idea: (also on task list i think but) we should not delete entities until dealing with
         // their use as attr_type_ids etc! (or does the DB's integrity constraints do that for us?)
 
         //KEEP SYNCHRONIZED ALL PLACES THAT USED TO HAVE A COPY/PASTED/DUPLICATED BLOCK HERE as they are
@@ -2445,10 +2447,7 @@ impl Database for PostgreSQLDatabase {
             let local_tx: Transaction<Postgres> = self.begin_trans()?;
             let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
             // see comments in delete_objects about rollback (if next line returns due to error)
-            let id = self.delete_entity(
-                local_tx_option.clone(),
-                id_in,
-            )?;
+            let id = self.delete_entity(local_tx_option.clone(), id_in)?;
             self.commit_local_trans(local_tx_option)?;
             return Ok(id);
         };
@@ -2606,10 +2605,7 @@ impl Database for PostgreSQLDatabase {
             let local_tx_option = Some(Rc::new(RefCell::new(local_tx)));
             // see comments in delete_objects about rollback (if next line returns due to error)
             //let id = self.delete_group_relations_to_it_and_its_entries(
-            let id = self.delete_group_and_relations_to_it(
-                local_tx_option.clone(),
-                id_in,
-            )?;
+            let id = self.delete_group_and_relations_to_it(local_tx_option.clone(), id_in)?;
             self.commit_local_trans(local_tx_option)?;
             return Ok(id);
         };
@@ -3013,7 +3009,7 @@ impl Database for PostgreSQLDatabase {
         entity_id_or_group_id_in: i64,
         is_entity_attrs_not_group_entries: bool, /*= true*/
     ) -> Result<(), anyhow::Error> {
-        //This used to be called "renumberAttributeSortingIndexes" before it was merged 
+        //This used to be called "renumberAttributeSortingIndexes" before it was merged
         //with "renumberGroupSortingIndexes" (very similar).
         let number_of_entries: u64 = {
             if is_entity_attrs_not_group_entries {
@@ -3176,7 +3172,6 @@ impl Database for PostgreSQLDatabase {
             // (See also a comment somewhere else 4 poss. issue that refers, related, to this method name.)
             // But anyway, if used, do it with a condition and return an error, not panicking.
             //assert((maxIDValue - next) < (increment * 2))
-
         }
         Ok(())
     }
