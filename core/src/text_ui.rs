@@ -9,8 +9,8 @@
 */
 //%% use std::env;
 // use crate::controllers::controller::Controller;
-use crate::util::Util;
 use crate::color::Color;
+use crate::util::Util;
 use console::{Key, Term};
 /* (Some possible alternatives if ever needed, to rustyline?
     www.rust-lang.org/what/cli ... thing to read up on?
@@ -68,32 +68,32 @@ impl TextUI {
         }
     }
 
-       /// The # of items (or lines, actually) to try to display on the screen at one time.
+    /// The # of items (or lines, actually) to try to display on the screen at one time.
     fn terminal_height() -> u16 {
         //*******NOTE: changes here should probably also made simililarly in terminal_width()
         //idea: put this behind a Once thing so it only gives the error once!?
-        let result: std::io::Result<(u16,u16)> = termion::terminal_size();
+        let result: std::io::Result<(u16, u16)> = termion::terminal_size();
         match result {
             Ok((_cols, rows)) => rows.into(),
             Err(e) => {
                 eprintln!("Unable to determine terminal dimensions; using 80x25 as default. Error was: {}",
                     e.to_string());
                 25
-            },
+            }
         }
-      }
+    }
     fn terminal_width() -> u16 {
         //*******NOTE: changes here should probably also made simililarly in terminal_width()
         //idea: put this behind a Once thing so it only gives the error once!? and saves
         //recalculating each time.
-        let result: std::io::Result<(u16,u16)> = termion::terminal_size();
+        let result: std::io::Result<(u16, u16)> = termion::terminal_size();
         match result {
             Ok((cols, _rows)) => cols.into(),
             Err(_e) => {
                 //eprintln!("Unable to determine terminal dimensions; using 80x25 as default. Error was: {}",
                 //    e.to_string());
                 80
-            },
+            }
         }
         //old/reference in case this doesnt work on Windows properly? was that just a jline2 bug
         //that is eliminated w/ the move to rust and termion?:
@@ -102,18 +102,18 @@ impl TextUI {
         //} else {
         //  // This is a not-ideal workaround to a bug when running on Windows (at least when OM was written in Scala and
         //  // using jline2), where OM thinks it has more terminal width than it does: in a 95-character-wide
-        //  // command window, OM was displaying all entity name characters, including all the padding spaces 
-        //  // for multiple om-display columns (ie, 2 if the entity names are short & a 2-columns list will fit), 
+        //  // command window, OM was displaying all entity name characters, including all the padding spaces
+        //  // for multiple om-display columns (ie, 2 if the entity names are short & a 2-columns list will fit),
         //  // up to 160 wide.  This caused an entity with a 5-character name to take up two lines,
         //  // so the list looked like there was a blank line between each entry in the list: ugly.
-        //  // A better solution would be to take time to see what is the real bug, and if that can be fixed, 
-        //  // or if necessary just disable the spaces (name padding for columns) and having multiple 
-        //  // columns, on windows (I hardly ever use multiple columns of entries on Linux or openbsd, 
+        //  // A better solution would be to take time to see what is the real bug, and if that can be fixed,
+        //  // or if necessary just disable the spaces (name padding for columns) and having multiple
+        //  // columns, on windows (I hardly ever use multiple columns of entries on Linux or openbsd,
         //  // and I'm not sure it's working right anyway).
         //  // This # seems likely to fit in a customized command window on an 800x600 display:
         //  93
         //}
-      }
+    }
 
     pub fn wait_for_user_input_key() {
         //was: TextUI::get_user_input_char1(None)
@@ -251,7 +251,7 @@ impl TextUI {
     pub fn ask_for_string3(
         &self,
         leading_text: Vec<&str>,
-        criteria: Option<fn(s: &str/*, ui: &TextUI*/) -> bool>,
+        criteria: Option<fn(s: &str /*, ui: &TextUI*/) -> bool>,
         default_value: &str,
     ) -> Option<String> {
         //TextUI::ask_for_string5(self, leading_text, criteria, default_value, false, true)
@@ -260,7 +260,7 @@ impl TextUI {
     pub fn ask_for_string4(
         &self,
         leading_text: Vec<&str>,
-        criteria: Option<fn(s: &str/*, ui: &TextUI*/) -> bool>,
+        criteria: Option<fn(s: &str /*, ui: &TextUI*/) -> bool>,
         default_value: &str,
         is_password: bool,
     ) -> Option<String> {
@@ -273,9 +273,9 @@ impl TextUI {
             true,
         )
     }
-    /// Returns the string entered (None if the user just wants out of this question or whatever, 
+    /// Returns the string entered (None if the user just wants out of this question or whatever,
     /// unless escKeySkipsCriteriaCheck is false).
-    /// The parameter "criteria"'s Option is a function which takes a String (which will be the user 
+    /// The parameter "criteria"'s Option is a function which takes a String (which will be the user
     /// input), which it checks for validity.
     /// If the entry didn't meet the criteria, it repeats the question until it does or user gets out w/ ESC.
     /// A simple way to let the user know why it didn't meet the criteria is to put them in the leading text.
@@ -287,7 +287,7 @@ impl TextUI {
         // idea: is there a way to make this Option take a closure or function, instead of
         // just a function, as suggested by "The Rust Programming Language" ("the Book"),
         // where it mentions "FnMut"?
-        criteria_in: Option<fn(s: &str/*(not needed right?), ui: &TextUI*/) -> bool>,
+        criteria_in: Option<fn(s: &str /*(not needed right?), ui: &TextUI*/) -> bool>,
         default_value_in: &str,
         //%%use this parm below, not just as another parameter. For pwd entry, sch crates.ui for "password entry" and/or use dialoguer and/or can rustyline do it/modify it/ask somewhere anyway? (see also other %%cmts below re this like "dialoguer" etc)
         is_password_in: bool,
@@ -347,21 +347,21 @@ impl TextUI {
                     // then try that w/ username/password forced w/ x parm.
                     //%%why did blank pwd not give any err nor exit? try gdb or how best2debug? (was when util.get_default_user_login alw returned a bad def pwd)
                     //%%see if the editor history has password in it? is there any edi hist or have2specify?see docs
-                    //%%add password mask -- use dialoguer crate? termion (says it can; alr using?)? 
+                    //%%add password mask -- use dialoguer crate? termion (says it can; alr using?)?
                     //or ask/ck issue tracker for rustyline?
                     // let line = jlineReader.readLine(null, if is_password_in { '*' } else { null } );
                     //%%make ^C work to get out of prompt! ?  see where trapped ("Error: ..."), just below.
                     let line = editor.readline_with_initial("", (default_value_in, ""));
                     match line {
-                        Ok(l) => { 
+                        Ok(l) => {
                             if l.len() == 0 && esc_key_skips_criteria_check_in {
                                 break None;
                             } else {
                                 match criteria_in {
                                     None => break Some(l),
                                     Some(check_criteria_function) => {
-                                        //%%see if ESC does get user out (or blank)? I.e., test use 
-                                        //of esc_key_skips_criteria_check_in ? is it called w/ that 
+                                        //%%see if ESC does get user out (or blank)? I.e., test use
+                                        //of esc_key_skips_criteria_check_in ? is it called w/ that
                                         //parm = true, ever? fr where--test that? See cmts below at
                                         //end of the fn also.
                                         //How to make ESC exit the prompt and return None as some things expect!??
@@ -378,7 +378,7 @@ impl TextUI {
                                     }
                                 }
                             }
-                        },
+                        }
                         Err(ReadlineError::Interrupted) => {
                             println!("CTRL-C");
                             // user wants out.
@@ -404,41 +404,50 @@ impl TextUI {
         return user_input;
     }
 
-        /// after accounting for leading text and the initial choices.
-        fn lines_left(num_of_leading_text_lines_in: usize, num_choices_above_columns_in: usize) -> usize {
-            // 5 as described in one caller
-            let lines_used_before_more_choices: usize = num_of_leading_text_lines_in + num_choices_above_columns_in + 5;
-            Self::terminal_height() as usize - lines_used_before_more_choices
-        }
+    /// after accounting for leading text and the initial choices.
+    fn lines_left(
+        num_of_leading_text_lines_in: usize,
+        num_choices_above_columns_in: usize,
+    ) -> usize {
+        // 5 as described in one caller
+        let lines_used_before_more_choices: usize =
+            num_of_leading_text_lines_in + num_choices_above_columns_in + 5;
+        Self::terminal_height() as usize - lines_used_before_more_choices
+    }
 
-      /// Calculate the maximum number of columnar choices that can be displayed
-      /// after accounting for other lines.
-      ///
-      /// I.e., the # of attributes ("moreChoices" elsewhere) that will likely fit in the space available on the
-      /// screen AFTER the preceding leading_text lines + menu size + 5 (5 because: 1 line added by 
-      /// ask_which(...) (for the 0/ESC menu option), 1 line for the visual separator,
-      /// and 1 line for the cursor at the bottom to not push things off the top, and 2 more 
-      /// because entity/group names and the line that shows them at the
-      /// top of a menu are long & wrap, so they were still pushing things off the top of the visual 
-      /// space (could have made it 3 more for small windows, but that
-      /// might make the list of data too short in some cases, and 2 is probably usually enough 
-      /// if windows aren't too narrow)).
-      ///
-      /// Based on # of available columns and a possible max column width.
-      /// SEE ALSO the method lines_left(), which actually has/uses the number.
+    /// Calculate the maximum number of columnar choices that can be displayed
+    /// after accounting for other lines.
+    ///
+    /// I.e., the # of attributes ("moreChoices" elsewhere) that will likely fit in the space available on the
+    /// screen AFTER the preceding leading_text lines + menu size + 5 (5 because: 1 line added by
+    /// ask_which(...) (for the 0/ESC menu option), 1 line for the visual separator,
+    /// and 1 line for the cursor at the bottom to not push things off the top, and 2 more
+    /// because entity/group names and the line that shows them at the
+    /// top of a menu are long & wrap, so they were still pushing things off the top of the visual
+    /// space (could have made it 3 more for small windows, but that
+    /// might make the list of data too short in some cases, and 2 is probably usually enough
+    /// if windows aren't too narrow)).
+    ///
+    /// Based on # of available columns and a possible max column width.
+    /// SEE ALSO the method lines_left(), which actually has/uses the number.
     fn max_columnar_choices_to_display_after(
         &self,
         num_of_leading_text_lines_in: usize,
         num_choices_above_columns_in: usize,
         field_width_in: usize,
     ) -> usize {
-        let max_more_choices_by_space_available = 
-            TextUI::lines_left(num_of_leading_text_lines_in, num_choices_above_columns_in) 
-            * TextUI::columns_possible(field_width_in + usize::from(TextUI::CHOOSER_MENU_PREFIX_LENGTH));
-        // The next 2 lines are in coordination with an 'assert!' statement in ask_which_choice_or_its_alternate, 
+        let max_more_choices_by_space_available =
+            TextUI::lines_left(num_of_leading_text_lines_in, num_choices_above_columns_in)
+                * TextUI::columns_possible(
+                    field_width_in + usize::from(TextUI::CHOOSER_MENU_PREFIX_LENGTH),
+                );
+        // The next 2 lines are in coordination with an 'assert!' statement in ask_which_choice_or_its_alternate,
         // so we don't fail it:
         let max_more_choices_by_menu_chars_available = TextUI::MENU_CHARS.len();
-        std::cmp::min(max_more_choices_by_space_available, max_more_choices_by_menu_chars_available)
+        std::cmp::min(
+            max_more_choices_by_space_available,
+            max_more_choices_by_menu_chars_available,
+        )
     }
 
     fn columns_possible(column_width: usize) -> usize {
@@ -447,17 +456,17 @@ impl TextUI {
         assert!(column_width > 0);
         // allow at least 1 column, even with a smaller terminal width
         std::cmp::max(usize::from(TextUI::terminal_width()) / column_width, 1)
-      }
+    }
 
-    /// The parm "choices" are shown in a single-column list; the "moreChoices" are shown in columns as 
-    /// space allows. The return value is either None (if user just wants out), or Some(the # of the result 
+    /// The parm "choices" are shown in a single-column list; the "moreChoices" are shown in columns as
+    /// space allows. The return value is either None (if user just wants out), or Some(the # of the result
     /// chosen) (1-based, where the index is against the *combined* choices and moreChoices).  
     /// Ex., if the choices parameter has 3 elements, and moreChoices has 5, the
     /// return value can range from 1-8 (1-based, not 0-based!).
-    /// If calling methods are kept small, it should be easy for them to visually determine which 'choice's 
+    /// If calling methods are kept small, it should be easy for them to visually determine which 'choice's
     /// go with the return value;
     /// see current callers for examples of how to easily determine which 'moreChoice's go with the return value.
-    /// 
+    ///
     /// highlightIndexIn 0-based (like almost everything; exceptions are noted.).
     /// secondaryHighlightIndexIn 0-based.
     /// defaultChoiceIn 1-based.
@@ -466,12 +475,12 @@ impl TextUI {
         &self,
         leading_text_in: Option<Vec<&str>>,
         choices_in: Vec<&str>,
-        more_choices_in: Vec<&str>, 
-        include_esc_choice_in: bool, /* = true*/
-        trailing_text_in: Option<&str>, /* = None*/
-        highlight_index_in: Option<usize>, /* = None*/
+        more_choices_in: Vec<&str>,
+        include_esc_choice_in: bool,                 /* = true*/
+        trailing_text_in: Option<&str>,              /* = None*/
+        highlight_index_in: Option<usize>,           /* = None*/
         secondary_highlight_index_in: Option<usize>, /* = None*/
-        default_choice_in: Option<usize>, /* = None*/
+        default_choice_in: Option<usize>,            /* = None*/
     ) -> Option<usize> {
         let result = self.ask_which_choice_or_its_alternate(
             leading_text_in,
@@ -491,78 +500,109 @@ impl TextUI {
         }
     }
 
-    fn show_choices(line_count: &mut i32, already_full_in: &mut bool, choices_in: &Vec<&str>,
+    fn show_choices(
+        line_count: &mut i32,
+        already_full_in: &mut bool,
+        choices_in: &Vec<&str>,
         more_choices_in: &Vec<&str>,
-        last_menu_chars_index: &mut i32, all_allowed_answers: &mut String, possible_menu_chars: &str,
-        default_choice_in: &Option<usize>, include_esc_choice_in: &bool) 
-    {
+        last_menu_chars_index: &mut i32,
+        all_allowed_answers: &mut String,
+        possible_menu_chars: &str,
+        default_choice_in: &Option<usize>,
+        include_esc_choice_in: &bool,
+    ) {
         // see containing method description: these choices are 1-based when considered from the human/UI perspective:
         let mut index: usize = 1;
 
         for choice in choices_in {
-            if !Self::ran_out_of_vertical_space(line_count, already_full_in, &choices_in, more_choices_in) {
-                let menu_char = Self::next_menu_char(last_menu_chars_index, 
-                    all_allowed_answers, &possible_menu_chars);
-                let default_text = if default_choice_in.is_some() && index == default_choice_in.unwrap() {
-                    "/Enter"
-                } else {
-                    ""
-                };
+            if !Self::ran_out_of_vertical_space(
+                line_count,
+                already_full_in,
+                &choices_in,
+                more_choices_in,
+            ) {
+                let menu_char = Self::next_menu_char(
+                    last_menu_chars_index,
+                    all_allowed_answers,
+                    &possible_menu_chars,
+                );
+                let default_text =
+                    if default_choice_in.is_some() && index == default_choice_in.unwrap() {
+                        "/Enter"
+                    } else {
+                        ""
+                    };
                 println!("{}{}-{}", menu_char, default_text, choice);
             }
             index += 1;
         }
-        if *include_esc_choice_in && !Self::ran_out_of_vertical_space(line_count, already_full_in, &choices_in, 
-            &more_choices_in) {
+        if *include_esc_choice_in
+            && !Self::ran_out_of_vertical_space(
+                line_count,
+                already_full_in,
+                &choices_in,
+                &more_choices_in,
+            )
+        {
             println!("0/ESC - back/previous menu");
         }
     }
 
-    fn show_more_choices(line_count: &mut i32, already_full_in: &mut bool, choices_in: &Vec<&str>,
-        more_choices_in: &Vec<&str>, leading_text_in: &Option<Vec<&str>>, highlight_index_in: &Option<usize>,
-        secondary_highlight_index_in: &Option<usize>, max_choice_length: &u32, all_allowed_answers: &mut String, 
-        possible_menu_chars: &String, last_menu_chars_index: &mut i32) 
-    {
+    fn show_more_choices(
+        line_count: &mut i32,
+        already_full_in: &mut bool,
+        choices_in: &Vec<&str>,
+        more_choices_in: &Vec<&str>,
+        leading_text_in: &Option<Vec<&str>>,
+        highlight_index_in: &Option<usize>,
+        secondary_highlight_index_in: &Option<usize>,
+        max_choice_length: &u32,
+        all_allowed_answers: &mut String,
+        possible_menu_chars: &String,
+        last_menu_chars_index: &mut i32,
+    ) {
         //claude added this condition? makes no sense.:
         //if let Some(more_choices) = &more_choices_in {
         if more_choices_in.len() > 0 {
-            // This collection size might be much larger than needed (given possible multiple columns of display) 
+            // This collection size might be much larger than needed (given possible multiple columns of display)
             // but that's better than having more complex calculations
             let mut more_lines: Vec<String> = vec![String::new(); more_choices_in.len()];
-            
-            let num_of_leading_text_lines: usize = {
-                leading_text_in.as_ref().map_or(0, |v| v.len()) 
-            };
-            let lines_left_here = Self::lines_left(
-                num_of_leading_text_lines,
-                choices_in.len()
-            );
-            
+
+            let num_of_leading_text_lines: usize =
+                { leading_text_in.as_ref().map_or(0, |v| v.len()) };
+            let lines_left_here = Self::lines_left(num_of_leading_text_lines, choices_in.len());
+
             let mut line_counter_local: usize = 0;
             // Now build the lines out of columns before displaying them
             let mut index: usize = 0;
-            
+
             for choice in more_choices_in {
                 if line_counter_local >= lines_left_here {
                     // 1st is 0-based, 2nd is 1-based
                     line_counter_local = 0; // Wraps to next column
                 }
                 // Not explicitly putting extra space between columns, because space can be in short supply,
-                // and probably some of the choices will be shorter than the max length, to provide enough 
+                // and probably some of the choices will be shorter than the max length, to provide enough
                 // visual alignment/separation anyway. But make them equal length:
-                let line_marker = if highlight_index_in.is_some() && highlight_index_in.unwrap() == index {
-                    Color::blue(&"*".to_string())
-                } else if secondary_highlight_index_in.is_some() && secondary_highlight_index_in.unwrap() == index {
-                    Color::green(&"+".to_string())
-                } else {
-                    " ".to_string()
-                };
-                let pad_length = max_choice_length 
-                    - u32::try_from(choice.len()).unwrap() 
+                let line_marker =
+                    if highlight_index_in.is_some() && highlight_index_in.unwrap() == index {
+                        Color::blue(&"*".to_string())
+                    } else if secondary_highlight_index_in.is_some()
+                        && secondary_highlight_index_in.unwrap() == index
+                    {
+                        Color::green(&"+".to_string())
+                    } else {
+                        " ".to_string()
+                    };
+                let pad_length = max_choice_length
+                    - u32::try_from(choice.len()).unwrap()
                     - u32::try_from(TextUI::CHOOSER_MENU_PREFIX_LENGTH).unwrap()
                     - 1;
-                let menu_char = Self::next_menu_char(last_menu_chars_index, 
-                    all_allowed_answers, &possible_menu_chars);
+                let menu_char = Self::next_menu_char(
+                    last_menu_chars_index,
+                    all_allowed_answers,
+                    &possible_menu_chars,
+                );
                 let line = format!("{}{}-{}", line_marker, menu_char, choice);
                 more_lines[line_counter_local] += &line;
                 for _ in 0..pad_length {
@@ -571,11 +611,16 @@ impl TextUI {
                 index += 1;
                 line_counter_local += 1;
             }
-            
+
             let mut lines_too_long = false;
             for line in more_lines {
-                if !line.trim().is_empty() && !Self::ran_out_of_vertical_space(line_count, already_full_in, &choices_in,
-                    &more_choices_in) 
+                if !line.trim().is_empty()
+                    && !Self::ran_out_of_vertical_space(
+                        line_count,
+                        already_full_in,
+                        &choices_in,
+                        &more_choices_in,
+                    )
                 {
                     // Idea for bugfix: adjust the effective_line_length for non-displaying chars
                     // that make up the color of the lineMarker above! Would need better
@@ -584,10 +629,10 @@ impl TextUI {
                     if effective_line_length > usize::from(Self::terminal_width()) {
                         lines_too_long = true;
                     }
-                    
+
                     let term_width = Self::terminal_width();
                     let line_to_display = if line.len() > usize::from(term_width) {
-                        // (Appending Color.reset to the string in case it got cut with the substring 
+                        // (Appending Color.reset to the string in case it got cut with the substring
                         // (0..term_width) cmd, which would allow the color to bleed to subsequent lines.)
                         //format!("{}{}", &line[0..term_width], Color::reset())
                         let part = Util::substring_from_start(&line, term_width.into());
@@ -596,20 +641,26 @@ impl TextUI {
                         //format!("{}{}", line, Color::reset())
                         line
                     };
-                    
+
                     println!("{}", line_to_display);
                 }
             }
-            
+
             if lines_too_long {
                 // This could mean that either the terminal width is less than
                 // Util::max_name_length() characters, or that there is a bug in the display logic:
-                println!("(Some lines were longer than the terminal width and have been truncated.)");
+                println!(
+                    "(Some lines were longer than the terminal width and have been truncated.)"
+                );
             }
         }
     }
-    
-    fn next_menu_char(last_index: &mut i32, all_answers: &mut String, possible_chars: &str) -> String {
+
+    fn next_menu_char(
+        last_index: &mut i32,
+        all_answers: &mut String,
+        possible_chars: &str,
+    ) -> String {
         let next = *last_index + 1;
         *last_index = next;
         if next as usize >= possible_chars.len() {
@@ -620,14 +671,18 @@ impl TextUI {
         next_char.to_string()
     }
 
-    fn ran_out_of_vertical_space(line_count: &mut i32, already_full_in: &mut bool,
-        choices_in: &Vec<&str>, more_choices_in: &Vec<&str>) -> bool {
+    fn ran_out_of_vertical_space(
+        line_count: &mut i32,
+        already_full_in: &mut bool,
+        choices_in: &Vec<&str>,
+        more_choices_in: &Vec<&str>,
+    ) -> bool {
         *line_count += 1;
         if *already_full_in {
             return *already_full_in;
         } else if *line_count > Self::terminal_height().into() {
             // (+ 1 above to leave room for the error message line, below)
-            let unshown_count: i32 = 
+            let unshown_count: i32 =
                 (choices_in.len() + more_choices_in.len()) as i32 - *line_count - 1;
             eprintln!("==============================");
             eprintln!("FYI: Unable to show remaining {} items in the available screen space(!?). Consider code \
@@ -640,9 +695,9 @@ impl TextUI {
             eprintln!("Not going to fail over this, but it might be fixed, especially if you can reproduce \
                     it consistently.");
             eprintln!("==============================");
-            //*already_full_in = true 
+            //*already_full_in = true
             return *already_full_in;
-        } 
+        }
         false
     }
 
@@ -653,24 +708,24 @@ impl TextUI {
         leading_text_in: Option<Vec<&str>>,
         choices_in: Vec<&str>,
         more_choices_in: Vec<&str>,
-        include_esc_choice_in: bool, /* = true*/
-        trailing_text_in: Option<&str>, /* = None*/
-        highlight_index_in: Option<usize>, /* = None*/
+        include_esc_choice_in: bool,                 /* = true*/
+        trailing_text_in: Option<&str>,              /* = None*/
+        highlight_index_in: Option<usize>,           /* = None*/
         secondary_highlight_index_in: Option<usize>, /* = None*/
-        default_choice_in: Option<usize>, /* = None*/
+        default_choice_in: Option<usize>,            /* = None*/
     ) -> Option<(usize, bool)> {
-        // This attempts to always use as menu option keystroke choices: numbers for "choices" 
-        // (such as major operations available on the current entity) and letters for "moreChoices" 
-        // (such as attributes of the current entity to select for further work).  But if there 
+        // This attempts to always use as menu option keystroke choices: numbers for "choices"
+        // (such as major operations available on the current entity) and letters for "moreChoices"
+        // (such as attributes of the current entity to select for further work).  But if there
         // are too many "choices", it will use letters for those as well.
-        // I.e., 2nd part of menu ("moreChoices") always starts with a letter, not a #, but the 
-        // 1st part can use numbers+letters as necessary. This is for the user experience: it 
-        // seems will be easier to remember how to get around one's own model if attributes always 
+        // I.e., 2nd part of menu ("moreChoices") always starts with a letter, not a #, but the
+        // 1st part can use numbers+letters as necessary. This is for the user experience: it
+        // seems will be easier to remember how to get around one's own model if attributes always
         // start with 'a' and go from there.
-        
+
         assert!(!choices_in.is_empty());
         let max_choice_length = Util::max_name_length();
-        
+
         let mut first_menu_chars = String::new();
         for number in 1..=9 {
             if number <= choices_in.len() {
@@ -699,11 +754,30 @@ impl TextUI {
                 }
             }
         }
-        Self::show_choices(&mut line_counter, &mut already_full, &choices_in, &more_choices_in, &mut last_menu_chars_index,
-            &mut all_allowed_answers, &possible_menu_chars, &default_choice_in, &include_esc_choice_in);
-        Self::show_more_choices(&mut line_counter, &mut already_full, &choices_in, &more_choices_in, &leading_text_in,
-            &highlight_index_in, &secondary_highlight_index_in, &max_choice_length, &mut all_allowed_answers, 
-            &possible_menu_chars, &mut last_menu_chars_index);
+        Self::show_choices(
+            &mut line_counter,
+            &mut already_full,
+            &choices_in,
+            &more_choices_in,
+            &mut last_menu_chars_index,
+            &mut all_allowed_answers,
+            &possible_menu_chars,
+            &default_choice_in,
+            &include_esc_choice_in,
+        );
+        Self::show_more_choices(
+            &mut line_counter,
+            &mut already_full,
+            &choices_in,
+            &more_choices_in,
+            &leading_text_in,
+            &highlight_index_in,
+            &secondary_highlight_index_in,
+            &max_choice_length,
+            &mut all_allowed_answers,
+            &possible_menu_chars,
+            &mut last_menu_chars_index,
+        );
         if let Some(trailing_text) = trailing_text_in {
             if !trailing_text.is_empty() {
                 println!("{trailing_text}");
@@ -725,10 +799,12 @@ impl TextUI {
                     secondary_highlight_index_in,
                     default_choice_in,
                 )
-            },
-            Ok((answer, user_chose_alternate)) => { 
-                if u32::from(answer) != 27 && answer != '0' && u32::from(answer) != 13 
-                    && !all_allowed_answers.contains(answer) 
+            }
+            Ok((answer, user_chose_alternate)) => {
+                if u32::from(answer) != 27
+                    && answer != '0'
+                    && u32::from(answer) != 13
+                    && !all_allowed_answers.contains(answer)
                 {
                     println!("unknown choice: {}", answer as char);
                     self.ask_which_choice_or_its_alternate(
@@ -741,12 +817,17 @@ impl TextUI {
                         secondary_highlight_index_in,
                         default_choice_in,
                     )
-                } else if u32::from(answer) == 13 && (default_choice_in.is_some() || highlight_index_in.is_some()) {
+                } else if u32::from(answer) == 13
+                    && (default_choice_in.is_some() || highlight_index_in.is_some())
+                {
                     // User hit Enter i.e. '\r', so take the one that was passed in as default, or highlighted
                     if default_choice_in.is_some() {
                         Some((default_choice_in.unwrap(), user_chose_alternate))
                     } else {
-                        Some((choices_in.len() + highlight_index_in.unwrap() + 1, user_chose_alternate))
+                        Some((
+                            choices_in.len() + highlight_index_in.unwrap() + 1,
+                            user_chose_alternate,
+                        ))
                     }
                 } else if include_esc_choice_in && (answer == '0' || u32::from(answer) == 27) {
                     None

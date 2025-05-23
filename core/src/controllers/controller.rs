@@ -25,7 +25,7 @@ use std::rc::Rc;
 /// shorter methods, other better style?, etc.
 ///
 /// * * * *IMPORTANT * * * * * IMPORTANT* * * * * * *IMPORTANT * * * * * * * IMPORTANT* * * * * * * * *IMPORTANT * * * * * *
-/// Don't ever instantiate a Controller from a *test* without passing in username/password 
+/// Don't ever instantiate a Controller from a *test* without passing in username/password
 /// parameters, because it will try to log in to the user's
 /// default, live Database and run the tests there (ie, they could be destructive)!
 /// %%: How make that better/safer/more certain!?--just use the new_* methods below as reminders?
@@ -67,11 +67,9 @@ impl Controller {
             eprintln!("{}", e.to_string().as_str());
             std::process::exit(1);
         });
-        let show_public_private_status_preference: Option<bool> = db.borrow().get_user_preference_boolean(
-            None,
-            Util::SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE,
-            None,
-        )?;
+        let show_public_private_status_preference: Option<bool> = db
+            .borrow()
+            .get_user_preference_boolean(None, Util::SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE, None)?;
         let default_display_entity_id: Option<i64> =
              //(see comment in call to expect() in get_default_entity() .)
              db.borrow().get_user_preference_entity_id(None, Util::DEFAULT_ENTITY_PREFERENCE, None)
@@ -87,8 +85,8 @@ impl Controller {
         })
     }
 
-    /// Returns the id and the entity, if they are available from the preferences lookup (id) 
-    /// and then finding that in the db (Entity). 
+    /// Returns the id and the entity, if they are available from the preferences lookup (id)
+    /// and then finding that in the db (Entity).
     fn get_default_entity(&self) -> Option<(i64, Entity)> {
         match self.default_display_entity_id {
             None => None,
@@ -101,17 +99,34 @@ impl Controller {
                 match entity {
                     None => None,
                     Some(mut entity) => {
-                        if entity.is_archived(None).expect("Unable to determine if entity.is_archived.") {
-                            let msg = format!("The default entity \n    {}: \"{} \"\n\
+                        if entity
+                            .is_archived(None)
+                            .expect("Unable to determine if entity.is_archived.")
+                        {
+                            let msg = format!(
+                                "The default entity \n    {}: \"{} \"\n\
                                 ... was found but is archived.  You might run into problems \
                                 unless you un-archive it, or choose a different entity to make \
                                 the default, or display all archived entities then search for \
                                 this entity and un-archive it under its Entity Menu options 9, 4.",
-                                entity.get_id(), entity.get_name(None).expect("Error running entity.get_name(."));
-                            let ans = self.ui.ask_which(Some(vec!(&msg.as_str())), 
-                                vec!("Un-archive the default entity now", "Display archived entities"),
-                                vec!(),
-                                true, None, None, None, None);
+                                entity.get_id(),
+                                entity
+                                    .get_name(None)
+                                    .expect("Error running entity.get_name(.")
+                            );
+                            let ans = self.ui.ask_which(
+                                Some(vec![&msg.as_str()]),
+                                vec![
+                                    "Un-archive the default entity now",
+                                    "Display archived entities",
+                                ],
+                                vec![],
+                                true,
+                                None,
+                                None,
+                                None,
+                                None,
+                            );
                             if ans.is_some() {
                                 if ans.unwrap() == 1 {
                                     entity.unarchive(None);
@@ -130,9 +145,9 @@ impl Controller {
     }
 
     pub fn start(&self) {
-        // idea: wait for keystroke so they do see the copyright each time. (is also tracked):  
-        // make it save their answer 'yes/i agree' or such in the DB, and don't make them press 
-        // the keystroke again (time-saver)!  See code at top of postgresql_database.rs that 
+        // idea: wait for keystroke so they do see the copyright each time. (is also tracked):
+        // make it save their answer 'yes/i agree' or such in the DB, and don't make them press
+        // the keystroke again (time-saver)!  See code at top of postgresql_database.rs that
         // puts things in the db at startup: do similarly?
         self.ui.display_text3(
             Util::license().as_str(),
@@ -145,63 +160,63 @@ impl Controller {
             ),
         );
 
-         // Max id used as default here because it seems the least likely # to be used in the system hence the
-         // most likely to cause an error as default by being missing, so the system can respond by prompting
-         // the user in some other way for a use.
-         let mut default_entity_info = self.get_default_entity();
-         if default_entity_info.is_none() {
-           self.ui.display_text1("To get started, you probably want to find or create an \
+        // Max id used as default here because it seems the least likely # to be used in the system hence the
+        // most likely to cause an error as default by being missing, so the system can respond by prompting
+        // the user in some other way for a use.
+        let mut default_entity_info = self.get_default_entity();
+        if default_entity_info.is_none() {
+            self.ui.display_text1("To get started, you probably want to find or create an \
                           entity (such as with your own name, to track information \
                           connected to you, contacts, possessions etc, or with the subject \
                           of study), then set that or some entity as your default (using its menu).")
-         }
+        }
 
-         // Explicitly *not* properly tail-recursive, so user can go "back" to previously viewed entities. See 
-         // comments below at "fn main_menu" for more on the feature of the user going back. 
-         // (But: this one currently only ever passes defaultEntity as a parameter, so there 
-         // is no "back", except what is handled within mainmenu calling itself.  It seems like if 
-         // we need to be any more clever we're going to want that stack back....see those same comments below.)
-         //
-         // The 1st parameter to mainMenu might be a kludge. But it lets us, at startup, go straight to 
-         // the attributeMenu of the default Entity.  When instead we simply called
-         // entityMenu(0,defaultEntity.get) before going into menuLoop, it didn't have the usual 
-         // context for normal behavior, and caused odd things for the user, like choosing a related 
-         // entity to view its entity menu showed the default object's entity menu instead, until going 
-         // into the usual loop and choosing it again. Now we do it w/ the same code path, thus the 
-         // same behavior, as normally expected.
-         let default_choice = Some(5);
-         //self.menu_loop(default_choice)
-         loop {
-           //Re-checking for the default each time because user can change it.
-           println!("new MainMenu(ui, localDb, this).mainMenu(if get_default_entity.isEmpty {{ None }} \
+        // Explicitly *not* properly tail-recursive, so user can go "back" to previously viewed entities. See
+        // comments below at "fn main_menu" for more on the feature of the user going back.
+        // (But: this one currently only ever passes defaultEntity as a parameter, so there
+        // is no "back", except what is handled within mainmenu calling itself.  It seems like if
+        // we need to be any more clever we're going to want that stack back....see those same comments below.)
+        //
+        // The 1st parameter to mainMenu might be a kludge. But it lets us, at startup, go straight to
+        // the attributeMenu of the default Entity.  When instead we simply called
+        // entityMenu(0,defaultEntity.get) before going into menuLoop, it didn't have the usual
+        // context for normal behavior, and caused odd things for the user, like choosing a related
+        // entity to view its entity menu showed the default object's entity menu instead, until going
+        // into the usual loop and choosing it again. Now we do it w/ the same code path, thus the
+        // same behavior, as normally expected.
+        let default_choice = Some(5);
+        //self.menu_loop(default_choice)
+        loop {
+            //Re-checking for the default each time because user can change it.
+            println!("new MainMenu(ui, localDb, this).mainMenu(if get_default_entity.isEmpty {{ None }} \
                else {{ Some(get_default_entity.get._2) }}, goDirectlyToChoice)");
 
-           //let entity = match default_entity_info {
-           //        None => None,
-           //        Some(t) => {
-           //            let entity = t.1;
-           //            Some(entity)
-           //        },
-           //};
-           //MainMenu::new(self.ui, self.db).main_menu(
-           //    entity,
-           //    default_choice
-           //);
-           //%%just while debugging:
-           TextUI::wait_for_user_input_key();
-         }
-    //%% */
+            //let entity = match default_entity_info {
+            //        None => None,
+            //        Some(t) => {
+            //            let entity = t.1;
+            //            Some(entity)
+            //        },
+            //};
+            //MainMenu::new(self.ui, self.db).main_menu(
+            //    entity,
+            //    default_choice
+            //);
+            //%%just while debugging:
+            TextUI::wait_for_user_input_key();
+        }
+        //%% */
     }
 
-     //fn menu_loop(&self, go_directly_to_option: Option<i32>) {
-     //  //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive 
-     //  //call(s) w/in this method! (should they be, in this case tho'?).
-     //  //Re-checking for the default each time because user can change it.
-     //  println!("new MainMenu(ui, localDb, this).mainMenu(if get_default_entity.isEmpty {{ None }} else {{ Some(get_default_entity.get._2) }}, goDirectlyToChoice)");
-     //  TextUI::wait_for_user_input_key();
-     //  //    %%%%
-     //  self.menu_loop(None);
-     //}
+    //fn menu_loop(&self, go_directly_to_option: Option<i32>) {
+    //  //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive
+    //  //call(s) w/in this method! (should they be, in this case tho'?).
+    //  //Re-checking for the default each time because user can change it.
+    //  println!("new MainMenu(ui, localDb, this).mainMenu(if get_default_entity.isEmpty {{ None }} else {{ Some(get_default_entity.get._2) }}, goDirectlyToChoice)");
+    //  TextUI::wait_for_user_input_key();
+    //  //    %%%%
+    //  self.menu_loop(None);
+    //}
 
     /// If the 1st parm is true, the next 2 must be None.
     fn try_db_logins<'a>(
@@ -234,7 +249,9 @@ impl Controller {
         }
     }
 
-    fn prompt_for_user_pass_and_login<'a>(ui: &TextUI) -> Result<Rc<RefCell<dyn Database>>, anyhow::Error> {
+    fn prompt_for_user_pass_and_login<'a>(
+        ui: &TextUI,
+    ) -> Result<Rc<RefCell<dyn Database>>, anyhow::Error> {
         loop {
             let usr = ui.ask_for_string1(vec!["Username"]);
             match usr {
@@ -966,14 +983,14 @@ impl Controller {
         } else {
           let objectNames: Vec<String> = objectsToDisplay.toArray.map {;
                                                                           case entity: Entity =>
-                                                                            let numSubgroupsPrefix: String = 
+                                                                            let numSubgroupsPrefix: String =
                                                                                 getEntityContentSizePrefix(entity);
-                                                                            numSubgroupsPrefix 
-                                                                                + entity.get_archived_status_display_string 
+                                                                            numSubgroupsPrefix
+                                                                                + entity.get_archived_status_display_string
                                                                                 + entity.get_name
                                                                           case group: Group =>
-                                                                            let numSubgroupsPrefix: String = 
-                                                                                getGroupContentSizePrefix(group.db, 
+                                                                            let numSubgroupsPrefix: String =
+                                                                                getGroupContentSizePrefix(group.db,
                                                                                     group.get_id);
                                                                             numSubgroupsPrefix + group.get_name
           let ans = ui.ask_whichChoiceOrItsAlternate(Some(leading_text.toArray), choices, objectNames);
