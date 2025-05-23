@@ -388,7 +388,7 @@ impl Util {
                     part)
     }
 
-    fn is_numeric(input: &str, _: &TextUI) -> bool {
+    fn is_numeric(input: &str) -> bool {
         match f64::from_str(input) {
             Err(_) => false,
             Ok(_) => true,
@@ -1030,7 +1030,7 @@ impl Util {
         let msg = vec!["Enter directionality (\"bi\", \"uni\", or \"non\"; examples: \"is parent of\"/\"is child of\" is bidirectional, \
                           since it differs substantially by the direction but goes both ways; unidirectional might be like 'lists': the thing listed doesn't know \
                           it; \"is acquaintanted with\" could be nondirectional if it is an identical relationship either way  (ESC to cancel): "];
-        fn criteria_for_ask_for_relation_directionality(entry_in: &str, _ui: &TextUI) -> bool {
+        fn criteria_for_ask_for_relation_directionality(entry_in: &str) -> bool {
             let entry = entry_in.trim().to_uppercase();
             entry == "BI" || entry == "UNI" || entry == "NON"
         }

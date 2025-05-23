@@ -18,6 +18,7 @@ use console::{Key, Term};
     others at crates.io as things change over time (search for "readline" maybe and at libs.rs &c.)
 */
 use rustyline::error::ReadlineError;
+// use rustyline::{Editor, Result as RustyLineResult};
 use rustyline::{DefaultEditor, Result as RustyLineResult};
 //use std::error::Error;
 // use std::io::{Error, ErrorKind};
@@ -62,36 +63,15 @@ impl TextUI {
 
         if wait_for_keystroke && (!self.testing) {
             print!("{}", pre_prompt.unwrap_or(String::from("")));
-            //%%should this say to press Enter, instead? at startup, at least? or alw?
             println!("Press any key to continue...");
             TextUI::wait_for_user_input_key();
         }
     }
 
-    /* %%
-        fn initializeReader() -> ConsoleReader {
-                         let is: InputStream = if inIn.isEmpty { System.in } else { inIn.get };
-                         jlineReader.setBellEnabled(false)
-                         //handy sometimes:
-                         //jlineReader.setDebug(new PrintWriter(System.err))
-                         // allow ESC to abort an editing session (in combination w/ jline2 version / modifications):
-                         let startingKeyMap: String = jlineReader.getKeyMap;
-                         jlineReader.setKeyMap(jline.console.KeyMap.EMACS_META)
-                         jlineReader.getKeys.bind(jline.console.KeyMap.ESCAPE.toString, jline.console.Operation.QUIT)
-                         jlineReader.setKeyMap(KeyMap.VI_MOVE)
-                         jlineReader.getKeys.bind(jline.console.KeyMap.ESCAPE.toString, jline.console.Operation.QUIT)
-                         jlineReader.setKeyMap(startingKeyMap)
-                         jlineReader
-      let mut out: PrintStream = System.out;
-      fn setOutput(out: PrintStream) {
-        this.out = out
-      }
-*/
-
        /// The # of items (or lines, actually) to try to display on the screen at one time.
     fn terminal_height() -> u16 {
         //*******NOTE: changes here should probably also made simililarly in terminal_width()
-        //%%: put this behind a Once thing so it only gives the error once!?
+        //idea: put this behind a Once thing so it only gives the error once!?
         let result: std::io::Result<(u16,u16)> = termion::terminal_size();
         match result {
             Ok((_cols, rows)) => rows.into(),
@@ -104,7 +84,7 @@ impl TextUI {
       }
     fn terminal_width() -> u16 {
         //*******NOTE: changes here should probably also made simililarly in terminal_width()
-        //%%: put this behind a Once thing so it only gives the error once!? and saves
+        //idea: put this behind a Once thing so it only gives the error once!? and saves
         //recalculating each time.
         let result: std::io::Result<(u16,u16)> = termion::terminal_size();
         match result {
@@ -158,7 +138,7 @@ impl TextUI {
     /** Returns the key pressed and whether it was an alt key combo (ESC key combination).
      */
     pub fn get_user_input_char() -> Result<(char, bool), std::io::Error> {
-        //%% allowed_cars_in_CURRENTLY_IGNORED: Option<Vec<char>>,
+        //allowed_chars_in_CURRENTLY_IGNORED: Option<Vec<char>>,
         //%%fix this to use the ignored parm just above, or eliminate it or the method? what did it
         //do in scala? change to just "idea"?
         let term = Term::stdout();
@@ -238,6 +218,23 @@ impl TextUI {
         fn println(s: String) {
         out.println(s)
       }
+      let mut out: PrintStream = System.out;
+      fn setOutput(out: PrintStream) {
+        this.out = out
+      }
+        fn initializeReader() -> ConsoleReader {
+                         let is: InputStream = if inIn.isEmpty { System.in } else { inIn.get };
+                         jlineReader.setBellEnabled(false)
+                         //handy sometimes:
+                         //jlineReader.setDebug(new PrintWriter(System.err))
+                         // allow ESC to abort an editing session (in combination w/ jline2 version / modifications):
+                         let startingKeyMap: String = jlineReader.getKeyMap;
+                         jlineReader.setKeyMap(jline.console.KeyMap.EMACS_META)
+                         jlineReader.getKeys.bind(jline.console.KeyMap.ESCAPE.toString, jline.console.Operation.QUIT)
+                         jlineReader.setKeyMap(KeyMap.VI_MOVE)
+                         jlineReader.getKeys.bind(jline.console.KeyMap.ESCAPE.toString, jline.console.Operation.QUIT)
+                         jlineReader.setKeyMap(startingKeyMap)
+                         jlineReader
     */
 
     fn display_visual_separator() {
@@ -248,20 +245,22 @@ impl TextUI {
     }
 
     pub fn ask_for_string1(&self, leading_text: Vec<&str>) -> Option<String> {
-        TextUI::ask_for_string5(self, leading_text, None, "", false, true)
+        //TextUI::ask_for_string5(self, leading_text, None, "", false, true)
+        self.ask_for_string5(leading_text, None, "", false, true)
     }
     pub fn ask_for_string3(
         &self,
         leading_text: Vec<&str>,
-        criteria: Option<fn(s: &str, ui: &TextUI) -> bool>,
+        criteria: Option<fn(s: &str/*, ui: &TextUI*/) -> bool>,
         default_value: &str,
     ) -> Option<String> {
-        TextUI::ask_for_string5(self, leading_text, criteria, default_value, false, true)
+        //TextUI::ask_for_string5(self, leading_text, criteria, default_value, false, true)
+        self.ask_for_string5(leading_text, criteria, default_value, false, true)
     }
     pub fn ask_for_string4(
         &self,
         leading_text: Vec<&str>,
-        criteria: Option<fn(s: &str, ui: &TextUI) -> bool>,
+        criteria: Option<fn(s: &str/*, ui: &TextUI*/) -> bool>,
         default_value: &str,
         is_password: bool,
     ) -> Option<String> {
@@ -288,12 +287,11 @@ impl TextUI {
         // idea: is there a way to make this Option take a closure or function, instead of
         // just a function, as suggested by "The Rust Programming Language" ("the Book"),
         // where it mentions "FnMut"?
-        criteria_in: Option<fn(s: &str, ui: &TextUI) -> bool>,
+        criteria_in: Option<fn(s: &str/*(not needed right?), ui: &TextUI*/) -> bool>,
         default_value_in: &str,
-        //%%use rest of parms
-        //%%for pwd entry, sch crates.ui for "password entry" and/or use dialoguer and/or can rustyline do it/modify it/ask somewhere anyway? (see also other %%cmts below re this like "dialoguer" etc)
-        _is_password_in: bool,
-        _esc_key_skips_criteria_check_in: bool,
+        //%%use this parm below, not just as another parameter. For pwd entry, sch crates.ui for "password entry" and/or use dialoguer and/or can rustyline do it/modify it/ask somewhere anyway? (see also other %%cmts below re this like "dialoguer" etc)
+        is_password_in: bool,
+        esc_key_skips_criteria_check_in: bool,
     ) -> Option<String> {
         let mut count = 0;
         let last_line_of_prompt: String = {
@@ -332,14 +330,8 @@ impl TextUI {
             println!("{last_line_of_prompt}");
         }
 
-        //use rustyline::error::ReadlineError;
-        // use rustyline::{Editor, Result as RustyLineResult};
-        // `()` can be used when no completer is required
-        // let initial_text = match default_value_in {
-        //     None => "",
-        //     Some(s) => s,
-        // };
         let user_input: Option<String> = loop {
+            // `()` can be used when no completer is required?
             //let r = Editor::<()>::new();
             let r = DefaultEditor::new();
             match r {
@@ -351,19 +343,39 @@ impl TextUI {
                     break None;
                 }
                 Ok(mut editor) => {
-                    // let line = editor.readline_with_initial("", (initial_text, ""));
+                    //%%how to make ESC exit the prompt and return None as some things expect!??
+                    // then try that w/ username/password forced w/ x parm.
+                    //%%why did blank pwd not give any err nor exit? try gdb or how best2debug? (was when util.get_default_user_login alw returned a bad def pwd)
+                    //%%see if the editor history has password in it? is there any edi hist or have2specify?see docs
+                    //%%add password mask -- use dialoguer crate? termion (says it can; alr using?)? 
+                    //or ask/ck issue tracker for rustyline?
+                    // let line = jlineReader.readLine(null, if is_password_in { '*' } else { null } );
+                    //%%make ^C work to get out of prompt! ?  see where trapped ("Error: ..."), just below.
                     let line = editor.readline_with_initial("", (default_value_in, ""));
                     match line {
-                        Ok(l) => match criteria_in {
-                            None => break Some(l),
-                            Some(check_criteria_function) => {
-                                if check_criteria_function(l.as_str(), self) {
-                                    break Some(l);
-                                } else {
-                                    self.display_text1(
-                                        "Didn't pass the criteria; please re-enter.",
-                                    );
-                                    continue;
+                        Ok(l) => { 
+                            if l.len() == 0 && esc_key_skips_criteria_check_in {
+                                break None;
+                            } else {
+                                match criteria_in {
+                                    None => break Some(l),
+                                    Some(check_criteria_function) => {
+                                        //%%see if ESC does get user out (or blank)? I.e., test use 
+                                        //of esc_key_skips_criteria_check_in ? is it called w/ that 
+                                        //parm = true, ever? fr where--test that? See cmts below at
+                                        //end of the fn also.
+                                        //How to make ESC exit the prompt and return None as some things expect!??
+                                        // then try that w/ username/password forced w/ x parm.
+                                        //%%make ^C work to get out of prompt?  see where trapped ("Error: ..."), just below.
+                                        if check_criteria_function(l.as_str()) {
+                                            break Some(l);
+                                        } else {
+                                            self.display_text1(
+                                                "Didn't pass the criteria; please re-enter.",
+                                            );
+                                            continue;
+                                        }
+                                    }
                                 }
                             }
                         },
@@ -383,39 +395,13 @@ impl TextUI {
             };
         };
 
-        //%%see if ESC does get user out (or blank)?
-        //%%test use of esc_key_skips_criteria_check_in ? is it called w/ that parm = true, ever? fr where--test that?
-        // if line != null {
-        //   fn checkCriteria(line: String) -> Option<String> {
-        //     if criteria_in.isEmpty || criteria_in.get(line) {
-        //       Some(line)
-        //     } else {
-        //       display_text("Didn't pass the criteria; please re-enter.")
-        //       // this gets "recursive call not in tail position", until new version of jvm that allows scala2do it?
-        //       ask_for_string(leading_text_in, criteria_in, default_value_in, is_password_in, esc_key_skips_criteria_check_in)
-        //     }
-        //   }
-        //   if line.isEmpty && esc_key_skips_criteria_check_in {
-        //     None
-        //   } else {
-        //     checkCriteria(line)
-        //   }
-        // }
-
-        let x = user_input.unwrap_or("None".to_string());
+        //%%just debugging probably
+        let x = user_input.clone().unwrap_or("None".to_string());
         let y = format!("{}", x);
-        println!("user input: {}", y); //%%
-                                       // return user_input;
-        return Some(y);
+        println!("user input: {}", y);
+        //return Some(y);
 
-        //%%how to make ESC exit the prompt and return None as some things expect!??
-        // then try that w/ username/password forced w/ x parm.
-        //%%why did blank pwd not give any err nor exit? try gdb or how best2debug? (was when util.get_default_user_login alw returned a bad def pwd)
-        //%%see if the editor history has password in it? is there any edi hist or have2specify?see docs
-        //%%add password mask -- use dialoguer crate? termion (says it can; alr using?)? 
-        //or ask/ck issue tracker for rustyline?
-        // let line = jlineReader.readLine(null, if is_password_in { '*' } else { null } );
-        //%%make ^C work to get out of prompt! ?  see where trapped ("Error: ..."), just above.
+        return user_input;
     }
 
         /// after accounting for leading text and the initial choices.
@@ -425,28 +411,43 @@ impl TextUI {
             Self::terminal_height() as usize - lines_used_before_more_choices
         }
 
-    /*%%%%
-          /** The # of attributes ("moreChoices" elsewhere) that will likely fit in the space available on the
-            * screen AFTER the preceding leading_text lines + menu size + 5: 1 line added by ask_which(...) (for the 0/ESC menu option), 1 line for the visual separator,
-            * and 1 line for the cursor at the bottom to not push things off the top, and 2 more because entity/group names and the line that shows them at the
-            * top of a menu are long & wrap, so they were still pushing things off the top of the visual space (could have made it 3 more for small windows, but that
-            * might make the list of data too short in some cases, and 2 is probably usually enough if windows aren't too narrow).
-            * based on # of available columns and a possible max column width.
-            * SEE ALSO the method linesLeft, which actually has/uses the number.
-            */
-          fn maxColumnarChoicesToDisplayAfter(numOfLeadingTextLinesIn: Int, numChoicesAboveColumnsIn: Int, fieldWidthIn: Int) -> Int {
-            let maxMoreChoicesBySpaceAvailable = linesLeft(numOfLeadingTextLinesIn, numChoicesAboveColumnsIn) * columnsPossible(fieldWidthIn + CHOOSER_MENU_PREFIX_LENGTH);
-            // the next 2 lines are in coordination with a 'require' statement in ask_which, so we don't fail it:
-            let maxMoreChoicesByMenuCharsAvailable = TextUI.menuCharsList.length;
-            math.min(maxMoreChoicesBySpaceAvailable, maxMoreChoicesByMenuCharsAvailable)
-          }
+      /// Calculate the maximum number of columnar choices that can be displayed
+      /// after accounting for other lines.
+      ///
+      /// I.e., the # of attributes ("moreChoices" elsewhere) that will likely fit in the space available on the
+      /// screen AFTER the preceding leading_text lines + menu size + 5 (5 because: 1 line added by 
+      /// ask_which(...) (for the 0/ESC menu option), 1 line for the visual separator,
+      /// and 1 line for the cursor at the bottom to not push things off the top, and 2 more 
+      /// because entity/group names and the line that shows them at the
+      /// top of a menu are long & wrap, so they were still pushing things off the top of the visual 
+      /// space (could have made it 3 more for small windows, but that
+      /// might make the list of data too short in some cases, and 2 is probably usually enough 
+      /// if windows aren't too narrow)).
+      ///
+      /// Based on # of available columns and a possible max column width.
+      /// SEE ALSO the method lines_left(), which actually has/uses the number.
+    fn max_columnar_choices_to_display_after(
+        &self,
+        num_of_leading_text_lines_in: usize,
+        num_choices_above_columns_in: usize,
+        field_width_in: usize,
+    ) -> usize {
+        let max_more_choices_by_space_available = 
+            TextUI::lines_left(num_of_leading_text_lines_in, num_choices_above_columns_in) 
+            * TextUI::columns_possible(field_width_in + usize::from(TextUI::CHOOSER_MENU_PREFIX_LENGTH));
+        // The next 2 lines are in coordination with an 'assert!' statement in ask_which_choice_or_its_alternate, 
+        // so we don't fail it:
+        let max_more_choices_by_menu_chars_available = TextUI::MENU_CHARS.len();
+        std::cmp::min(max_more_choices_by_space_available, max_more_choices_by_menu_chars_available)
+    }
 
-            fn columnsPossible(columnWidthIn: Int) -> Int {
-            require(columnWidthIn > 0)
-            // allow at least 1 column, even with a smaller terminal width
-            math.max(terminalWidth / columnWidthIn, 1)
-          }
-    */
+    fn columns_possible(column_width: usize) -> usize {
+        //idea: instead of assert!, would it be better to make a check, output a message, and
+        //return 0?
+        assert!(column_width > 0);
+        // allow at least 1 column, even with a smaller terminal width
+        std::cmp::max(usize::from(TextUI::terminal_width()) / column_width, 1)
+      }
 
     /// The parm "choices" are shown in a single-column list; the "moreChoices" are shown in columns as 
     /// space allows. The return value is either None (if user just wants out), or Some(the # of the result 
@@ -632,7 +633,7 @@ impl TextUI {
             eprintln!("FYI: Unable to show remaining {} items in the available screen space(!?). Consider code \
                     change to pass the right number of them, relaunching w/ larger terminal, or grouping \
                     things?  (ref: {}/{}/{}/{})",
-                    unshown_count, already_full_in, line_count, Self::terminal_height(), 
+                    unshown_count, already_full_in, line_count, Self::terminal_height(),
                     Self::terminal_width());
 
             //not failing after all (setting this to false causes ExpectIt tests to fail when run in IDE)
@@ -758,15 +759,15 @@ impl TextUI {
         }
     }
 
-    fn is_valid_yes_no_answer(s: &str, _: &TextUI) -> bool {
+    fn is_valid_yes_no_answer(s: &str) -> bool {
         s.to_lowercase() == "y"
             || s.to_lowercase() == "yes"
             || s.to_lowercase() == "n"
             || s.to_lowercase() == "no"
     }
 
-    fn is_valid_yes_no_or_blank_answer(s: &str, ui: &TextUI) -> bool {
-        Self::is_valid_yes_no_answer(s, ui) || s.trim().is_empty()
+    fn is_valid_yes_no_or_blank_answer(s: &str) -> bool {
+        Self::is_valid_yes_no_answer(s) || s.trim().is_empty()
     }
 
     /// true means yes, None means user wants out.
@@ -785,7 +786,7 @@ impl TextUI {
             },
             default_value_in,
             false,
-            /*%%escKeySkipsCriteriaCheck = */ allow_blank_answer,
+            allow_blank_answer,
         );
         match answer {
             None if allow_blank_answer => None,
@@ -857,19 +858,3 @@ impl TextUI {
       }
     */
 }
-/* %%
-package org.onemodel.core
-
-import org.onemodel.core.controllers.Controller
-
-import scala.annotation.tailrec
-
-//idea: should go through Controller to get this, so UI layer doesn't have to talk all the way to the model layer? enforce w/ scoping rules?
-
-import org.onemodel.core.model.FileAttribute
-
-import java.io._
-
-import jline.console.{ConsoleReader, KeyMap}
-import org.apache.commons.io.FilenameUtils
-*/
