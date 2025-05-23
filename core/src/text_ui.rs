@@ -115,7 +115,7 @@ impl TextUI {
         //}
       }
 
-    fn wait_for_user_input_key() {
+    pub fn wait_for_user_input_key() {
         //was: TextUI::get_user_input_char1(None)
         //was, temporarily, a way to do w/ std that requires pressing Enter:
         // use std::io;

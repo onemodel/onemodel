@@ -72,7 +72,7 @@ impl Controller {
             Util::SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE,
             None,
         )?;
-        let default_display_entity_id: Option<i64> = 
+        let default_display_entity_id: Option<i64> =
              //(see comment in call to expect() in get_default_entity() .)
              db.borrow().get_user_preference_entity_id(None, Util::DEFAULT_ENTITY_PREFERENCE, None)
                  .expect("Faiure in call to get_user_preference_entity_id()");
@@ -145,19 +145,19 @@ impl Controller {
             ),
         );
 
-        /* %%%% 
          // Max id used as default here because it seems the least likely # to be used in the system hence the
          // most likely to cause an error as default by being missing, so the system can respond by prompting
          // the user in some other way for a use.
-         if get_default_entity.isEmpty {
-           ui.display_text("To get started, you probably want to find or create an " +
-                          "entity (such as with your own name, to track information \
+         let mut default_entity_info = self.get_default_entity();
+         if default_entity_info.is_none() {
+           self.ui.display_text1("To get started, you probably want to find or create an \
+                          entity (such as with your own name, to track information \
                           connected to you, contacts, possessions etc, or with the subject \
                           of study), then set that or some entity as your default (using its menu).")
          }
 
-         // Explicitly *not* "@tailrec" so user can go "back" to previously viewed entities. See 
-         // comments below at "def mainMenu" for more on the feature of the user going back. 
+         // Explicitly *not* properly tail-recursive, so user can go "back" to previously viewed entities. See 
+         // comments below at "fn main_menu" for more on the feature of the user going back. 
          // (But: this one currently only ever passes defaultEntity as a parameter, so there 
          // is no "back", except what is handled within mainmenu calling itself.  It seems like if 
          // we need to be any more clever we're going to want that stack back....see those same comments below.)
@@ -169,16 +169,39 @@ impl Controller {
          // entity to view its entity menu showed the default object's entity menu instead, until going 
          // into the usual loop and choosing it again. Now we do it w/ the same code path, thus the 
          // same behavior, as normally expected.
-         def menuLoop(goDirectlyToChoice: Option[Int] = None) {
-           //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive call(s) w/in this method! (should they be, in this case tho'?)
-           //re-checking for the default each time because user can change it.
-           new MainMenu(ui, localDb, this).mainMenu(if get_default_entity.isEmpty { None } else { Some(get_default_entity.get._2) },
-                                               goDirectlyToChoice)
-           menuLoop()
+         let default_choice = Some(5);
+         //self.menu_loop(default_choice)
+         loop {
+           //Re-checking for the default each time because user can change it.
+           println!("new MainMenu(ui, localDb, this).mainMenu(if get_default_entity.isEmpty {{ None }} \
+               else {{ Some(get_default_entity.get._2) }}, goDirectlyToChoice)");
+
+           //let entity = match default_entity_info {
+           //        None => None,
+           //        Some(t) => {
+           //            let entity = t.1;
+           //            Some(entity)
+           //        },
+           //};
+           //MainMenu::new(self.ui, self.db).main_menu(
+           //    entity,
+           //    default_choice
+           //);
+           //%%just while debugging:
+           TextUI::wait_for_user_input_key();
          }
-         menuLoop(Some(5))
     //%% */
     }
+
+     //fn menu_loop(&self, go_directly_to_option: Option<i32>) {
+     //  //IF ADDING ANY OPTIONAL PARAMETERS, be sure they are also passed along in the recursive 
+     //  //call(s) w/in this method! (should they be, in this case tho'?).
+     //  //Re-checking for the default each time because user can change it.
+     //  println!("new MainMenu(ui, localDb, this).mainMenu(if get_default_entity.isEmpty {{ None }} else {{ Some(get_default_entity.get._2) }}, goDirectlyToChoice)");
+     //  TextUI::wait_for_user_input_key();
+     //  //    %%%%
+     //  self.menu_loop(None);
+     //}
 
     /// If the 1st parm is true, the next 2 must be None.
     fn try_db_logins<'a>(
