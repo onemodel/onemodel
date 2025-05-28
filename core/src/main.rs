@@ -25,6 +25,7 @@ use crate::controllers::controller::Controller;
 use std::env;
 // use crate::util::Util;
 use crate::text_ui::TextUI;
+use std::rc::Rc;
 
 /// Provides a text-based interface for efficiency, or for people who like that,
 /// The first OM user interface, it is intended to demonstrate basic concepts until we (or someone?) can make something more friendly,
@@ -60,7 +61,8 @@ fn main() -> Result<(), anyhow::Error> {
         default_username,
         default_password,
     )?;
-    controller.start();
+    //controller.start();
+    Controller::start(Rc::new(controller));
 
     Ok(())
 }

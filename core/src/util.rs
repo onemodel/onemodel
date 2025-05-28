@@ -10,8 +10,8 @@
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
 // use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
-use crate::model::database::Database;
 use crate::model::database::DataType;
+use crate::model::database::Database;
 use crate::model::entity::Entity;
 use crate::model::postgres::postgresql_database::PostgreSQLDatabase;
 // use std::error::Error;
@@ -287,15 +287,15 @@ impl Util {
         "i.e., ownership of or \"has\" another entity, family tie, &c";
 
     // (the startup message already suggests that they create it with their own name, no need to repeat that here:    )
-    const MENUTEXT_CREATE_ENTITY_OR_ATTR_TYPE: &'static str = "Add new entity (or new type like length, for use with quantity, true/false, date, text, or file attributes)";
+    pub const MENUTEXT_CREATE_ENTITY_OR_ATTR_TYPE: &'static str = "Add new entity (or new type like length, for use with quantity, true/false, date, text, or file attributes)";
 
     pub fn menutext_create_relation_type() -> String {
         format!("Add new relation type ({})", Util::REL_TYPE_EXAMPLES)
     }
 
-    const MAIN_SEARCH_PROMPT: &'static str =
+    pub const MAIN_SEARCH_PROMPT: &'static str =
         "Search all / list existing entities (except quantity units, attr types, & relation types)";
-    const MENUTEXT_VIEW_PREFERENCES: &'static str = "View preferences";
+    pub const MENUTEXT_VIEW_PREFERENCES: &'static str = "View preferences";
 
     const GENERIC_DATE_PROMPT: &'static str =
         "Please enter the date like this, w/ at least the year, \
@@ -423,20 +423,39 @@ impl Util {
     //     stringWriter.toString
     //   }
 
-    // // //%%used from places that we will keep, and which still need this?:
-    //     fn handleException(e: Throwable, ui: TextUI, db: Database) {
-    //     if e.isInstanceOf[org.postgresql.util.PSQLException] || e.isInstanceOf[OmDatabaseException] ||
-    //         throwableToString(e).contains("ERROR: current transaction is aborted, commands ignored until end of transaction block"))
-    //     {
-    //       db.rollback_trans()
-    //     }
-    //     // If changing this string (" - 1"), also change in first.exp that looks for it (distinguished from " - 2" elsewhere).
-    //     let ans = ui.ask_yes_no_question("An error occurred: \"" + e.getClass.get_name + ": " + e.getMessage + "\".  If you can provide simple instructions to " +;
-    //                                   "reproduce it consistently, maybe it can be fixed - 1.  Do you want to see the detailed output?")
-    //     if ans.is_defined && ans.get {
-    //       ui.display_text(throwableToString(e))
-    //     }
-    //   }
+    //name in Scala: fn handleException
+    //fn handle_error(e: anyhow::Error, ui: TextUI, db: Rc<RefCell<dyn Database>>) {
+    pub fn handle_error(e: anyhow::Error, ui: Rc<TextUI>, caller_location: &str) {
+        //if e.isInstanceOf[org.postgresql.util.PSQLException] || e.isInstanceOf[OmDatabaseException] ||
+        //    throwableToString(e).contains("ERROR: current transaction is aborted, \
+        //    commands ignored until end of transaction block")) {
+        //
+        //    //Rollback I think happens automatically now with rust/sqlx, when the transaction variable
+        //    //is dropped, without committing first. Or something like that. See comments
+        //    elsewhere (search for rollback, probably).
+        //  db.rollback_trans()
+        //}
+
+        // If changing this string (" - 1"), also change in first.exp that looks for
+        // it (distinguished from " - 2" elsewhere).
+        let ans = ui.ask_yes_no_question(
+            format!(
+                "An error occurred: \"{}: {}\". If you \
+                can provide simple instructions to reproduce it consistently, maybe it \
+                can be fixed - 1.  Do you want to see the detailed output?",
+                //e.getClass.get_name, e.getMessage),
+                caller_location,
+                e.to_string()
+            ),
+            "n",
+            false,
+        );
+        if ans.is_some() && ans.unwrap() {
+            //ui.display_text(throwableToString(e))
+            //ui.display_text(e.to_string());
+            ui.display_text1(Util::get_backtrace().as_str());
+        }
+    }
 
     // // %%maybe replace this w/ just the parse command from rust.  It is complicated, and unclear if necessary (now?).
     // For now, in the code that would call this, just force a specific format until the code is otherwise working. Then come back and:
@@ -1590,52 +1609,64 @@ impl Util {
             }
     %%*/
 
-    //Some convenience functions. 
+    //Some convenience functions.
     //%%Now that they exist, should probably use them in more of the
-    //model classes like those with read_data_from_db, etc? 
+    //model classes like those with read_data_from_db, etc?
     //Is there an even better way to do this?
     pub fn get_value_bigint(description: &str, x: &Option<DataType>) -> Result<i64, anyhow::Error> {
         match x {
             Some(DataType::Bigint(x)) => Ok(*x),
-            _ => return Err(anyhow!( "Unexpected value for {}: {:?}", description, x)),
+            _ => return Err(anyhow!("Unexpected value for {}: {:?}", description, x)),
         }
     }
-    pub fn get_value_bigint_option(description: &str, x: &Option<DataType>) -> Result<Option<i64>, anyhow::Error> {
+    pub fn get_value_bigint_option(
+        description: &str,
+        x: &Option<DataType>,
+    ) -> Result<Option<i64>, anyhow::Error> {
         match x {
             Some(DataType::Bigint(x)) => Ok(Some(*x)),
             None => Ok(None),
-            _ => return Err(anyhow!( "Unexpected value for {}: {:?}", description, x)),
+            _ => return Err(anyhow!("Unexpected value for {}: {:?}", description, x)),
         }
     }
     pub fn get_value_float(description: &str, x: &Option<DataType>) -> Result<f64, anyhow::Error> {
         match x {
             Some(DataType::Float(x)) => Ok(*x),
-            _ => return Err(anyhow!( "Unexpected value for {}: {:?}", description, x)),
+            _ => return Err(anyhow!("Unexpected value for {}: {:?}", description, x)),
         }
     }
     pub fn get_value_bool(description: &str, x: &Option<DataType>) -> Result<bool, anyhow::Error> {
         match x {
             Some(DataType::Boolean(x)) => Ok(*x),
-            _ => return Err(anyhow!( "Unexpected value for {}: {:?}", description, x)),
+            _ => return Err(anyhow!("Unexpected value for {}: {:?}", description, x)),
         }
     }
-    pub fn get_value_bool_option(description: &str, x: &Option<DataType>) -> Result<Option<bool>, anyhow::Error> {
+    pub fn get_value_bool_option(
+        description: &str,
+        x: &Option<DataType>,
+    ) -> Result<Option<bool>, anyhow::Error> {
         match x {
             Some(DataType::Boolean(x)) => Ok(Some(*x)),
             None => Ok(None),
-            _ => return Err(anyhow!( "Unexpected value for {}: {:?}", description, x)),
+            _ => return Err(anyhow!("Unexpected value for {}: {:?}", description, x)),
         }
     }
-    pub fn get_value_string(description: &str, x: &Option<DataType>) -> Result<String, anyhow::Error> {
+    pub fn get_value_string(
+        description: &str,
+        x: &Option<DataType>,
+    ) -> Result<String, anyhow::Error> {
         match x {
             Some(DataType::String(x)) => Ok(x.to_string()),
-            _ => return Err(anyhow!( "Unexpected value for {}: {:?}", description, x)),
+            _ => return Err(anyhow!("Unexpected value for {}: {:?}", description, x)),
         }
     }
-    pub fn get_value_smallint(description: &str, x: &Option<DataType>) -> Result<i32, anyhow::Error> {
+    pub fn get_value_smallint(
+        description: &str,
+        x: &Option<DataType>,
+    ) -> Result<i32, anyhow::Error> {
         match x {
             Some(DataType::Smallint(x)) => Ok(*x),
-            _ => return Err(anyhow!( "Unexpected value for {}: {:?}", description, x)),
+            _ => return Err(anyhow!("Unexpected value for {}: {:?}", description, x)),
         }
     }
     /*

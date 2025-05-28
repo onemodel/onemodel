@@ -143,7 +143,8 @@ impl Entity {
         db_in: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         id: i64,
-    ) -> Result<Option<Entity>, String> {
+        //) -> Result<Option<Entity>, String> {
+    ) -> Result<Option<Entity>, anyhow::Error> {
         let e = Entity::new2(db_in, transaction, id);
         match e {
             Ok(entity) => Ok(Some(entity)),
@@ -151,7 +152,8 @@ impl Entity {
                 if error.to_string().contains(Util::DOES_NOT_EXIST) {
                     Ok(None)
                 } else {
-                    Err(error.to_string())
+                    //Err(error.to_string())
+                    Err(anyhow!(error.to_string()))
                 }
             }
         }
@@ -483,7 +485,7 @@ impl Entity {
         Ok(display_string)
     }
 
-    fn get_display_string(
+    pub fn get_display_string(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         with_color: bool, /*= false*/

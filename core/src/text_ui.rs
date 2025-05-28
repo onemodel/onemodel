@@ -855,7 +855,7 @@ impl TextUI {
     pub fn ask_yes_no_question(
         &self,
         prompt_in: String,
-        default_value_in: &str,   /*= Some("n")*/
+        default_value_in: &str,   /*= 'n' (was: Some("n"))*/
         allow_blank_answer: bool, /*= false*/
     ) -> Option<bool> {
         let answer = self.ask_for_string5(
