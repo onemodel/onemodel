@@ -1,5 +1,5 @@
 /*  This file is part of OneModel, a program to manage knowledge.
-    Copyright in each year of 2003-2004 and 2008-2017 inclusive, and 2023-2024 inclusive, Luke A. Call.
+    Copyright in each year of 2003-2004 and 2008-2017 inclusive, and 2023-2025 inclusive, Luke A. Call.
     (That copyright statement was previously 2013-2015, until I remembered that much of Controller
     came from TextUI.scala and TextUI.java before that.)
     OneModel is free software, distributed under a license that includes honesty, the Golden Rule,
@@ -20,6 +20,7 @@ use crate::util::Util;
 use crate::TextUI;
 use std::cell::RefCell;
 use std::rc::Rc;
+use tracing::*;
 
 pub struct MainMenu {
     ui: Rc<TextUI>,
@@ -177,7 +178,7 @@ impl MainMenu {
             let leading_text = "Main OM menu:";
             let menutext_create_relation_type = Util::menutext_create_relation_type();
             let entity_descr = entity.get_display_string(None, false)?;
-            let go_to_x = format!(
+            let go_to_current_entity = format!(
                 "Go to current entity ({}; or its sole subgroup, if present)",
                 entity_descr
             );
@@ -186,22 +187,23 @@ impl MainMenu {
                 menutext_create_relation_type.as_str(),
                 Util::MENUTEXT_VIEW_PREFERENCES,
                 "List existing relation types",
-                go_to_x.as_str(),
+                go_to_current_entity.as_str(),
                 Util::MAIN_SEARCH_PROMPT,
                 "List existing classes",
                 "List OneModel (OM) instances (local & remote)",
             ];
             let response = if go_directly_to_choice.is_none() {
-                self.ui.ask_which(
+                let ans = self.ui.ask_which(
                     Some(vec![leading_text]),
                     choices,
                     Vec::new(),
                     true,
                     Some(format!("{} to quit (anytime)", self.ui.how_quit()).as_str()),
+                    None,
+                    None,
                     Some(5),
-                    None,
-                    None,
-                )
+                );
+                ans
             } else {
                 go_directly_to_choice
             };

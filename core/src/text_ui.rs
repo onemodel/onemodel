@@ -172,14 +172,14 @@ impl TextUI {
                 }
             }
             Key::Enter => {
-                let o: Option<char> = std::char::from_u32(32);
+                let o: Option<char> = std::char::from_u32(13);
                 if o.is_some() {
                     o.unwrap_or_default()
                 } else {
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::Other,
                         //idea: add more info, the key to err msg. use Display trait methods of the char, and +?
-                        "Unexpected state: from_u32(32) returned None.",
+                        "Unexpected state: from_u32(13) returned None.",
                     ));
                 }
             }
@@ -245,7 +245,6 @@ impl TextUI {
     }
 
     pub fn ask_for_string1(&self, leading_text: Vec<&str>) -> Option<String> {
-        //TextUI::ask_for_string5(self, leading_text, None, "", false, true)
         self.ask_for_string5(leading_text, None, "", false, true)
     }
     pub fn ask_for_string3(
