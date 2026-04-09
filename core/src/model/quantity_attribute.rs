@@ -121,7 +121,7 @@ impl QuantityAttribute {
         Ok(self.unit_id)
     }
 
-    fn update(
+    pub fn update(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         attr_type_id_in: i64,
@@ -249,6 +249,11 @@ impl Attribute for QuantityAttribute {
     ) -> Result<u64, anyhow::Error> 
     {
         self.db.borrow().delete_quantity_attribute(transaction, self.id)
+    }
+
+    // (See comment on fn get_id in quantity_attribute.rs, about no call to read_data_from_db().)
+    fn get_db(&self) -> Rc<RefCell<dyn Database>> {
+        self.db.clone()
     }
 
     // This datum is provided upon construction (new2(), at minimum), so can be returned

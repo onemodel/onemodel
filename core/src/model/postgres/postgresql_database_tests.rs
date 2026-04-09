@@ -7,8 +7,8 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-/// Created this file to reduce the size of postgresql_database.rs, so the IDE can process things
-/// faster.
+/// Created this file to reduce the size of postgresql_database.rs, so the IDE and compiler can 
+/// incrementally process things faster.
 // use crate::model::boolean_attribute::BooleanAttribute;
 use crate::model::database::DataType;
 use crate::model::database::Database;
@@ -2638,7 +2638,7 @@ mod test {
         let mut found_ba = false;
         let mut found_fa = false;
         for (_, attr) in attr_tuples {
-            let form_id: i32 = attr.get_form_id().unwrap();
+            let form_id: i32 = attr.borrow().get_form_id().unwrap();
             //Hopefully, there is some better way to do the below group of "if" expressions, such
             //as I was a attempting with "downcast_ref" and "is". See experiments
             //in (and call to) get_type_info().
@@ -2648,14 +2648,14 @@ mod test {
             //if let Some(qa) = (*attr).is::<QuantityAttribute>() {
             if db.borrow().get_attribute_form_name(form_id).unwrap() == Util::QUANTITY_TYPE {
                 let mut qa: QuantityAttribute =
-                    QuantityAttribute::new2(db.clone(), None, attr.get_id()).unwrap();
+                    QuantityAttribute::new2(db.clone(), None, attr.borrow().get_id()).unwrap();
                 assert_eq!(qa.get_number(None).unwrap(), 50.0);
                 found_qa = true;
             }
             //else if let Some(ta) = attr.downcast_ref::<TextAttribute>() {
             else if db.borrow().get_attribute_form_name(form_id).unwrap() == Util::TEXT_TYPE {
                 let mut ta: TextAttribute =
-                    TextAttribute::new2(db.clone(), None, attr.get_id()).unwrap();
+                    TextAttribute::new2(db.clone(), None, attr.borrow().get_id()).unwrap();
                 assert_eq!(ta.get_text(None).unwrap(), "some test text");
                 found_ta = true;
             }
@@ -2664,7 +2664,7 @@ mod test {
                 == Util::RELATION_TO_LOCAL_ENTITY_TYPE
             {
                 let mut rtle: RelationToLocalEntity =
-                    RelationToLocalEntity::new3(db.clone(), None, attr.get_id())
+                    RelationToLocalEntity::new3(db.clone(), None, attr.borrow().get_id())
                         .unwrap()
                         .unwrap();
                 assert_eq!(rtle.get_attr_type_id(None).unwrap(), rel_type_id);
@@ -2765,7 +2765,7 @@ mod test {
             Some(entity_id),
         )
         .unwrap();
-        let mut omi_retrieved = OmInstance::new2(db, trans.clone(), omi.get_id().unwrap()).unwrap();
+        let mut omi_retrieved = OmInstance::new2(db, trans.clone(), omi.get_id()).unwrap();
         let retrieved_id = omi_retrieved.get_entity_id(trans.clone()).unwrap();
         assert_eq!(retrieved_id, Some(entity_id));
     }
@@ -3591,7 +3591,7 @@ mod test {
             .unwrap();
         let class_count = db.borrow().get_class_count(None, None).unwrap();
         let classes = db.borrow().get_classes(db.clone(), None, 0, None).unwrap();
-        assert_eq!(class_count, classes.len());
+        assert_eq!(class_count, classes.len() as u64);
         let class_count_limited = db.borrow().get_class_count(None, Some(entity_id2)).unwrap();
         assert_eq!(class_count_limited, 1);
 
@@ -4056,7 +4056,7 @@ mod test {
 
         let prev_entities_used_as_attribute_types = db
             .borrow()
-            .get_count_of_entities_used_as_attribute_types(None, Util::DATE_TYPE.to_string(), false)
+            .get_count_of_entities_used_as_attribute_types(None, Util::DATE_TYPE, false)
             .unwrap();
         let date_attribute_id = create_test_date_attribute_with_one_entity(db.clone(), entity_id);
         let mut date_attribute = DateAttribute::new2(db.clone(), None, date_attribute_id).unwrap();
@@ -4064,7 +4064,7 @@ mod test {
             db.borrow()
                 .get_count_of_entities_used_as_attribute_types(
                     None,
-                    Util::DATE_TYPE.to_string(),
+                    Util::DATE_TYPE,
                     false
                 )
                 .unwrap(),
@@ -4082,7 +4082,7 @@ mod test {
             .get_entities_used_as_attribute_types(
                 db.clone(),
                 None,
-                Util::DATE_TYPE.to_string(),
+                Util::DATE_TYPE,
                 0,
                 false,
                 None,

@@ -9,7 +9,14 @@
 */
 
 pub mod class_menu;
+// There are several "controller" files for one impl, just because rust-analyzer was slow analyzing
+// fewer big files:
 pub mod controller;
+pub mod controller2;
+pub mod controller3;
+pub mod controller4;
+pub mod controller5;
+pub mod controller6;
 pub mod controller_test;
 pub mod entity_menu;
 pub mod group_menu;

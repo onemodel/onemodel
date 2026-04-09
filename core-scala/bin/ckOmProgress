@@ -30,6 +30,7 @@ MARKERS_STARTING_COUNT=340
 
 # ("Per mil" is like percent but with an extra digit for precision.)
 cd ~lacall/proj/om/core
+# (consider using tokei instead of cloc? is native rust and runs faster per an HN disc. Is in pkglocate on obsd?)
 TOTALS_LINE=$(cloc src|grep "SUM:")
 BLANK_LINES=$(echo $TOTALS_LINE|cut -d' ' -f 3)
 COMMENT_LINES=$(echo $TOTALS_LINE|cut -d' ' -f 4)
@@ -43,6 +44,6 @@ echo "****** $WORK_COMPLETED_PER_MIL per mil target comments removed since 2025-
 
 
 cd src
-NUM_PERCENT_MARKERS=$(helper_findgrepfiles %%|wc|colrm 9)
+NUM_PERCENT_MARKERS=$(findgrepfiles_helper %%|wc|colrm 9)
 MARKERS_REMAINING_PER_MIL=$(( $NUM_PERCENT_MARKERS * 1000 / $MARKERS_STARTING_COUNT ))
 echo "****** $(( 1000 - $MARKERS_REMAINING_PER_MIL )) per mil %% markers removed since 2025-02-20 (drop a digit for % complete."

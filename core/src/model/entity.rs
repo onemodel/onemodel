@@ -31,7 +31,7 @@ use std::collections::HashSet;
 use std::rc::Rc;
 use tracing::*;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Entity {
     db: Rc<RefCell<dyn Database>>,
     id: i64,
@@ -122,11 +122,11 @@ impl Entity {
         Entity::new2(db, transaction.clone(), id)
     }
 
-    fn name_length() -> u32 {
+    pub fn name_length() -> u16 {
         Util::entity_name_length()
     }
 
-    fn is_duplicate(
+    pub fn is_duplicate(
         db_in: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         in_name: &str,
@@ -164,11 +164,11 @@ impl Entity {
     pub fn get_name(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-    ) -> Result<&String, anyhow::Error> {
+    ) -> Result<String, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(transaction)?;
         }
-        Ok(&self.name)
+        Ok(self.name)
     }
 
     pub fn get_class_id(
@@ -181,7 +181,7 @@ impl Entity {
         Ok(self.class_id)
     }
 
-    fn get_class_template_entity_id(
+    pub fn get_class_template_entity_id(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<Option<i64>, anyhow::Error> {
@@ -222,7 +222,7 @@ impl Entity {
         ))
     }
 
-    fn get_public(
+    pub fn get_public(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<Option<bool>, anyhow::Error> {
@@ -259,7 +259,7 @@ impl Entity {
         Ok(result.to_string())
     }
 
-    fn get_public_status_display_string_with_color(
+    pub fn get_public_status_display_string_with_color(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         blank_if_unset: bool, /*= true*/
@@ -295,7 +295,7 @@ impl Entity {
         Ok(self.archived)
     }
 
-    fn get_new_entries_stick_to_top(
+    pub fn get_new_entries_stick_to_top(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<bool, anyhow::Error> {
@@ -381,10 +381,16 @@ impl Entity {
         Ok(())
     }
 
-    fn get_id_wrapper(&self) -> IdWrapper {
+    // (See comment on fn get_id in quantity_attribute.rs, about no call to read_data_from_db().)
+    pub fn get_db(&self) -> Rc<RefCell<dyn Database>> {
+        self.db.clone()
+    }
+
+    pub fn get_id_wrapper(&self) -> IdWrapper {
         IdWrapper::new(self.id)
     }
 
+    // (See comment on fn get_id in quantity_attribute.rs, about no call to read_data_from_db().)
     pub fn get_id(&self) -> i64 {
         self.id
     }
@@ -418,7 +424,7 @@ impl Entity {
         ))
     }
 
-    fn get_attribute_count(
+    pub fn get_attribute_count(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         include_archived_entities_in: bool, /*= db.include_archived_entities*/
@@ -430,7 +436,7 @@ impl Entity {
         )
     }
 
-    fn get_relation_to_group_count(
+    pub fn get_relation_to_group_count(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<u64, anyhow::Error> {
@@ -450,7 +456,7 @@ impl Entity {
                     "{}{}{}",
                     self.get_public_status_display_string_with_color(transaction.clone(), true)?,
                     self.get_archived_status_display_string(transaction.clone())?,
-                    Color::blue(self.get_name(transaction.clone())?)
+                    Color::blue(&self.get_name(transaction.clone())?)
                 )
             } else {
                 format!(
@@ -512,7 +518,7 @@ impl Entity {
     }
 
     /// Also for convenience
-    fn add_quantity_attribute<'a, 'b>(
+    pub fn add_quantity_attribute<'a, 'b>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         in_attr_type_id: i64,
@@ -627,8 +633,8 @@ impl Entity {
     fn get_containing_relations_to_group(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        starting_index_in: i64,   /*= 0*/
-        max_vals_in: Option<i64>, /*= None*/
+        starting_index_in: u64,   /*= 0*/
+        max_vals_in: Option<u64>, /*= None*/
     ) -> Result<Vec<RelationToGroup>, anyhow::Error> {
         let rtgs_data: Vec<(i64, i64, i64, i64, Option<i64>, i64, i64)> =
             self.db.borrow().get_containing_relations_to_group(
@@ -657,14 +663,14 @@ impl Entity {
     fn get_containing_relation_to_group_descriptions(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        limit_in: Option<i64>, /*= None*/
+        limit_in: Option<u64>, /*= None*/
     ) -> Result<Vec<String>, anyhow::Error> {
         self.db
             .borrow()
             .get_containing_relation_to_group_descriptions(transaction, self.get_id(), limit_in)
     }
 
-    fn find_relation_to_and_group(
+    pub fn find_relation_to_and_group(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(Option<i64>, Option<i64>, Option<i64>, Option<String>, bool), anyhow::Error> {
@@ -707,7 +713,7 @@ impl Entity {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_index_in: i64,   /*= 0*/
-        max_vals_in: Option<i64>, /*= None*/
+        max_vals_in: Option<u64>, /*= None*/
     ) -> Result<Vec<(i64, Entity)>, anyhow::Error> {
         let list: Vec<(i64, i64)> = self
             .db
@@ -730,7 +736,7 @@ impl Entity {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         sorting_index_in: i64,
-        limit_in: Option<i64>,     /*= None*/
+        limit_in: Option<u64>,     /*= None*/
         forward_not_back_in: bool, /*= true*/
     ) -> Result<Vec<Vec<Option<DataType>>>, anyhow::Error> {
         self.db.borrow().get_adjacent_attributes_sorting_indexes(
@@ -881,33 +887,41 @@ impl Entity {
         Ok(results)
     }
 
-    // Depending on future callers, should this return instead an Entity and RTLE,
-    // creating them here?
     /// @return the new entity_id and relation_to_local_entity_id that relates to it.
-    fn add_uri_entity_with_uri_attribute<'a, 'b>(
+    pub fn add_uri_entity_with_uri_attribute<'a, 'b>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
-        new_entity_name_in: &str,
+        new_entity_name_in: String,
         uri_in: &str,
         observation_date_in: i64,
         make_them_public_in: Option<bool>,
         quote_in: Option<&str>, /*= None*/
-    ) -> Result<(i64, i64), anyhow::Error>
+    // ) -> Result<(i64, i64), anyhow::Error>
+    ) -> Result<(Entity, RelationToLocalEntity), anyhow::Error>
     where
         'a: 'b,
     {
         let ref rc_db = &self.db;
-        let ref cloned = rc_db.clone();
+        let ref db_cloned = rc_db.clone();
         let tx = transaction.clone();
-        cloned.borrow().add_uri_entity_with_uri_attribute(
+        let (e_id, rtle_id): (i64, i64) = db_cloned.borrow().add_uri_entity_with_uri_attribute(
             tx,
             self.get_id(),
-            new_entity_name_in,
+            new_entity_name_in.as_str(),
             uri_in,
             observation_date_in,
             make_them_public_in,
             quote_in,
-        )
+        )?;
+        let ref rc_db = self.db;
+        let db_cloned = rc_db.clone();
+        let e: Entity = Self::new2(db_cloned, transaction.clone(), e_id)?;
+        let ref rc_db = self.db;
+        let db_cloned = rc_db.clone();
+        let Some(rtle) = RelationToLocalEntity::new3(db_cloned, transaction.clone(), rtle_id)? else {
+            return Err(anyhow!("Unexpected None result from RTLE::new3; should be impossible."));
+        };
+        Ok((e, rtle))
     }
 
     /// Returns the id of the newly created attribute.
@@ -948,12 +962,12 @@ impl Entity {
         for attr in attr_tuples {
             match attr.1 {
                 attribute
-                    if attribute.get_form_id()?
+                    if attribute.borrow().get_form_id()?
                         == self
                             .db
                             .borrow()
                             .get_attribute_form_id(Util::RELATION_TO_LOCAL_ENTITY_TYPE)?
-                        || attribute.get_form_id()?
+                        || attribute.borrow().get_form_id()?
                             == self
                                 .db
                                 .borrow()
@@ -963,7 +977,7 @@ impl Entity {
                     // (Was) using RelationToEntity here because it actually makes sense. But usually it is
                     // best to make sure to use either RelationToLocalEntity or RelationToRemoteEntity, to
                     // be clearer about the logic.
-                    let related_id2 = if attribute.get_form_id()?
+                    let related_id2 = if attribute.borrow().get_form_id()?
                         == self
                             .db
                             .borrow()
@@ -975,7 +989,7 @@ impl Entity {
                         let rtle: Option<RelationToLocalEntity> = RelationToLocalEntity::new3(
                             self.db.clone(),
                             transaction.clone(),
-                            attribute.get_id(),
+                            attribute.borrow().get_id(),
                         )?;
                         match rtle {
                             Some(mut r) => {
@@ -989,7 +1003,7 @@ impl Entity {
                             None => {
                                 return Err(anyhow!(
                                     "No RTLE returned for id {}?",
-                                    attribute.get_id()
+                                    attribute.borrow().get_id()
                                 ))
                             }
                         }
@@ -1005,7 +1019,7 @@ impl Entity {
                     count += 1;
                 }
                 attribute
-                    if attribute.get_form_id()?
+                    if attribute.borrow().get_form_id()?
                         == self
                             .db
                             .borrow()
@@ -1017,7 +1031,7 @@ impl Entity {
                     let mut rtg = RelationToGroup::new3(
                         self.db.clone(),
                         transaction.clone(),
-                        attribute.get_id(),
+                        attribute.borrow().get_id(),
                     )?;
                     let group_id = rtg.get_group_id(transaction.clone())?;
                     let entries: Vec<Vec<Option<DataType>>> = self
@@ -1097,7 +1111,7 @@ impl Entity {
         TextAttribute::new2(self.db.clone(), transaction, id)
     }
 
-    fn add_date_attribute<'a, 'b>(
+    pub fn add_date_attribute<'a, 'b>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         in_attr_type_id: i64,
@@ -1117,7 +1131,7 @@ impl Entity {
         DateAttribute::new2(self.db.clone(), transaction, id)
     }
 
-    fn add_boolean_attribute<'a, 'b>(
+    pub fn add_boolean_attribute<'a, 'b>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         in_attr_type_id: i64,
@@ -1187,7 +1201,7 @@ impl Entity {
                     }
                   }
     */
-    fn add_relation_to_local_entity<'a, 'b>(
+    pub fn add_relation_to_local_entity<'a, 'b>(
         &'a self,
         transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         in_attr_type_id: i64,
@@ -1195,7 +1209,7 @@ impl Entity {
         sorting_index_in: Option<i64>,
         in_valid_on_date: Option<i64>, /*= None*/
         in_observation_date: i64,      /*= Utc::now().timestamp_millis()*/
-    ) -> Result<RelationToLocalEntity, anyhow::Error>
+    ) -> Result<Box<RelationToLocalEntity>/*%%LocalEntity>*/, anyhow::Error>
     where
         'a: 'b,
     {
@@ -1208,7 +1222,7 @@ impl Entity {
             in_observation_date,
             sorting_index_in,
         )?;
-        Ok(RelationToLocalEntity::new(
+        let rtle = RelationToLocalEntity::new(
             self.db.clone(),
             rte_id,
             in_attr_type_id,
@@ -1217,20 +1231,22 @@ impl Entity {
             in_valid_on_date,
             in_observation_date,
             new_sorting_index,
-        ))
+        );
+        Ok(Box::new(rtle))
     }
 
-    /*%%put back after converting RelationToRemoteEntity to Rust
-    fn add_relation_to_remote_entity(&self,
+    pub fn add_relation_to_remote_entity(&self,
                                         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
                                          in_attr_type_id: i64, in_entity_id2: i64, sorting_index_in: Option<i64>,
                               in_valid_on_date: Option<i64> /*= None*/, observation_date_in: i64 /*= Utc::now().timestamp_millis()*/,
                               remote_instance_id_in: String)
-    -> Result<RelationToRemoteEntity, anyhow::Error> {
+    -> Result<()/*%%RelationToRemoteEntity*/, anyhow::Error> {
+        return Err(anyhow!("%%Not yet implemented"));
+    /*%%put back after converting RelationToRemoteEntity to Rust
         let rte_id = self.db.create_relation_to_remote_entity(transaction.clone(), in_attr_type_id, self.get_id(), in_entity_id2, in_valid_on_date, observation_date_in, remote_instance_id_in, sorting_index_in, false);
         RelationToRemoteEntity::new2(self.db, rte_id, in_attr_type_id, self.get_id(), remote_instance_id_in, in_entity_id2)
-      }
                               */
+      }
 
     /// Creates then adds a particular kind of rtg to this entity.
     /// Returns new group's id, and the new RelationToGroup object
@@ -1300,7 +1316,7 @@ impl Entity {
     }
 
     /// @return the id of the new RTE
-    fn add_has_relation_to_local_entity(
+    pub fn add_has_relation_to_local_entity(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
@@ -1469,7 +1485,7 @@ impl Entity {
         starting_object_index_in: usize, /*= 0*/
         max_vals_in: usize,              /*= 0*/
         only_public_entities_in: bool,   /*= true*/
-    ) -> Result<(Vec<(i64, Rc<dyn Attribute>)>, usize), anyhow::Error> {
+    ) -> Result<(Vec<(i64, Rc<RefCell<dyn Attribute>>)>, usize), anyhow::Error> {
         self.db.borrow().get_sorted_attributes(
             self.db.clone(),
             transaction,

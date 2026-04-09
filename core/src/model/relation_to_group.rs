@@ -30,6 +30,7 @@ use std::rc::Rc;
 // due to Rust limitations on OO.  Maintain them all similarly.
 
 //#[derive(Clone)]
+#[derive(Debug)]
 pub struct RelationToGroup {
     // For descriptions of the meanings of these variables, see the comments
     // on create_quantity_attribute(...) or create_tables() in PostgreSQLDatabase or Database structs,
@@ -124,8 +125,9 @@ impl RelationToGroup {
     }
 
     /// Just reading from DB, not creating something new here.
-    // Old idea?: could change this into a constructor if the fn new's parameters are changed to be only db, transaction, and id, and a new constructor is created
-    // to fill in the other fields. But didn't do that because it would require an extra db read with every use, and the ordering of statements in the
+    // Old idea?: could change this into a constructor if the fn new's parameters are changed to be only 
+    // db, transaction, and id, and a new constructor is created to fill in the other fields. But didn't 
+    // do that because it would require an extra db read with every use, and the ordering of statements in the
     // new constructors just wasn't working out (in scala code when I originally wrote this comment, anyway?).
     ///See comments on fn new, here.
     pub fn new3(
@@ -186,7 +188,7 @@ impl RelationToGroup {
         Ok(self.group_id)
     }
 
-    fn get_group(
+    pub fn get_group(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<Group, anyhow::Error> {
@@ -359,6 +361,11 @@ impl Attribute for RelationToGroup {
             self.rel_type_id,
             self.group_id,
         )
+    }
+
+    // (See comment on fn get_id about no call to read_data_from_db().)
+    fn get_db(&self) -> Rc<RefCell<dyn Database>> {
+        self.db.clone()
     }
 
     // This datum is provided upon construction (new2(), at minimum), so can be returned

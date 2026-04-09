@@ -18,6 +18,7 @@ pub mod entity;
 pub mod entity_class;
 pub mod file_attribute;
 pub mod group;
+pub mod has_id;
 pub mod id_wrapper;
 pub mod om_instance;
 pub mod postgres;

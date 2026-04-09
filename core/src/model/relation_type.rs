@@ -55,6 +55,8 @@ impl RelationType {
     pub fn new(
         db: Rc<RefCell<dyn Database>>,
         entity_id: i64,
+        // This name is (unfortunately?) "inherited" (in a homegrown way) from Entity. See read_data_from_db() and
+        // update(), below.
         name: String,
         name_in_reverse_direction: String,
         directionality: String,
@@ -105,7 +107,7 @@ impl RelationType {
         // (See comment in similar spot in BooleanAttribute for why not checking for exists, if db.is_remote.)
     }
 
-    fn get_name_length(&mut self) -> u32 {
+    pub fn get_name_length(/*&mut self*/) -> u16 {
         Util::relation_type_name_length()
     }
 
@@ -186,7 +188,7 @@ impl RelationType {
         Ok(())
     }
 
-    fn update(
+    pub fn update(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         name_in: &str,
@@ -221,6 +223,12 @@ impl RelationType {
         self.db.borrow().delete_relation_type(transaction, self.entity_id)
     }
 
+    // (See comment on fn get_id in quantity_attribute.rs, about no call to read_data_from_db().)
+    pub fn get_db(&self) -> Rc<RefCell<dyn Database>> {
+        self.db.clone()
+    }
+
+    // (See comment on fn get_id in quantity_attribute.rs, about no call to read_data_from_db().)
     pub fn get_id(&self) -> i64 {
         self.entity_id
     }

@@ -403,7 +403,7 @@ impl Attribute for RelationToLocalEntity {
                 "{}{}: {}; {}",
                 rt_name,
                 self.get_remote_description(),
-                Color::blue(related_entity.get_name(None)?),
+                Color::blue(&related_entity.get_name(None)?),
                 Util::get_dates_description(self.get_valid_on_date(None)?, self.get_observation_date(None)?)
             )
         };
@@ -415,6 +415,11 @@ impl Attribute for RelationToLocalEntity {
             result.as_str(),
             length_limit_in,
         ))
+    }
+
+    // (See comment on fn get_id about no call to read_data_from_db().)
+    fn get_db(&self) -> Rc<RefCell<dyn Database>> {
+        self.db.clone()
     }
 
     // This datum is provided upon construction (new2(), at minimum), so can be returned

@@ -1,0 +1,3176 @@
+use crate::controllers::main_menu::MainMenu;
+use crate::model::database::Database;
+use crate::model::entity::Entity;
+use crate::model::postgres::postgresql_database::PostgreSQLDatabase;
+use crate::util::Util;
+use crate::TextUI;
+use std::cell::{RefCell, RefMut};
+use std::rc::Rc;
+
+// Additional imports needed for the converted methods
+use crate::model::entity_class::EntityClass;
+use crate::model::relation_type::RelationType;
+use crate::model::group::Group;
+use crate::model::om_instance::OmInstance;
+use crate::model::attribute::Attribute;
+use crate::model::quantity_attribute::QuantityAttribute;
+use crate::model::text_attribute::TextAttribute;
+use crate::model::date_attribute::DateAttribute;
+use crate::model::boolean_attribute::BooleanAttribute;
+use crate::model::file_attribute::FileAttribute;
+use crate::model::relation_to_local_entity::RelationToLocalEntity;
+use crate::model::relation_to_remote_entity::RelationToRemoteEntity;
+use crate::model::relation_to_group::RelationToGroup;
+use crate::controllers::entity_menu::EntityMenu;
+use crate::controllers::group_menu::GroupMenu;
+use crate::controllers::quick_group_menu::QuickGroupMenu;
+use std::collections::HashMap;
+use std::fs::File;
+use std::path::Path;
+
+// Data holder structs
+pub struct QuantityAttributeDataHolder {
+    pub attr_type_id: i64,
+    pub valid_on_date: Option<i64>,
+    pub observation_date: i64,
+    pub number: f64,
+    pub unit_id: i64,
+}
+
+pub struct TextAttributeDataHolder {
+    pub attr_type_id: i64,
+    pub valid_on_date: Option<i64>,
+    pub observation_date: i64,
+    pub text: String,
+}
+
+pub struct DateAttributeDataHolder {
+    pub attr_type_id: i64,
+    pub date: i64,
+}
+
+pub struct BooleanAttributeDataHolder {
+    pub attr_type_id: i64,
+    pub valid_on_date: Option<i64>,
+    pub observation_date: i64,
+    pub boolean: bool,
+}
+
+pub struct FileAttributeDataHolder {
+    pub attr_type_id: i64,
+    pub description: String,
+    pub original_file_path: String,
+}
+
+pub struct RelationToEntityDataHolder {
+    pub attr_type_id: i64,
+    pub valid_on_date: Option<i64>,
+    pub observation_date: i64,
+    pub entity_id2: i64,
+    pub is_remote: bool,
+    pub remote_instance_id: String,
+}
+
+pub struct RelationToGroupDataHolder {
+    pub entity_id: i64,
+    pub attr_type_id: i64,
+    pub group_id: i64,
+    pub valid_on_date: Option<i64>,
+    pub observation_date: i64,
+}
+
+pub struct IdWrapper {
+    id: i64,
+}
+
+impl IdWrapper {
+    pub fn new(id: i64) -> Self {
+        IdWrapper { id }
+    }
+    
+    pub fn get_id(&self) -> i64 {
+        self.id
+    }
+}
+
+impl Controller {
+    // Existing methods remain as they are...
+
+    pub fn refresh_public_private_status_preference(&mut self) -> Result<(), anyhow::Error> {
+        self.show_public_private_status_preference = self.db.borrow()
+            .get_user_preference_boolean(None, Util::SHOW_PUBLIC_PRIVATE_STATUS_PREFERENCE, None)?;
+        Ok(())
+    }
+
+    pub fn refresh_default_display_entity_id(&mut self) -> Result<(), anyhow::Error> {
+        self.default_display_entity_id = self.db.borrow()
+            .get_user_preference_entity_id(None, Util::DEFAULT_ENTITY_PREFERENCE, None)?;
+        Ok(())
+    }
+
+    fn ask_for_class(&self, db_in: Rc<RefCell<dyn Database>>) -> Option<i64> {
+        let msg = "CHOOSE ENTITY'S CLASS. (Press ESC if you don't know or care about this. Detailed explanation on the class feature will be available \
+                   at onemodel.org when this feature is documented more (hopefully at the next release), or ask on the email list.)";
+        let result = self.choose_or_create_object(
+            db_in,
+            Some(vec![msg]),
+            None,
+            None,
+            Util::ENTITY_CLASS_TYPE,
+            0,
+            None,
+            false,
+            None,
+            false,
+            None,
+            false,
+        );
+        match result {
+            None => None,
+            Some((id_wrapper, _, _)) => Some(id_wrapper.get_id()),
+        }
+    }
+
+    fn ask_for_class_info_and_name_and_create_entity(&self, db_in: Rc<RefCell<dyn Database>>, class_id_in: Option<i64>) -> Option<Entity> {
+        let mut new_class = false;
+        let class_id = if let Some(id) = class_id_in {
+            id
+        } else {
+            new_class = true;
+            match self.ask_for_class(db_in.clone()) {
+                None => return None,
+                Some(id) => id,
+            }
+        };
+
+        let leading_text = if new_class { "DEFINE THE ENTITY:" } else { "" };
+        let entity_option = self.ask_for_name_and_write_entity(
+            db_in.clone(),
+            Util::ENTITY_TYPE,
+            None,
+            None,
+            None,
+            None,
+            Some(class_id),
+            Some(leading_text),
+            false,
+        );
+
+        if let Some(entity) = entity_option {
+            self.ui.display_text(&format!("Created {}: {}", Util::ENTITY_TYPE, entity.get_name(None).unwrap_or_default()), false);
+            self.default_attribute_copying(&entity, None);
+            Some(entity)
+        } else {
+            None
+        }
+    }
+
+    fn ask_for_name_and_write_entity(
+        &self,
+        db_in: Rc<RefCell<dyn Database>>,
+        type_in: &str,
+        existing_entity_in: Option<Entity>,
+        previous_name_in: Option<String>,
+        previous_directionality_in: Option<String>,
+        previous_name_in_reverse_in: Option<String>,
+        class_id_in: Option<i64>,
+        leading_text_in: Option<&str>,
+        duplicate_name_probably_ok: bool,
+    ) -> Option<Entity> {
+        if class_id_in.is_some() {
+            assert_eq!(type_in, Util::ENTITY_TYPE);
+        }
+        
+        let create_not_update = existing_entity_in.is_none();
+        if !create_not_update && type_in == Util::RELATION_TYPE_TYPE {
+            assert!(previous_directionality_in.is_some());
+        }
+
+        let max_name_length = if type_in == Util::RELATION_TYPE_TYPE {
+            RelationType::get_name_length()
+        } else if type_in == Util::ENTITY_TYPE {
+            Entity::name_length()
+        } else {
+            panic!("invalid type_in: {}", type_in);
+        };
+
+        let example = if type_in == Util::RELATION_TYPE_TYPE {
+            " (use 3rd-person verb like \"owns\"--might make output like sentences more consistent later on)"
+        } else {
+            ""
+        };
+
+        let ask_and_save = |default_name: Option<String>| -> Option<(i64, i64)> {
+            let prompt = vec![
+                leading_text_in.unwrap_or(""),
+                &format!("Enter {} name (up to {} characters{}; ESC to cancel)", type_in, max_name_length, example),
+            ];
+            
+            let name_opt = self.ui.ask_for_string3(Some(prompt), None, default_name.as_deref());
+            if name_opt.is_none() {
+                return None;
+            }
+
+            let name = name_opt.unwrap().trim().to_string();
+            if name.is_empty() {
+                return None;
+            }
+
+            if name.len() > max_name_length {
+                self.ui.display_text(&format!("{}", Util::string_too_long_error_message(max_name_length)));
+                return self.ask_and_save(Some(name));
+            }
+
+            let self_id_to_ignore = existing_entity_in.as_ref().map(|e| e.get_id());
+            if Util::is_duplication_a_problem(
+                Entity::is_duplicate(db_in.clone(), &name, self_id_to_ignore)?,
+                duplicate_name_probably_ok,
+                &self.ui,
+            ) {
+                return None;
+            }
+
+            if type_in == Util::ENTITY_TYPE {
+                if create_not_update {
+                    let new_id = Entity::create_entity(db_in.clone(), &name, class_id_in)?.get_id();
+                    Some((new_id, 0))
+                } else {
+                    existing_entity_in.as_ref().unwrap().update_name(&name)?;
+                    Some((existing_entity_in.as_ref().unwrap().get_id(), 0))
+                }
+            } else if type_in == Util::RELATION_TYPE_TYPE {
+                let directionality_answer = Util::ask_for_relation_directionality(previous_directionality_in.as_deref(), &self.ui);
+                if directionality_answer.is_none() {
+                    return None;
+                }
+
+                let directionality_str = directionality_answer.unwrap().trim().to_uppercase();
+                let name_in_reverse_direction_str = Util::ask_for_name_in_reverse_direction(
+                    &directionality_str,
+                    max_name_length,
+                    &name,
+                    previous_name_in_reverse_in.as_deref(),
+                    &self.ui,
+                );
+
+                if create_not_update {
+                    let new_rt = RelationType::new(
+                        db_in.clone(),
+                        db_in.borrow_mut().create_relation_type(&name, &name_in_reverse_direction_str, &directionality_str)?,
+                    );
+                    Some((new_rt.get_id(), 0))
+                } else {
+                    let rt = existing_entity_in.as_ref().unwrap().as_relation_type().unwrap();
+                    rt.update(&name, &name_in_reverse_direction_str, &directionality_str)?;
+                    Some((rt.get_id(), 0))
+                }
+            } else {
+                panic!("unexpected value: {}", type_in);
+            }
+        };
+
+        let result = self.try_asking_and_saving(
+            db_in.clone(),
+            &Util::string_too_long_error_message(max_name_length),
+            ask_and_save,
+            previous_name_in,
+        );
+
+        result.map(|(id, _)| Entity::new(db_in, id))
+    }
+
+    fn try_asking_and_saving<T, F>(
+        &self,
+        db_in: Rc<RefCell<dyn Database>>,
+        error_msg_in: &str,
+        ask_and_save_in: F,
+        default_name_in: Option<String>,
+    ) -> Option<T>
+    where
+        F: Fn(Option<String>) -> Result<Option<T>, anyhow::Error>,
+    {
+        match ask_and_save_in(default_name_in.clone()) {
+            Ok(result) => result,
+            Err(e) => {
+                let cumulative_msg = self.accumulate_msgs(&e.to_string(), &e);
+                if cumulative_msg.contains(Util::TOO_LONG_MESSAGE) {
+                    self.ui.display_text(&format!("{}{}", error_msg_in, cumulative_msg));
+                    self.try_asking_and_saving(db_in, error_msg_in, ask_and_save_in, default_name_in)
+                } else {
+                    panic!("{}", e);
+                }
+            }
+        }
+    }
+
+    fn accumulate_msgs(&self, msg_in: &str, t: &dyn std::error::Error) -> String {
+        if let Some(cause) = t.source() {
+            format!("{} ({})", msg_in, self.accumulate_msgs(&cause.to_string(), cause))
+        } else {
+            t.to_string()
+        }
+    }
+
+    fn ask_for_and_write_class_and_template_entity_name(
+        &self,
+        db_in: Rc<RefCell<dyn Database>>,
+        class_in: Option<EntityClass>,
+    ) -> Option<(i64, i64)> {
+        if let Some(ref class) = class_in {
+            assert!(Rc::ptr_eq(&class.get_db(), &db_in));
+        }
+
+        let create_not_update = class_in.is_none();
+        let name_length = EntityClass::name_length(&*db_in.borrow());
+        
+        let old_template_name_prompt = if create_not_update {
+            String::new()
+        } else {
+            let entity_id = class_in.as_ref().unwrap().get_template_entity_id();
+            let template_entity_name = Entity::new(db_in.clone(), entity_id).get_name(None).unwrap_or_default();
+            format!(" (which is currently \"{}\")", template_entity_name)
+        };
+
+        let ask_and_save = |default_name: Option<String>| -> Result<Option<(i64, i64)>, anyhow::Error> {
+            let prompt = vec![&format!(
+                "Enter class name (up to {} characters; will also be used for its template entity name{}; ESC to cancel): ",
+                name_length, old_template_name_prompt
+            )];
+            
+            let name_opt = self.ui.ask_for_string3(Some(prompt), None, default_name.as_deref());
+            if name_opt.is_none() {
+                return Ok(None);
+            }
+
+            let name = name_opt.unwrap().trim().to_string();
+            if name.is_empty() {
+                return Ok(None);
+            }
+
+            let existing_id = class_in.as_ref().map(|c| c.get_id());
+            if Util::is_duplication_a_problem(
+                EntityClass::is_duplicate(&*db_in.borrow(), &name, existing_id)?,
+                false,
+                &self.ui,
+            ) {
+                return Ok(None);
+            }
+
+            if create_not_update {
+                Ok(Some(db_in.borrow_mut().create_class_and_its_template_entity(&name)?))
+            } else {
+                let entity_id = class_in.as_ref().unwrap().update_class_and_template_entity_name(&name)?;
+                Ok(Some((class_in.as_ref().unwrap().get_id(), entity_id)))
+            }
+        };
+
+        let default_name = class_in.as_ref().map(|c| c.get_name());
+        self.try_asking_and_saving(
+            db_in,
+            &Util::string_too_long_error_message(name_length),
+            ask_and_save,
+            default_name,
+        )
+    }
+
+    fn ask_for_and_write_om_instance_info(
+        &self,
+        db_in: Rc<RefCell<dyn Database>>,
+        old_om_instance_in: Option<OmInstance>,
+    ) -> Option<String> {
+        let create_not_update = old_om_instance_in.is_none();
+        let address_length = OmInstance::address_length();
+
+        let ask_and_save = |default_name: Option<String>| -> Result<Option<String>, anyhow::Error> {
+            let prompt = vec![&format!(
+                "Enter the internet address with optional port of a remote OneModel instance (for \
+                example, \"om.example.com:9000\", up to {} characters; ESC to cancel; \
+                Other examples include (omit commas): localhost, 127.0.0.1:2345, ::1 (?), \
+                my.example.com:80, your.example.com:8080 .): ",
+                address_length
+            )];
+
+            let address_opt = self.ui.ask_for_string3(Some(prompt), None, default_name.as_deref());
+            if address_opt.is_none() {
+                return Ok(None);
+            }
+
+            let address = address_opt.unwrap().trim().to_string();
+            if address.is_empty() {
+                return Ok(None);
+            }
+
+            let existing_id = old_om_instance_in.as_ref().map(|o| o.get_id());
+            if Util::is_duplication_a_problem(
+                OmInstance::is_duplicate(&*db_in.borrow(), &address, existing_id)?,
+                false,
+                &self.ui,
+            ) {
+                return Ok(None);
+            }
+
+            let rest_db = Database::get_rest_database(&address);
+            let remote_id = rest_db.get_id_with_optional_err_handling(Some(&self.ui));
+            if remote_id.is_none() {
+                return Ok(None);
+            }
+
+            let remote_id = remote_id.unwrap();
+
+            if create_not_update {
+                OmInstance::create(&*db_in.borrow(), &remote_id, &address)?;
+                Ok(Some(remote_id))
+            } else {
+                let old_instance = old_om_instance_in.as_ref().unwrap();
+                if old_instance.get_id() == remote_id {
+                    old_instance.update(&address)?;
+                    Ok(Some(old_instance.get_id()))
+                } else {
+                    let question = format!(
+                        "The IDs of the old and new remote instances don't match (old \
+                        id/address: {}/{}, new id/address: {}/{}. Instead of updating the old one, you should create a new \
+                        entry for the new remote instance and then optionally delete this old one. \
+                        Do you want to create the new entry with this new address, now?",
+                        old_instance.get_id(),
+                        old_instance.get_address(),
+                        remote_id,
+                        address
+                    );
+                    
+                    let ans = self.ui.ask_yes_no_question(&question, None, false);
+                    if ans.is_some() && ans.unwrap() {
+                        let id = OmInstance::create(&*db_in.borrow(), &remote_id, &address)?.get_id();
+                        self.ui.display_text(&format!(
+                            "Created the new entry for \"{}\". You still have to delete the old one ({}/{}) if you don't want it to be there.",
+                            address,
+                            old_instance.get_id(),
+                            old_instance.get_address()
+                        ));
+                        Ok(Some(id))
+                    } else {
+                        Ok(None)
+                    }
+                }
+            }
+        };
+
+        let default_address = old_om_instance_in.as_ref().map(|o| o.get_address());
+        self.try_asking_and_saving(
+            db_in,
+            &Util::string_too_long_error_message(address_length),
+            ask_and_save,
+            default_address,
+        )
+    }
+
+    fn ask_for_info_and_update_attribute<T>(
+        &self,
+        db_in: Rc<RefCell<dyn Database>>,
+        dh_in: T,
+        ask_for_attr_type_id: bool,
+        attr_type: &str,
+        prompt_for_selecting_type_id: &str,
+        get_other_info_from_user: fn(&Database, T, bool, &TextUI) -> Option<T>,
+        update_typed_attribute: fn(T) -> Result<(), anyhow::Error>,
+    ) -> bool
+    where
+        T: AttributeDataHolder + Clone,
+    {
+        fn ask_for_info_and_update_attribute_helper<T>(
+            controller: &Controller,
+            db_in: Rc<RefCell<dyn Database>>,
+            dh_in: T,
+            attr_type: &str,
+            prompt_for_type_id: &str,
+            ask_for_attr_type_id: bool,
+            get_other_info_from_user: fn(&Database, T, bool, &TextUI) -> Option<T>,
+            update_typed_attribute: fn(T) -> Result<(), anyhow::Error>,
+        ) -> bool
+        where
+            T: AttributeDataHolder + Clone,
+        {
+            let attr_type_name = Entity::new(db_in.clone(), dh_in.get_attr_type_id()).get_name(None).unwrap_or_default();
+            
+            let ans = controller.ask_for_attribute_data(
+                db_in.clone(),
+                dh_in.clone(),
+                ask_for_attr_type_id,
+                attr_type,
+                Some(prompt_for_type_id),
+                Some(&attr_type_name),
+                Some(dh_in.get_attr_type_id()),
+                get_other_info_from_user,
+                true,
+            );
+
+            if ans.is_none() {
+                return false;
+            }
+
+            let dh_out = ans.unwrap();
+            let ans2 = Util::prompt_whether_to_add_or_correct(attr_type, &controller.ui);
+
+            if ans2.is_none() {
+                false
+            } else if ans2.unwrap() == 1 {
+                update_typed_attribute(dh_out).unwrap();
+                true
+            } else if ans2.unwrap() == 2 {
+                ask_for_info_and_update_attribute_helper(
+                    controller,
+                    db_in,
+                    dh_out,
+                    attr_type,
+                    prompt_for_type_id,
+                    ask_for_attr_type_id,
+                    get_other_info_from_user,
+                    update_typed_attribute,
+                )
+            } else {
+                panic!("unexpected result! should never get here");
+            }
+        }
+
+        ask_for_info_and_update_attribute_helper(
+            self,
+            db_in,
+            dh_in,
+            attr_type,
+            prompt_for_selecting_type_id,
+            ask_for_attr_type_id,
+            get_other_info_from_user,
+            update_typed_attribute,
+        )
+    }
+
+    fn attribute_edit_menu(&self, attribute_in: &dyn Attribute) -> bool {
+        let leading_text = vec![&format!("Attribute: {}", attribute_in.get_display_string(0, None, None))];
+        
+        let mut first_choices = vec![
+            format!(
+                "Edit the attribute type, {}and valid/observed dates",
+                if Util::can_edit_attribute_on_single_line(attribute_in) {
+                    "content (single line), "
+                } else {
+                    ""
+                }
+            ),
+            if attribute_in.get_form_id() == Util::TEXT_TYPE_FORM_ID {
+                "Edit (as multi-line value)".to_string()
+            } else {
+                "(stub)".to_string()
+            },
+            if Util::can_edit_attribute_on_single_line(attribute_in) {
+                "Edit the attribute content (single line)".to_string()
+            } else {
+                "(stub)".to_string()
+            },
+            "Delete".to_string(),
+            format!(
+                "Go to entity representing the type: {}",
+                Entity::new(attribute_in.get_db(), attribute_in.get_attr_type_id())
+                    .get_name(None)
+                    .unwrap_or_default()
+            ),
+        ];
+
+        if attribute_in.get_form_id() == Util::FILE_TYPE_FORM_ID {
+            first_choices.push("Export the file".to_string());
+        }
+
+        let response = self.ui.ask_which(Some(leading_text), first_choices);
+        if response.is_none() {
+            return false;
+        }
+
+        let answer = response.unwrap();
+        
+        match answer {
+            1 => {
+                // Edit attribute details based on type
+                match attribute_in.get_form_id() {
+                    id if id == Util::QUANTITY_TYPE_FORM_ID => {
+                        let quantity_attr = attribute_in.as_quantity_attribute().unwrap();
+                        let dh = QuantityAttributeDataHolder {
+                            attr_type_id: quantity_attr.get_attr_type_id(),
+                            valid_on_date: quantity_attr.get_valid_on_date(),
+                            observation_date: quantity_attr.get_observation_date(),
+                            number: quantity_attr.get_number(),
+                            unit_id: quantity_attr.get_unit_id(),
+                        };
+                        
+                        let update_fn = |dh: QuantityAttributeDataHolder| -> Result<(), anyhow::Error> {
+                            quantity_attr.update(
+                                dh.attr_type_id,
+                                dh.unit_id,
+                                dh.number,
+                                dh.valid_on_date,
+                                dh.observation_date,
+                            )
+                        };
+                        
+                        self.ask_for_info_and_update_attribute(
+                            attribute_in.get_db(),
+                            dh,
+                            true,
+                            Util::QUANTITY_TYPE,
+                            Util::QUANTITY_TYPE_PROMPT,
+                            Self::ask_for_quantity_attribute_number_and_unit,
+                            update_fn,
+                        );
+                        
+                        self.attribute_edit_menu(&QuantityAttribute::new(attribute_in.get_db(), attribute_in.get_id()))
+                    }
+                    id if id == Util::TEXT_TYPE_FORM_ID => {
+                        let text_attr = attribute_in.as_text_attribute().unwrap();
+                        let dh = TextAttributeDataHolder {
+                            attr_type_id: text_attr.get_attr_type_id(),
+                            valid_on_date: text_attr.get_valid_on_date(),
+                            observation_date: text_attr.get_observation_date(),
+                            text: text_attr.get_text(),
+                        };
+                        
+                        let update_fn = |dh: TextAttributeDataHolder| -> Result<(), anyhow::Error> {
+                            text_attr.update(
+                                dh.attr_type_id,
+                                &dh.text,
+                                dh.valid_on_date,
+                                dh.observation_date,
+                            )
+                        };
+                        
+                        self.ask_for_info_and_update_attribute(
+                            attribute_in.get_db(),
+                            dh,
+                            true,
+                            Util::TEXT_TYPE,
+                            &format!("CHOOSE TYPE OF {}:", Util::TEXT_DESCRIPTION),
+                            Util::ask_for_text_attribute_text,
+                            update_fn,
+                        );
+                        
+                        self.attribute_edit_menu(&TextAttribute::new(attribute_in.get_db(), attribute_in.get_id()))
+                    }
+                    id if id == Util::DATE_TYPE_FORM_ID => {
+                        let date_attr = attribute_in.as_date_attribute().unwrap();
+                        let dh = DateAttributeDataHolder {
+                            attr_type_id: date_attr.get_attr_type_id(),
+                            date: date_attr.get_date(),
+                        };
+                        
+                        let update_fn = |dh: DateAttributeDataHolder| -> Result<(), anyhow::Error> {
+                            date_attr.update(dh.attr_type_id, dh.date)
+                        };
+                        
+                        self.ask_for_info_and_update_attribute(
+                            attribute_in.get_db(),
+                            dh,
+                            true,
+                            Util::DATE_TYPE,
+                            "CHOOSE TYPE OF DATE:",
+                            Util::ask_for_date_attribute_value,
+                            update_fn,
+                        );
+                        
+                        self.attribute_edit_menu(&DateAttribute::new(attribute_in.get_db(), attribute_in.get_id()))
+                    }
+                    id if id == Util::BOOLEAN_TYPE_FORM_ID => {
+                        let boolean_attr = attribute_in.as_boolean_attribute().unwrap();
+                        let dh = BooleanAttributeDataHolder {
+                            attr_type_id: boolean_attr.get_attr_type_id(),
+                            valid_on_date: boolean_attr.get_valid_on_date(),
+                            observation_date: boolean_attr.get_observation_date(),
+                            boolean: boolean_attr.get_boolean(),
+                        };
+                        
+                        let update_fn = |dh: BooleanAttributeDataHolder| -> Result<(), anyhow::Error> {
+                            boolean_attr.update(
+                                dh.attr_type_id,
+                                dh.boolean,
+                                dh.valid_on_date,
+                                dh.observation_date,
+                            )
+                        };
+                        
+                        self.ask_for_info_and_update_attribute(
+                            attribute_in.get_db(),
+                            dh,
+                            true,
+                            Util::BOOLEAN_TYPE,
+                            "CHOOSE TYPE OF TRUE/FALSE VALUE:",
+                            Util::ask_for_boolean_attribute_value,
+                            update_fn,
+                        );
+                        
+                        self.attribute_edit_menu(&BooleanAttribute::new(attribute_in.get_db(), attribute_in.get_id()))
+                    }
+                    id if id == Util::FILE_TYPE_FORM_ID => {
+                        let file_attr = attribute_in.as_file_attribute().unwrap();
+                        let dh = FileAttributeDataHolder {
+                            attr_type_id: file_attr.get_attr_type_id(),
+                            description: file_attr.get_description(),
+                            original_file_path: file_attr.get_original_file_path(),
+                        };
+                        
+                        let update_fn = |dh: FileAttributeDataHolder| -> Result<(), anyhow::Error> {
+                            file_attr.update(
+                                Some(dh.attr_type_id),
+                                Some(&dh.description),
+                            )
+                        };
+                        
+                        self.ask_for_info_and_update_attribute(
+                            attribute_in.get_db(),
+                            dh,
+                            true,
+                            Util::FILE_TYPE,
+                            "CHOOSE TYPE OF FILE:",
+                            Util::ask_for_file_attribute_info,
+                            update_fn,
+                        );
+                        
+                        self.attribute_edit_menu(&FileAttribute::new(attribute_in.get_db(), attribute_in.get_id()))
+                    }
+                    _ => panic!("Unexpected type: {}", attribute_in.get_class_name()),
+                }
+            }
+            2 if attribute_in.get_form_id() == Util::TEXT_TYPE_FORM_ID => {
+                let ta = attribute_in.as_text_attribute().unwrap();
+                let new_content = Util::edit_multiline_text(&ta.get_text(), &self.ui);
+                ta.update(ta.get_attr_type_id(), &new_content, ta.get_valid_on_date(), ta.get_observation_date()).unwrap();
+                self.attribute_edit_menu(&TextAttribute::new(attribute_in.get_db(), attribute_in.get_id()))
+            }
+            3 if Util::can_edit_attribute_on_single_line(attribute_in) => {
+                self.edit_attribute_on_single_line(attribute_in);
+                false
+            }
+            4 => {
+                let ans = self.ui.ask_yes_no_question("DELETE this attribute: ARE YOU SURE?", None, false);
+                if ans.is_some() && ans.unwrap() {
+                    attribute_in.delete().unwrap();
+                    true
+                } else {
+                    self.ui.display_text("Did not delete attribute.", false);
+                    self.attribute_edit_menu(attribute_in)
+                }
+            }
+            5 => {
+                EntityMenu::new(self.ui.clone(), Rc::new(self.clone()))
+                    .entity_menu(&Entity::new(attribute_in.get_db(), attribute_in.get_attr_type_id()), None);
+                self.attribute_edit_menu(attribute_in)
+            }
+            6 if attribute_in.get_form_id() == Util::FILE_TYPE_FORM_ID => {
+                let fa = attribute_in.as_file_attribute().unwrap();
+                match self.ui.get_export_destination(&fa.get_original_file_path(), &fa.get_md5hash()) {
+                    Ok(Some(file_path)) => {
+                        match fa.retrieve_content(&file_path) {
+                            Ok(_) => self.ui.display_text(&format!("File saved at: {}", file_path.display())),
+                            Err(e) => self.ui.display_text(&format!("Failed to export file, due to error: {}", e)),
+                        }
+                    }
+                    Ok(None) => {}
+                    Err(e) => self.ui.display_text(&format!("Failed to export file, due to error: {}", e)),
+                }
+                self.attribute_edit_menu(attribute_in)
+            }
+            _ => {
+                self.ui.display_text("invalid response");
+                self.attribute_edit_menu(attribute_in)
+            }
+        }
+    }
+
+    fn edit_attribute_on_single_line(&self, attribute_in: &dyn Attribute) -> bool {
+        assert!(Util::can_edit_attribute_on_single_line(attribute_in));
+
+        match attribute_in.get_form_id() {
+            id if id == Util::QUANTITY_TYPE_FORM_ID => {
+                let quantity_attr = attribute_in.as_quantity_attribute().unwrap();
+                let num = Util::ask_for_quantity_attribute_number(Some(quantity_attr.get_number()), &self.ui);
+                if let Some(number) = num {
+                    quantity_attr.update(
+                        quantity_attr.get_attr_type_id(),
+                        quantity_attr.get_unit_id(),
+                        number,
+                        quantity_attr.get_valid_on_date(),
+                        quantity_attr.get_observation_date(),
+                    ).unwrap();
+                }
+                num.is_none()
+            }
+            id if id == Util::TEXT_TYPE_FORM_ID => {
+                let text_attr = attribute_in.as_text_attribute().unwrap();
+                let dh = TextAttributeDataHolder {
+                    attr_type_id: text_attr.get_attr_type_id(),
+                    valid_on_date: text_attr.get_valid_on_date(),
+                    observation_date: text_attr.get_observation_date(),
+                    text: text_attr.get_text(),
+                };
+                let out_dh = Util::ask_for_text_attribute_text(attribute_in.get_db(), dh, true, &self.ui);
+                if let Some(dh) = out_dh {
+                    text_attr.update(dh.attr_type_id, &dh.text, dh.valid_on_date, dh.observation_date).unwrap();
+                    false
+                } else {
+                    true
+                }
+            }
+            id if id == Util::DATE_TYPE_FORM_ID => {
+                let date_attr = attribute_in.as_date_attribute().unwrap();
+                let dh = DateAttributeDataHolder {
+                    attr_type_id: date_attr.get_attr_type_id(),
+                    date: date_attr.get_date(),
+                };
+                let out_dh = Util::ask_for_date_attribute_value(attribute_in.get_db(), dh, true, &self.ui);
+                if let Some(dh) = out_dh {
+                    date_attr.update(dh.attr_type_id, dh.date).unwrap();
+                    false
+                } else {
+                    true
+                }
+            }
+            id if id == Util::BOOLEAN_TYPE_FORM_ID => {
+                let boolean_attr = attribute_in.as_boolean_attribute().unwrap();
+                let dh = BooleanAttributeDataHolder {
+                    attr_type_id: boolean_attr.get_attr_type_id(),
+                    valid_on_date: boolean_attr.get_valid_on_date(),
+                    observation_date: boolean_attr.get_observation_date(),
+                    boolean: boolean_attr.get_boolean(),
+                };
+                let out_dh = Util::ask_for_boolean_attribute_value(attribute_in.get_db(), dh, true, &self.ui);
+                if let Some(dh) = out_dh {
+                    boolean_attr.update(dh.attr_type_id, dh.boolean, dh.valid_on_date, dh.observation_date).unwrap();
+                    false
+                } else {
+                    true
+                }
+            }
+            id if id == Util::RELATION_TO_LOCAL_ENTITY_TYPE_FORM_ID => {
+                let rtle = attribute_in.as_relation_to_local_entity().unwrap();
+                let edited_entity = self.edit_entity_name(&Entity::new(rtle.get_db(), rtle.get_related_id2()));
+                edited_entity.is_none()
+            }
+            id if id == Util::RELATION_TO_REMOTE_ENTITY_TYPE_FORM_ID => {
+                let rtre = attribute_in.as_relation_to_remote_entity().unwrap();
+                let edited_entity = self.edit_entity_name(&Entity::new(rtre.get_remote_database(), rtre.get_related_id2()));
+                edited_entity.is_none()
+            }
+            id if id == Util::RELATION_TO_GROUP_TYPE_FORM_ID => {
+                let rtg = attribute_in.as_relation_to_group().unwrap();
+                let edited_group_name = Util::edit_group_name(&Group::new(rtg.get_db(), rtg.get_group_id()), &self.ui);
+                edited_group_name.is_none()
+            }
+            _ => panic!("Unexpected type: {}", attribute_in.get_class_name()),
+        }
+    }
+
+    fn ask_for_info_and_add_attribute<T>(
+        &self,
+        db_in: Rc<RefCell<dyn Database>>,
+        dh_in: T,
+        ask_for_attr_type_id: bool,
+        attr_type: &str,
+        prompt_for_selecting_type_id: Option<&str>,
+        get_other_info_from_user: fn(&Database, T, bool, &TextUI) -> Option<T>,
+        add_typed_attribute: fn(T) -> Option<Box<dyn Attribute>>,
+    ) -> Option<Box<dyn Attribute>>
+    where
+        T: AttributeDataHolder + Clone,
+    {
+        let ans = self.ask_for_attribute_data(
+            db_in,
+            dh_in,
+            ask_for_attr_type_id,
+            attr_type,
+            prompt_for_selecting_type_id,
+            None,
+            None,
+            get_other_info_from_user,
+            false,
+        );
+        
+        ans.and_then(|dh_out| add_typed_attribute(dh_out))
+    }
+
+    fn edit_entity_name(&self, entity_in: &Entity) -> Option<Entity> {
+        if let Some(rel_type) = entity_in.as_relation_type() {
+            let previous_name_in_reverse = rel_type.get_name_in_reverse_direction();
+            self.ask_for_name_and_write_entity(
+                entity_in.get_db(),
+                Util::RELATION_TYPE_TYPE,
+                Some(entity_in.clone()),
+                Some(rel_type.get_name()),
+                Some(rel_type.get_directionality()),
+                if previous_name_in_reverse.is_empty() {
+                    None
+                } else {
+                    Some(previous_name_in_reverse)
+                },
+                None,
+                None,
+                false,
+            )
+        } else {
+            let entity_name_before_edit = entity_in.get_name(None).unwrap_or_default();
+            let edited_entity = self.ask_for_name_and_write_entity(
+                entity_in.get_db(),
+                Util::ENTITY_TYPE,
+                Some(entity_in.clone()),
+                Some(entity_in.get_name(None).unwrap_or_default()),
+                None,
+                None,
+                None,
+                None,
+                false,
+            );
+
+            if let Some(ref entity) = edited_entity {
+                let entity_name_after_edit = entity.get_name(None).unwrap_or_default();
+                if entity_name_before_edit != entity_name_after_edit {
+                    let (_, _, group_id, group_name, more_than_one_available) = entity.find_relation_to_and_group();
+                    if let Some(gid) = group_id {
+                        if !more_than_one_available {
+                            let attr_count = entity_in.get_attribute_count();
+                            let default_answer = if attr_count > 1 { Some("n") } else { Some("y") };
+                            
+                            let question = format!(
+                                "There's a single subgroup named \"{}\"{}; possibly it and this entity were created at the same time. Also change \
+                                the subgroup's name now to be identical?",
+                                group_name,
+                                if attr_count > 1 {
+                                    format!(" (***AMONG {} OTHER ATTRIBUTES***)", attr_count - 1)
+                                } else {
+                                    String::new()
+                                }
+                            );
+                            
+                            let ans = self.ui.ask_yes_no_question(&question, default_answer, false);
+                            if ans.is_some() && ans.unwrap() {
+                                let group = Group::new(entity_in.get_db(), gid);
+                                group.update(Some(&entity_name_after_edit), None, None).unwrap();
+                            }
+                        }
+                    }
+                }
+            }
+            
+            edited_entity
+        }
+    }
+
+    fn ask_for_public_nonpublic_status(&self, default_for_prompt: Option<bool>) -> Option<bool> {
+        let default = match default_for_prompt {
+            None => Some(""),
+            Some(true) => Some("y"),
+            Some(false) => Some("n"),
+        };
+        
+        self.ui.ask_yes_no_question(
+            "For Public vs. Non-public, enter a yes/no value (or a space \
+            for 'unknown/unspecified'; used e.g. during data export; display preference can be \
+            set under main menu / VIEW PREFERENCES)",
+            default,
+            true,
+        )
+    }
+
+    fn ask_for_attribute_data<T>(
+        &self,
+        db_in: Rc<RefCell<dyn Database>>,
+        mut inout_dh: T,
+        also_ask_for_attr_type_id: bool,
+        attr_type: &str,
+        attr_type_input_prompt: Option<&str>,
+        in_previous_selection_desc: Option<&str>,
+        in_previous_selection_id: Option<i64>,
+        ask_for_other_info: fn(&Database, T, bool, &TextUI) -> Option<T>,
+        editing_in: bool,
+    ) -> Option<T>
+    where
+        T: AttributeDataHolder + Clone,
+    {
+        let (user_wants_out, attr_type_id, is_remote, remote_key) = if also_ask_for_attr_type_id {
+            assert!(attr_type_input_prompt.is_some());
+            
+            let ans = self.choose_or_create_object(
+                db_in.clone(),
+                Some(vec![attr_type_input_prompt.unwrap()]),
+                in_previous_selection_desc,
+                in_previous_selection_id,
+                attr_type,
+                0,
+                None,
+                false,
+                None,
+                false,
+                None,
+                false,
+            );
+            
+            match ans {
+                None => (true, 0, false, String::new()),
+                Some((id_wrapper, is_remote, remote_key)) => (false, id_wrapper.get_id(), is_remote, remote_key),
+            }
+        } else {
+            let (is_remote, remote_key) = if let Some(holder) = inout_dh.as_relation_to_entity_data_holder() {
+                (holder.is_remote, holder.remote_instance_id.clone())
+            } else {
+                (false, String::new())
+            };
+            (false, inout_dh.get_attr_type_id(), is_remote, remote_key)
+        };
+
+        if user_wants_out {
+            return None;
+        }
+
+        inout_dh.set_attr_type_id(attr_type_id);
+        if let Some(holder) = inout_dh.as_relation_to_entity_data_holder_mut() {
+            holder.is_remote = is_remote;
+            holder.remote_instance_id = remote_key;
+        }
+
+        let ans2 = ask_for_other_info(&*db_in.borrow(), inout_dh.clone(), editing_in, &self.ui);
+        if ans2.is_none() {
+            return None;
+        }
+
+        let mut inout_dh = ans2.unwrap();
+        let mut user_wants_to_cancel = false;
+
+        if let Some(holder) = inout_dh.as_attribute_with_valid_and_observed_dates_mut() {
+            let (valid_on_date, observation_date, user_wants_to_cancel_inner) = 
+                Util::ask_for_attribute_valid_and_observed_dates(
+                    holder.get_valid_on_date(),
+                    holder.get_observation_date(),
+                    &self.ui,
+                );
+            
+            if user_wants_to_cancel_inner {
+                user_wants_to_cancel = true;
+            } else {
+                holder.set_valid_on_date(valid_on_date);
+                holder.set_observation_date(observation_date);
+            }
+        }
+
+        if user_wants_to_cancel {
+            None
+        } else {
+            Some(inout_dh)
+        }
+    }
+
+    fn find_existing_object_by_text(
+        &self,
+        db_in: Rc<RefCell<dyn Database>>,
+        starting_display_row_index_in: i64,
+        attr_type_in: &str,
+        id_to_omit_in: Option<i64>,
+        regex_in: &str,
+    ) -> Option<IdWrapper> {
+        let leading_text = vec![&format!("SEARCH RESULTS: {}", Util::PICK_FROM_LIST_PROMPT)];
+        let choices = vec![Util::LIST_NEXT_ITEMS_PROMPT];
+        let num_displayable_items = self.ui.max_columnar_choices_to_display_after(
+            leading_text.len(),
+            choices.len(),
+            Util::max_name_length(),
+        );
+
+        let objects_to_display: Vec<Box<dyn HasId>> = match attr_type_in {
+            Util::ENTITY_TYPE => {
+                db_in.borrow().get_matching_entities(
+                    starting_display_row_index_in,
+                    Some(num_displayable_items),
+                    id_to_omit_in,
+                    regex_in,
+                ).into_iter().map(|e| Box::new(e) as Box<dyn HasId>).collect()
+            }
+            Util::GROUP_TYPE => {
+                db_in.borrow().get_matching_groups(
+                    starting_display_row_index_in,
+                    Some(num_displayable_items),
+                    id_to_omit_in,
+                    regex_in,
+                ).into_iter().map(|g| Box::new(g) as Box<dyn HasId>).collect()
+            }
+            _ => panic!("??"),
+        };
+
+        if objects_to_display.is_empty() {
+            self.ui.display_text("End of list, or none found; starting over from the beginning...");
+            if starting_display_row_index_in == 0 {
+                None
+            } else {
+                self.find_existing_object_by_text(db_in, 0, attr_type_in, id_to_omit_in, regex_in)
+            }
+        } else {
+            let object_names: Vec<String> = objects_to_display.iter().map(|obj| {
+                match attr_type_in {
+                    Util::ENTITY_TYPE => {
+                        let entity = obj.as_any().downcast_ref::<Entity>().unwrap();
+                        let num_subgroups_prefix = self.get_entity_content_size_prefix(entity);
+                        format!(
+                            "{}{}{}",
+                            num_subgroups_prefix,
+                            entity.get_archived_status_display_string(),
+                            entity.get_name(None).unwrap_or_default()
+                        )
+                    }
+                    Util::GROUP_TYPE => {
+                        let group = obj.as_any().downcast_ref::<Group>().unwrap();
+                        let num_subgroups_prefix = self.get_group_content_size_prefix(group.get_db(), group.get_id());
+                        format!("{}{}", num_subgroups_prefix, group.get_name())
+                    }
+                    _ => panic!("??"),
+                }
+            }).collect();
+
+            let ans = self.ui.ask_which_choice_or_its_alternate(Some(leading_text), choices.clone(), object_names);
+            if ans.is_none() {
+                return None;
+            }
+
+            let (answer, user_chose_alternate) = ans.unwrap();
+            if answer == 1 && answer <= choices.len() {
+                let next_starting_index = starting_display_row_index_in + objects_to_display.len() as i64;
+                self.find_existing_object_by_text(db_in, next_starting_index, attr_type_in, id_to_omit_in, regex_in)
+            } else if answer > choices.len() && answer <= (choices.len() + objects_to_display.len()) {
+                let index = answer - choices.len() - 1;
+                let obj = &objects_to_display[index];
+                
+                if user_chose_alternate {
+                    match attr_type_in {
+                        Util::ENTITY_TYPE => {
+                            let entity = obj.as_any().downcast_ref::<Entity>().unwrap();
+                            EntityMenu::new(self.ui.clone(), Rc::new(self.clone()))
+                                .entity_menu(entity, None);
+                        }
+                        Util::GROUP_TYPE => {
+                            let group = obj.as_any().downcast_ref::<Group>().unwrap();
+                            let some_relation_to_groups = group.get_containing_relations_to_group(0, Some(1));
+                            if some_relation_to_groups.is_empty() {
+                                self.ui.display_text(Util::ORPHANED_GROUP_MESSAGE);
+                                GroupMenu::new(self.ui.clone(), Rc::new(self.clone()))
+                                    .group_menu(group, 0, None, None);
+                            } else {
+                                GroupMenu::new(self.ui.clone(), Rc::new(self.clone()))
+                                    .group_menu(group, 0, Some(&some_relation_to_groups[0]), None);
+                            }
+                        }
+                        _ => panic!("??"),
+                    }
+                    self.find_existing_object_by_text(db_in, starting_display_row_index_in, attr_type_in, id_to_omit_in, regex_in)
+                } else {
+                    Some(IdWrapper::new(obj.get_id()))
+                }
+            } else {
+                self.ui.display_text("unknown choice among secondary list");
+                self.find_existing_object_by_text(db_in, starting_display_row_index_in, attr_type_in, id_to_omit_in, regex_in)
+            }
+        }
+    }
+
+    pub fn choose_or_create_object(
+        &self,
+        db_in: Rc<RefCell<dyn Database>>,
+        leading_text_in: Option<Vec<&str>>,
+        previous_selection_desc_in: Option<&str>,
+        previous_selection_id_in: Option<i64>,
+        object_type_in: &str,
+        starting_display_row_index_in: i64,
+        class_id_in: Option<i64>,
+        limit_by_class_in: bool,
+        containing_group_in: Option<i64>,
+        mark_previous_selection_in: bool,
+        show_only_attribute_types_in: Option<bool>,
+        quantity_seeks_unit_not_type_in: bool,
+    ) -> Option<(IdWrapper, bool, String)> {
+        if class_id_in.is_some() {
+            assert_eq!(object_type_in, Util::ENTITY_TYPE);
+        }
+        if quantity_seeks_unit_not_type_in {
+            assert_eq!(object_type_in, Util::QUANTITY_TYPE);
+        }
+
+        let entity_and_most_attr_type_names = vec![
+            Util::ENTITY_TYPE,
+            Util::QUANTITY_TYPE,
+            Util::DATE_TYPE,
+            Util::BOOLEAN_TYPE,
+            Util::FILE_TYPE,
+            Util::TEXT_TYPE,
+        ];
+        
+        let even_more_attr_type_names = vec![
+            Util::ENTITY_TYPE,
+            Util::TEXT_TYPE,
+            Util::QUANTITY_TYPE,
+            Util::DATE_TYPE,
+            Util::BOOLEAN_TYPE,
+            Util::FILE_TYPE,
+            Util::RELATION_TYPE_TYPE,
+            Util::RELATION_TO_LOCAL_ENTITY_TYPE,
+            Util::RELATION_TO_GROUP_TYPE,
+        ];
+
+        let list_next_items_choice_num = 1;
+
+        let (num_objects_available, show_only_attribute_types) = {
+            if Util::NON_RELATION_ATTR_TYPE_NAMES.contains(&object_type_in) {
+                if show_only_attribute_types_in.is_none() {
+                    let count_of_entities_used_as_this_attr_type = db_in.borrow()
+                        .get_count_of_entities_used_as_attribute_types(object_type_in, quantity_seeks_unit_not_type_in);
+                    if count_of_entities_used_as_this_attr_type > 0 {
+                        (count_of_entities_used_as_this_attr_type, true)
+                    } else {
+                        (db_in.borrow().get_entity_count(), false)
+                    }
+                } else if show_only_attribute_types_in.unwrap() {
+                    (db_in.borrow().get_count_of_entities_used_as_attribute_types(object_type_in, quantity_seeks_unit_not_type_in), true)
+                } else {
+                    (db_in.borrow().get_entity_count(), false)
+                }
+            } else if object_type_in == Util::ENTITY_TYPE {
+                (db_in.borrow().get_entities_only_count(limit_by_class_in, class_id_in, previous_selection_id_in), false)
+            } else if Util::RELATION_ATTR_TYPE_NAMES.contains(&object_type_in) {
+                (db_in.borrow().get_relation_type_count(), false)
+            } else if object_type_in == Util::ENTITY_CLASS_TYPE {
+                (db_in.borrow().get_class_count(), false)
+            } else if object_type_in == Util::OM_INSTANCE_TYPE {
+                (db_in.borrow().get_om_instance_count(), false)
+            } else {
+                panic!("invalid object_type_in: {}", object_type_in);
+            }
+        };
+
+        // Build choice list
+        let (
+            choices,
+            keep_previous_selection_choice,
+            create_entity_or_attr_type_choice,
+            search_for_entity_by_name_choice,
+            search_for_entity_by_id_choice,
+            show_journal_choice,
+            create_relation_type_choice,
+            create_class_choice,
+            create_instance_choice,
+            swap_objects_to_display_choice,
+            link_to_remote_instance_choice,
+        ) = self.get_choice_list(
+            object_type_in,
+            previous_selection_desc_in,
+            &entity_and_most_attr_type_names,
+            show_only_attribute_types,
+        );
+
+        let (leading_text, objects_to_display, statuses_and_names) = self.get_lead_text_and_object_list(
+            &choices,
+            object_type_in,
+            leading_text_in,
+            num_objects_available,
+            starting_display_row_index_in,
+            show_only_attribute_types,
+            quantity_seeks_unit_not_type_in,
+            class_id_in,
+            limit_by_class_in,
+            previous_selection_id_in,
+            containing_group_in,
+        );
+
+        let ans = self.ui.ask_which_choice_or_its_alternate(Some(leading_text), choices.clone(), statuses_and_names);
+        if ans.is_none() {
+            return None;
+        }
+
+        let (answer, user_chose_alternate) = ans.unwrap();
+
+        // Handle menu choices
+        if answer == list_next_items_choice_num && answer <= choices.len() && !user_chose_alternate {
+            let index = self.get_next_starting_object_index(objects_to_display.len() as i64, num_objects_available);
+            self.choose_or_create_object(
+                db_in,
+                leading_text_in,
+                previous_selection_desc_in,
+                previous_selection_id_in,
+                object_type_in,
+                index,
+                class_id_in,
+                limit_by_class_in,
+                containing_group_in,
+                mark_previous_selection_in,
+                Some(show_only_attribute_types),
+                quantity_seeks_unit_not_type_in,
+            )
+        } else if answer == keep_previous_selection_choice && answer <= choices.len() {
+            Some((IdWrapper::new(previous_selection_id_in.unwrap()), false, String::new()))
+        } else if answer == create_entity_or_attr_type_choice && answer <= choices.len() {
+            let e = self.ask_for_class_info_and_name_and_create_entity(db_in, class_id_in);
+            e.map(|entity| (IdWrapper::new(entity.get_id()), false, String::new()))
+        } else if answer == search_for_entity_by_name_choice && answer <= choices.len() {
+            let result = self.ask_for_name_and_search_for_entity(db_in);
+            result.map(|id| (id, false, String::new()))
+        } else if answer == search_for_entity_by_id_choice && answer <= choices.len() {
+            let result = self.search_by_id(db_in, Util::ENTITY_TYPE);
+            result.map(|id| (id, false, String::new()))
+        } else if answer == show_journal_choice && answer <= choices.len() {
+            self.show_journal(db_in);
+            None
+        } else if answer == swap_objects_to_display_choice && entity_and_most_attr_type_names.contains(&object_type_in) && answer <= choices.len() {
+            self.choose_or_create_object(
+                db_in,
+                leading_text_in,
+                previous_selection_desc_in,
+                previous_selection_id_in,
+                object_type_in,
+                0,
+                class_id_in,
+                limit_by_class_in,
+                containing_group_in,
+                mark_previous_selection_in,
+                Some(!show_only_attribute_types),
+                quantity_seeks_unit_not_type_in,
+            )
+        } else if answer == link_to_remote_instance_choice && entity_and_most_attr_type_names.contains(&object_type_in) && answer <= choices.len() {
+            self.handle_link_to_remote_instance(db_in)
+        } else if answer == create_relation_type_choice && Util::RELATION_ATTR_TYPE_NAMES.contains(&object_type_in) && answer <= choices.len() {
+            let entity = self.ask_for_name_and_write_entity(db_in, Util::RELATION_TYPE_TYPE, None, None, None, None, None, None, false);
+            entity.map(|e| (IdWrapper::new(e.get_id()), false, String::new()))
+        } else if answer == create_class_choice && object_type_in == Util::ENTITY_CLASS_TYPE && answer <= choices.len() {
+            let result = self.ask_for_and_write_class_and_template_entity_name(db_in, None);
+            if let Some((class_id, entity_id)) = result {
+                let ans = self.ui.ask_yes_no_question(
+                    "Do you want to add attributes to the newly created template entity for this class? (These will be used for the \
+                    prompts and defaults when creating/editing entities in this class).",
+                    Some("y"),
+                    false,
+                );
+                if ans.is_some() && ans.unwrap() {
+                    EntityMenu::new(self.ui.clone(), Rc::new(self.clone()))
+                        .entity_menu(&Entity::new(db_in.clone(), entity_id), None);
+                }
+                Some((IdWrapper::new(class_id), false, String::new()))
+            } else {
+                None
+            }
+        } else if answer == create_instance_choice && object_type_in == Util::OM_INSTANCE_TYPE && answer <= choices.len() {
+            let result = self.ask_for_and_write_om_instance_info(db_in, None);
+            result.map(|id| (IdWrapper::new(0), false, id))
+        } else if answer > choices.len() && answer <= (choices.len() + objects_to_display.len()) {
+            let index = answer - choices.len() - 1;
+            let obj = &objects_to_display[index];
+            
+            if user_chose_alternate {
+                match object_type_in {
+                    Util::ENTITY_TYPE => {
+                        let entity = obj.as_any().downcast_ref::<Entity>().unwrap();
+                        EntityMenu::new(self.ui.clone(), Rc::new(self.clone()))
+                            .entity_menu(entity, None);
+                    }
+                    _ => panic!("not yet implemented"),
+                }
+                self.choose_or_create_object(
+                    db_in,
+                    leading_text_in,
+                    previous_selection_desc_in,
+                    previous_selection_id_in,
+                    object_type_in,
+                    starting_display_row_index_in,
+                    class_id_in,
+                    limit_by_class_in,
+                    containing_group_in,
+                    mark_previous_selection_in,
+                    Some(show_only_attribute_types),
+                    quantity_seeks_unit_not_type_in,
+                )
+            } else {
+                if even_more_attr_type_names.contains(&object_type_in) {
+                    let entity = obj.as_any().downcast_ref::<Entity>().unwrap();
+                    Some((entity.get_id_wrapper(), false, String::new()))
+                } else if object_type_in == Util::ENTITY_CLASS_TYPE {
+                    let class = obj.as_any().downcast_ref::<EntityClass>().unwrap();
+                    Some((class.get_id_wrapper(), false, String::new()))
+                } else if object_type_in == Util::OM_INSTANCE_TYPE {
+                    let instance = obj.as_any().downcast_ref::<OmInstance>().unwrap();
+                    Some((IdWrapper::new(0), false, instance.get_id()))
+                } else {
+                    panic!("invalid object_type_in: {}", object_type_in);
+                }
+            }
+        } else {
+            self.ui.display_text("unknown response in chooseOrCreateObject");
+            self.choose_or_create_object(
+                db_in,
+                leading_text_in,
+                previous_selection_desc_in,
+                previous_selection_id_in,
+                object_type_in,
+                starting_display_row_index_in,
+                class_id_in,
+                limit_by_class_in,
+                containing_group_in,
+                mark_previous_selection_in,
+                Some(show_only_attribute_types),
+                quantity_seeks_unit_not_type_in,
+            )
+        }
+    }
+
+    // Helper methods for choose_or_create_object
+    fn get_choice_list(
+        &self,
+        object_type_in: &str,
+        previous_selection_desc_in: Option<&str>,
+        entity_and_most_attr_type_names: &[&str],
+        show_only_attribute_types: bool,
+    ) -> (Vec<String>, usize, usize, usize, usize, usize, usize, usize, usize, usize, usize) {
+        let mut keep_previous_selection_choice_num = 1;
+        let mut create_attr_type_choice_num = 1;
+        let mut search_for_entity_by_name_choice_num = 1;
+        let mut search_for_entity_by_id_choice_num = 1;
+        let mut show_journal_choice_num = 1;
+        let mut swap_objects_to_display_choice_num = 1;
+        let mut link_to_remote_instance_choice_num = 1;
+        let mut create_relation_type_choice_num = 1;
+        let mut create_class_choice_num = 1;
+        let mut create_instance_choice_num = 1;
+        
+        let mut choice_list = vec![Util::LIST_NEXT_ITEMS_PROMPT.to_string()];
+        
+        if previous_selection_desc_in.is_some() {
+            choice_list.push(format!("Keep previous selection ({}).", previous_selection_desc_in.unwrap()));
+            keep_previous_selection_choice_num += 1;
+            create_attr_type_choice_num += 1;
+            search_for_entity_by_name_choice_num += 1;
+            search_for_entity_by_id_choice_num += 1;
+            show_journal_choice_num += 1;
+            swap_objects_to_display_choice_num += 1;
+            link_to_remote_instance_choice_num += 1;
+            create_relation_type_choice_num += 1;
+            create_class_choice_num += 1;
+            create_instance_choice_num += 1;
+        }
+        
+        if entity_and_most_attr_type_names.contains(&object_type_in) {
+            choice_list.push(Util::MENUTEXT_CREATE_ENTITY_OR_ATTR_TYPE.to_string());
+            create_attr_type_choice_num += 1;
+            
+            choice_list.push("Search for existing entity by name and text attribute content...".to_string());
+            search_for_entity_by_name_choice_num += 2;
+            
+            choice_list.push("Search for existing entity by id...".to_string());
+            search_for_entity_by_id_choice_num += 3;
+            
+            choice_list.push("Show journal (changed entities) by date range...".to_string());
+            show_journal_choice_num += 4;
+            
+            if show_only_attribute_types {
+                choice_list.push(format!("show all entities (not only those already used as a type of {})", object_type_in));
+            } else {
+                choice_list.push(format!("show only entities ALREADY used as a type of {}", object_type_in));
+            }
+            swap_objects_to_display_choice_num += 5;
+            
+            choice_list.push("Link to entity in a separate (REMOTE) OM instance...".to_string());
+            link_to_remote_instance_choice_num += 6;
+        } else if Util::RELATION_ATTR_TYPE_NAMES.contains(&object_type_in) {
+            choice_list.push(Util::menutext_create_relation_type());
+            create_relation_type_choice_num += 1;
+        } else if object_type_in == Util::ENTITY_CLASS_TYPE {
+            choice_list.push("Create new class (template for new entities)".to_string());
+            create_class_choice_num += 1;
+        } else if object_type_in == Util::OM_INSTANCE_TYPE {
+            choice_list.push("Create new OM instance (a remote data store for lookup, linking, etc.)".to_string());
+            create_instance_choice_num += 1;
+        } else {
+            panic!("invalid object_type_in: {}", object_type_in);
+        }
+        
+        (
+            choice_list,
+            keep_previous_selection_choice_num,
+            create_attr_type_choice_num,
+            search_for_entity_by_name_choice_num,
+            search_for_entity_by_id_choice_num,
+            show_journal_choice_num,
+            create_relation_type_choice_num,
+            create_class_choice_num,
+            create_instance_choice_num,
+            swap_objects_to_display_choice_num,
+            link_to_remote_instance_choice_num,
+        )
+    }
+
+    fn get_lead_text_and_object_list(
+        &self,
+        choices_in: &[String],
+        object_type_in: &str,
+        leading_text_in: Option<Vec<&str>>,
+        num_objects_available: i64,
+        starting_display_row_index_in: i64,
+        show_only_attribute_types: bool,
+        quantity_seeks_unit_not_type_in: bool,
+        class_id_in: Option<i64>,
+        limit_by_class_in: bool,
+        previous_selection_id_in: Option<i64>,
+        containing_group_in: Option<i64>,
+    ) -> (Vec<String>, Vec<Box<dyn HasId>>, Vec<String>) {
+        let prefix = match object_type_in {
+            Util::ENTITY_TYPE => "ENTITIES: ",
+            Util::QUANTITY_TYPE => "QUANTITIES (entities): ",
+            Util::DATE_TYPE => "DATE ATTRIBUTES (entities): ",
+            Util::BOOLEAN_TYPE => "TRUE/FALSE ATTRIBUTES (entities): ",
+            Util::FILE_TYPE => "FILE ATTRIBUTES (entities): ",
+            Util::TEXT_TYPE => "TEXT ATTRIBUTES (entities): ",
+            Util::RELATION_TYPE_TYPE => "RELATION TYPES: ",
+            Util::RELATION_TO_LOCAL_ENTITY_TYPE => "RELATION TYPES: ",
+            Util::RELATION_TO_GROUP_TYPE => "RELATION TYPES: ",
+            Util::ENTITY_CLASS_TYPE => "CLASSES: ",
+            Util::OM_INSTANCE_TYPE => "OneModel INSTANCES: ",
+            _ => "",
+        };
+        
+        let mut leading_text = leading_text_in
+            .map(|v| v.iter().map(|s| s.to_string()).collect())
+            .unwrap_or_else(|| vec![format!("{}Pick from menu, or an item by letter; Alt+<letter> to go to the item & later come back)", prefix)]);
+        
+        let num_displayable_items = self.ui.max_columnar_choices_to_display_after(
+            leading_text.len() + 3,
+            choices_in.len(),
+            Util::max_name_length(),
+        );
+        
+        let objects_to_display: Vec<Box<dyn HasId>> = {
+            if Util::NON_RELATION_ATTR_TYPE_NAMES.contains(&object_type_in) {
+                if show_only_attribute_types {
+                    self.db.borrow().get_entities_used_as_attribute_types(
+                        object_type_in,
+                        starting_display_row_index_in,
+                        Some(num_displayable_items),
+                        quantity_seeks_unit_not_type_in,
+                    ).into_iter().map(|e| Box::new(e) as Box<dyn HasId>).collect()
+                } else {
+                    self.db.borrow().get_entities(starting_display_row_index_in, Some(num_displayable_items))
+                        .into_iter().map(|e| Box::new(e) as Box<dyn HasId>).collect()
+                }
+            } else if object_type_in == Util::ENTITY_TYPE {
+                self.db.borrow().get_entities_only(
+                    starting_display_row_index_in,
+                    Some(num_displayable_items),
+                    class_id_in,
+                    limit_by_class_in,
+                    previous_selection_id_in,
+                    containing_group_in,
+                ).into_iter().map(|e| Box::new(e) as Box<dyn HasId>).collect()
+            } else if Util::RELATION_ATTR_TYPE_NAMES.contains(&object_type_in) {
+                self.db.borrow().get_relation_types(starting_display_row_index_in, Some(num_displayable_items))
+                    .into_iter().map(|rt| Box::new(rt) as Box<dyn HasId>).collect()
+            } else if object_type_in == Util::ENTITY_CLASS_TYPE {
+                self.db.borrow().get_classes(starting_display_row_index_in, Some(num_displayable_items))
+                    .into_iter().map(|c| Box::new(c) as Box<dyn HasId>).collect()
+            } else if object_type_in == Util::OM_INSTANCE_TYPE {
+                self.db.borrow().get_om_instances()
+                    .into_iter().map(|i| Box::new(i) as Box<dyn HasId>).collect()
+            } else {
+                panic!("invalid object_type_in: {}", object_type_in);
+            }
+        };
+        
+        if objects_to_display.is_empty() {
+            let txt = format!(
+                "\n\n(None of the needed {} have been created in this model, yet.",
+                if object_type_in == Util::RELATION_TYPE_TYPE {
+                    "relation types"
+                } else {
+                    "entities"
+                }
+            );
+            leading_text.push(txt);
+        }
+        
+        let choices_with_count = Util::add_remaining_count_to_prompt(
+            choices_in,
+            objects_to_display.len(),
+            num_objects_available,
+            starting_display_row_index_in,
+        );
+        
+        let object_statuses_and_names: Vec<String> = objects_to_display.iter().map(|obj| {
+            if let Some(entity) = obj.as_any().downcast_ref::<Entity>() {
+                format!("{}{}", entity.get_archived_status_display_string(), entity.get_name(None).unwrap_or_default())
+            } else if let Some(class) = obj.as_any().downcast_ref::<EntityClass>() {
+                class.get_name()
+            } else if let Some(instance) = obj.as_any().downcast_ref::<OmInstance>() {
+                instance.get_display_string()
+            } else {
+                panic!("unexpected class: {}", obj.get_class_name())
+            }
+        }).collect();
+        
+        (leading_text, objects_to_display, object_statuses_and_names)
+    }
+
+    fn get_next_starting_object_index(&self, previous_list_length: i64, num_objects_available_in: i64) -> i64 {
+        let x = starting_display_row_index_in + previous_list_length;
+        if x >= num_objects_available_in {
+            self.ui.display_text("End of list found; starting over from the beginning.");
+            0
+        } else {
+            x
+        }
+    }
+
+    fn handle_link_to_remote_instance(&self, db_in: Rc<RefCell<dyn Database>>) -> Option<(IdWrapper, bool, String)> {
+        let om_instance_id_option = self.choose_or_create_object(
+            db_in.clone(),
+            None,
+            None,
+            None,
+            Util::OM_INSTANCE_TYPE,
+            0,
+            None,
+            false,
+            None,
+            false,
+            None,
+            false,
+        );
+        
+        if om_instance_id_option.is_none() {
+            return None;
+        }
+        
+        let (_, _, instance_id) = om_instance_id_option.unwrap();
+        let remote_om_instance = OmInstance::new(db_in.clone(), &instance_id);
+        
+        let remote_entity_entry_type_answer = self.ui.ask_which(
+            Some(vec!["SPECIFY AN ENTITY IN THE REMOTE INSTANCE"]),
+            vec!["Enter an entity id #", "Use the remote site's default entity"],
+        );
+        
+        if remote_entity_entry_type_answer.is_none() {
+            return None;
+        }
+        
+        let rest_db = Database::get_rest_database(&remote_om_instance.get_address());
+        let remote_entity_id = match remote_entity_entry_type_answer.unwrap() {
+            1 => {
+                let remote_entity_answer = self.ui.ask_for_string2(
+                    Some(vec!["Enter the remote entity's id # (for example, \"-9223372036854745151\")"]),
+                    Some(Util::is_numeric),
+                    None,
+                );
+                remote_entity_answer.and_then(|s| {
+                    let id = s.trim();
+                    if id.is_empty() {
+                        None
+                    } else {
+                        Some(id.parse::<i64>().unwrap())
+                    }
+                })
+            }
+            2 => rest_db.get_default_entity(Some(&self.ui)),
+            _ => None,
+        };
+        
+        if remote_entity_id.is_none() {
+            return None;
+        }
+        
+        let entity_in_json = rest_db.get_entity_json_with_optional_err_handling(Some(&self.ui), remote_entity_id.unwrap());
+        if entity_in_json.is_none() {
+            return None;
+        }
+        
+        let save_entity_answer = self.ui.ask_yes_no_question(
+            &format!(
+                "Here is the entity's data: \n======================\n{}\n======================\n\
+                So do you want to save a reference to that entity?",
+                entity_in_json.unwrap()
+            ),
+            Some("y"),
+            false,
+        );
+        
+        if save_entity_answer.is_some() && save_entity_answer.unwrap() {
+            Some((IdWrapper::new(remote_entity_id.unwrap()), true, remote_om_instance.get_id()))
+        } else {
+            None
+        }
+    }
+
+    fn show_journal(&self, db_in: Rc<RefCell<dyn Database>>) {
+        let yesterday = chrono::Local::now() - chrono::Duration::days(1);
+        let yesterday_str = yesterday.format("%Y-%m-%d").to_string();
+        
+        let begin_date = Util::ask_for_date_generic(
+            Some(&format!("BEGINNING date in the time range: {}", Util::GENERIC_DATE_PROMPT)),
+            Some(&yesterday_str),
+            &self.ui,
+        );
+        
+        if begin_date.is_none() {
+            return;
+        }
+        
+        let end_date = Util::ask_for_date_generic(
+            Some(&format!("ENDING date in the time range: {}", Util::GENERIC_DATE_PROMPT)),
+            None,
+            &self.ui,
+        );
+        
+        if end_date.is_none() {
+            return;
+        }
+        
+        let mut day_currently_showing = String::new();
+        let results = db_in.borrow().find_journal_entries(begin_date.unwrap(), end_date.unwrap());
+        
+        for (timestamp, name, id) in results {
+            let date = chrono::NaiveDateTime::from_timestamp(timestamp / 1000, 0)
+                .format("%Y-%m-%d")
+                .to_string();
+            
+            if day_currently_showing != date {
+                println!("\n\nFor: {}------------------", date);
+                day_currently_showing = date;
+            }
+            
+            let time = chrono::NaiveDateTime::from_timestamp(timestamp / 1000, 0)
+                .format("%H:%M:%S")
+                .to_string();
+            println!("{} {}: {}", time, id, name);
+        }
+        
+        println!(
+            "\n(For other ~'journal' info, could see other things for the day in question, like email, code commits, or entries made on a \
+            different day in a specific \"journal\" section of OM.)"
+        );
+        self.ui.display_text("Scroll back to see more info if needed. Press any key to continue...");
+    }
+
+    fn ask_for_name_and_search_for_entity(&self, db_in: Rc<RefCell<dyn Database>>) -> Option<IdWrapper> {
+        let ans = self.ui.ask_for_string1(Some(vec![Util::entity_or_group_name_sql_search_prompt(Util::ENTITY_TYPE)]));
+        ans.and_then(|search_string| {
+            self.find_existing_object_by_text(db_in, 0, Util::ENTITY_TYPE, None, &search_string)
+        })
+    }
+
+    fn search_by_id(&self, db_in: Rc<RefCell<dyn Database>>, type_name_in: &str) -> Option<IdWrapper> {
+        assert!(type_name_in == Util::ENTITY_TYPE || type_name_in == Util::GROUP_TYPE);
+        
+        let ans = self.ui.ask_for_string1(Some(vec![&format!("Enter the {} ID to search for:", type_name_in)]));
+        if ans.is_none() {
+            return None;
+        }
+        
+        let id_string = ans.unwrap();
+        if !Util::is_numeric(&id_string) {
+            self.ui.display_text(&format!(
+                "Invalid ID format. An ID is a numeric value between {} and {}",
+                Database::MIN_ID_VALUE,
+                Database::MAX_ID_VALUE
+            ));
+            return None;
+        }
+        
+        let id = id_string.parse::<i64>().unwrap();
+        let exists = if type_name_in == Util::ENTITY_TYPE {
+            db_in.borrow().entity_key_exists(id)
+        } else {
+            db_in.borrow().group_key_exists(id)
+        };
+        
+        if exists {
+            Some(IdWrapper::new(id))
+        } else {
+            self.ui.display_text(&format!("The {} ID {} was not found in the database.", type_name_in, id));
+            None
+        }
+    }
+
+    fn ask_for_quantity_attribute_number_and_unit(
+        &self,
+        db_in: &Database,
+        mut dh_in: QuantityAttributeDataHolder,
+        editing_in: bool,
+        ui: &TextUI,
+    ) -> Option<QuantityAttributeDataHolder> {
+        let leading_text = vec!["SELECT A *UNIT* FOR THIS QUANTITY (i.e., centimeters, or quarts; ESC or blank to cancel):"];
+        let previous_selection_desc = if editing_in {
+            Some(Entity::new(db_in.into(), dh_in.unit_id).get_name(None).unwrap_or_default())
+        } else {
+            None
+        };
+        let previous_selection_id = if editing_in { Some(dh_in.unit_id) } else { None };
+        
+        let unit_selection = self.choose_or_create_object(
+            db_in.into(),
+            Some(leading_text),
+            previous_selection_desc.as_deref(),
+            previous_selection_id,
+            Util::QUANTITY_TYPE,
+            0,
+            None,
+            false,
+            None,
+            false,
+            None,
+            true,
+        );
+        
+        if unit_selection.is_none() {
+            ui.display_text("Blank, so assuming you want to cancel; if not come back & add again.", false);
+            return None;
+        }
+        
+        let (id_wrapper, _, _) = unit_selection.unwrap();
+        dh_in.unit_id = id_wrapper.get_id();
+        
+        let ans = Util::ask_for_quantity_attribute_number(Some(dh_in.number), ui);
+        if ans.is_none() {
+            None
+        } else {
+            dh_in.number = ans.unwrap();
+            Some(dh_in)
+        }
+    }
+
+    fn ask_for_rel_to_group_info(
+        &self,
+        db_in: &Database,
+        mut dh_in: RelationToGroupDataHolder,
+        _editing_in: bool,
+        ui_in: &TextUI,
+    ) -> Option<RelationToGroupDataHolder> {
+        let group_selection = self.choose_or_create_group(db_in.into(), Some(vec!["SELECT GROUP FOR THIS RELATION"]), 0, None);
+        
+        if let Some(id_wrapper) = group_selection {
+            dh_in.group_id = id_wrapper.get_id();
+            Some(dh_in)
+        } else {
+            ui_in.display_text("Blank, so assuming you want to cancel; if not come back & add again.", false);
+            None
+        }
+    }
+
+    fn choose_or_create_group(
+        &self,
+        db_in: Rc<RefCell<dyn Database>>,
+        leading_text_in: Option<Vec<&str>>,
+        starting_display_row_index_in: i64,
+        containing_group_in: Option<i64>,
+    ) -> Option<IdWrapper> {
+        let total_existing = db_in.borrow().get_group_count();
+        
+        let get_next_starting_object_index = |current_list_length: i64| -> i64 {
+            let x = starting_display_row_index_in + current_list_length;
+            if x >= total_existing {
+                self.ui.display_text("End of list found; starting over from the beginning.");
+                0
+            } else {
+                x
+            }
+        };
+        
+        let mut leading_text = leading_text_in
+            .map(|v| v.iter().map(|s| s.to_string()).collect())
+            .unwrap_or_else(|| vec![Util::PICK_FROM_LIST_PROMPT.to_string()]);
+        
+        let choices_pre_adjustment = vec![
+            "List next items",
+            "Create new group (aka RelationToGroup)",
+            "Search for existing group by name...",
+            "Search for existing group by id...",
+        ];
+        
+        let num_displayable_items = self.ui.max_columnar_choices_to_display_after(
+            leading_text.len(),
+            choices_pre_adjustment.len(),
+            Util::max_name_length(),
+        );
+        
+        let objects_to_display = db_in.borrow().get_groups(
+            starting_display_row_index_in,
+            Some(num_displayable_items),
+            containing_group_in,
+        );
+        
+        if objects_to_display.is_empty() {
+            let txt = "\n\n(None of the needed groups have been created in this model, yet.";
+            leading_text.push(txt.to_string());
+        }
+        
+        let choices = Util::add_remaining_count_to_prompt(
+            &choices_pre_adjustment,
+            objects_to_display.len(),
+            total_existing,
+            starting_display_row_index_in,
+        );
+        
+        let object_names: Vec<String> = objects_to_display.iter().map(|group| group.get_name()).collect();
+        
+        let ans = self.ui.ask_which_choice_or_its_alternate(Some(leading_text), choices.clone(), object_names);
+        if ans.is_none() {
+            return None;
+        }
+        
+        let (answer, user_chose_alternate) = ans.unwrap();
+        
+        if answer == 1 && answer <= choices.len() {
+            let next_starting_index = get_next_starting_object_index(objects_to_display.len() as i64);
+            self.choose_or_create_group(db_in, leading_text_in, next_starting_index, containing_group_in)
+        } else if answer == 2 && answer <= choices.len() {
+            let ans = self.ui.ask_for_string1(Some(vec![Util::RELATION_TO_GROUP_NAME_PROMPT]));
+            if ans.is_none() || ans.as_ref().unwrap().trim().is_empty() {
+                return None;
+            }
+            
+            let name = ans.unwrap();
+            let ans2 = self.ui.ask_yes_no_question(
+                "Should this group allow entities with mixed classes? (Usually not desirable: doing so means losing some \
+                conveniences such as scripts and assisted data entry.)",
+                Some("n"),
+                false,
+            );
+            
+            if ans2.is_none() {
+                None
+            } else {
+                let mixed_classes_allowed = ans2.unwrap();
+                let new_group_id = db_in.borrow_mut().create_group(&name, mixed_classes_allowed).unwrap();
+                Some(IdWrapper::new(new_group_id))
+            }
+        } else if answer == 3 && answer <= choices.len() {
+            let ans = self.ui.ask_for_string1(Some(vec![Util::entity_or_group_name_sql_search_prompt(Util::GROUP_TYPE)]));
+            ans.and_then(|search_string| {
+                self.find_existing_object_by_text(db_in, 0, Util::GROUP_TYPE, None, &search_string)
+            })
+        } else if answer == 4 && answer <= choices.len() {
+            self.search_by_id(db_in, Util::GROUP_TYPE)
+        } else if answer > choices.len() && answer <= (choices.len() + objects_to_display.len()) {
+            let index = answer - choices.len() - 1;
+            let group = &objects_to_display[index];
+            
+            if user_chose_alternate {
+                let some_relation_to_groups = group.get_containing_relations_to_group(0, Some(1));
+                GroupMenu::new(self.ui.clone(), Rc::new(self.clone())).group_menu(
+                    &Group::new(db_in.clone(), some_relation_to_groups[0].get_group_id()),
+                    0,
+                    Some(&some_relation_to_groups[0]),
+                    None,
+                );
+                self.choose_or_create_group(db_in, leading_text_in, starting_display_row_index_in, containing_group_in)
+            } else {
+                Some(IdWrapper::new(group.get_id()))
+            }
+        } else {
+            self.ui.display_text("unknown response in findExistingObjectByText");
+            self.choose_or_create_group(db_in, leading_text_in, starting_display_row_index_in, containing_group_in)
+        }
+    }
+
+    fn ask_for_relation_entity_id_number2(
+        &self,
+        db_in: &Database,
+        mut dh_in: RelationToEntityDataHolder,
+        editing_in: bool,
+        _ui_in: &TextUI,
+    ) -> Option<RelationToEntityDataHolder> {
+        let previous_selection_desc = if editing_in {
+            Some(Entity::new(db_in.into(), dh_in.entity_id2).get_name(None).unwrap_or_default())
+        } else {
+            None
+        };
+        
+        let previous_selection_id = if editing_in {
+            Some(dh_in.entity_id2)
+        } else {
+            None
+        };
+        
+        let selection = self.choose_or_create_object(
+            db_in.into(),
+            Some(vec!["SELECT OTHER (RELATED) ENTITY FOR THIS RELATION"]),
+            previous_selection_desc.as_deref(),
+            previous_selection_id,
+            Util::ENTITY_TYPE,
+            0,
+            None,
+            false,
+            None,
+            false,
+            None,
+            false,
+        );
+        
+        if let Some((id_wrapper, is_remote, remote_instance_id)) = selection {
+            dh_in.entity_id2 = id_wrapper.get_id();
+            dh_in.is_remote = is_remote;
+            dh_in.remote_instance_id = remote_instance_id;
+            Some(dh_in)
+        } else {
+            None
+        }
+    }
+
+    fn go_to_entity_or_its_sole_groups_menu(
+        &self,
+        user_selection: &Entity,
+        relation_to_group_in: Option<&RelationToGroup>,
+        containing_group_in: Option<&Group>,
+    ) -> (Option<Entity>, Option<i64>, bool) {
+        let (rtg_id, rt_id, group_id, _, more_than_one_available) = user_selection.find_relation_to_and_group();
+        let sub_entity_selected = None;
+        
+        if group_id.is_some() && !more_than_one_available && user_selection.get_attribute_count() == 1 {
+            QuickGroupMenu::new(self.ui.clone(), Rc::new(self.clone())).quick_group_menu(
+                &Group::new(user_selection.get_db(), group_id.unwrap()),
+                0,
+                Some(&RelationToGroup::new(
+                    user_selection.get_db(),
+                    rtg_id.unwrap(),
+                    user_selection.get_id(),
+                    rt_id.unwrap(),
+                    group_id.unwrap(),
+                )),
+                relation_to_group_in,
+                Some(user_selection),
+            );
+        } else {
+            EntityMenu::new(self.ui.clone(), Rc::new(self.clone()))
+                .entity_menu(user_selection, containing_group_in);
+        }
+        
+        (sub_entity_selected, group_id, more_than_one_available)
+    }
+
+    fn get_group_content_size_prefix(&self, db_in: Rc<RefCell<dyn Database>>, group_id: i64) -> String {
+        let grp_size = db_in.borrow().get_group_size(group_id, 1);
+        if grp_size == 0 {
+            String::new()
+        } else {
+            ">".to_string()
+        }
+    }
+
+    fn get_entity_content_size_prefix(&self, entity_in: &Entity) -> String {
+        let attr_count = entity_in.get_attribute_count();
+        let has_one_empty_group = {
+            let num_groups = entity_in.get_relation_to_group_count();
+            if num_groups != 1 {
+                false
+            } else {
+                let (_, _, gid, _, more_available) = entity_in.find_relation_to_and_group();
+                if gid.is_none() || more_available {
+                    panic!(
+                        "Found {} but by the earlier checks, there should be exactly one group in entity {}.",
+                        if gid.is_none() { 0 } else { ">1" },
+                        entity_in.get_id()
+                    );
+                }
+                let group_size = entity_in.get_db().borrow().get_group_size(gid.unwrap(), 1);
+                group_size == 0
+            }
+        };
+        
+        if attr_count == 0 || (attr_count == 1 && has_one_empty_group) {
+            String::new()
+        } else if attr_count == 1 {
+            ">".to_string()
+        } else {
+            ">>".to_string()
+        }
+    }
+
+    fn add_entity_to_group(&self, group_in: &Group) -> Option<i64> {
+        let new_entity_id = if !group_in.get_mixed_classes_allowed() {
+            if group_in.get_size() == 0 {
+                let leading_text = vec!["ADD ENTITY TO A GROUP (**whose class will set the group's enforced class, even if 'None'**):"];
+                let id_wrapper = self.choose_or_create_object(
+                    group_in.get_db(),
+                    Some(leading_text),
+                    None,
+                    None,
+                    Util::ENTITY_TYPE,
+                    0,
+                    None,
+                    false,
+                    Some(group_in.get_id()),
+                    false,
+                    None,
+                    false,
+                );
+                
+                if let Some((wrapper, _, _)) = id_wrapper {
+                    group_in.add_entity(wrapper.get_id()).ok();
+                    Some(wrapper.get_id())
+                } else {
+                    None
+                }
+            } else {
+                let entity_class_in_use = group_in.get_class_id();
+                let id_wrapper = self.choose_or_create_object(
+                    group_in.get_db(),
+                    None,
+                    None,
+                    None,
+                    Util::ENTITY_TYPE,
+                    0,
+                    entity_class_in_use,
+                    true,
+                    Some(group_in.get_id()),
+                    false,
+                    None,
+                    false,
+                );
+                
+                if let Some((wrapper, _, _)) = id_wrapper {
+                    let entity_id = wrapper.get_id();
+                    match group_in.add_entity(entity_id) {
+                        Ok(_) => Some(entity_id),
+                        Err(e) => {
+                            if e.to_string().contains(Database::MIXED_CLASSES_EXCEPTION) {
+                                let old_class = if let Some(class_id) = entity_class_in_use {
+                                    EntityClass::new(group_in.get_db(), class_id).get_display_string()
+                                } else {
+                                    "(none)".to_string()
+                                };
+                                
+                                let new_class_id = Entity::new(group_in.get_db(), entity_id).get_class_id();
+                                let new_class = if new_class_id.is_none() || entity_class_in_use.is_none() {
+                                    "(none)".to_string()
+                                } else if let Some(class_id) = entity_class_in_use {
+                                    EntityClass::new(group_in.get_db(), class_id).get_display_string()
+                                } else {
+                                    "(none)".to_string()
+                                };
+                                
+                                self.ui.display_text(&format!(
+                                    "Adding an entity with class '{}' to a group that doesn't allow mixed classes, \
+                                    and which already has an entity with class '{}' generates an error. The program should have prevented this by \
+                                    only showing entities with a matching class, but in any case the mismatched entity was not added to the group.",
+                                    new_class, old_class
+                                ));
+                                None
+                            } else {
+                                panic!("{}", e);
+                            }
+                        }
+                    }
+                } else {
+                    None
+                }
+            }
+        } else {
+            let leading_text = vec!["ADD ENTITY TO A (mixed-class) GROUP"];
+            let id_wrapper = self.choose_or_create_object(
+                group_in.get_db(),
+                Some(leading_text),
+                None,
+                None,
+                Util::ENTITY_TYPE,
+                0,
+                None,
+                false,
+                Some(group_in.get_id()),
+                false,
+                None,
+                false,
+            );
+            
+            if let Some((wrapper, _, _)) = id_wrapper {
+                group_in.add_entity(wrapper.get_id()).ok();
+                Some(wrapper.get_id())
+            } else {
+                None
+            }
+        };
+        
+        new_entity_id
+    }
+
+    fn choose_among_entities(&self, containing_entities: &[(i64, Entity)]) -> Option<Entity> {
+        let leading_text = vec!["Pick from menu, or an entity by letter"];
+        let choices = vec![Util::LIST_NEXT_ITEMS_PROMPT];
+        
+        let containing_entities_names_with_rel_types: Vec<String> = containing_entities.iter().map(|(rel_type_id, entity)| {
+            let rel_type = RelationType::new(entity.get_db(), *rel_type_id);
+            format!(
+                "the entity \"{}{}\" {} this group",
+                entity.get_archived_status_display_string(),
+                entity.get_name(None).unwrap_or_default(),
+                rel_type.get_name()
+            )
+        }).collect();
+        
+        let ans = self.ui.ask_which(Some(leading_text), choices.clone(), containing_entities_names_with_rel_types);
+        if ans.is_none() {
+            return None;
+        }
+        
+        let answer = ans.unwrap();
+        if answer == 1 && answer <= choices.len() {
+            self.ui.display_text("not yet implemented");
+            None
+        } else if answer > choices.len() && answer <= (choices.len() + containing_entities.len()) {
+            let index = answer - choices.len() - 1;
+            Some(containing_entities[index].1.clone())
+        } else {
+            self.ui.display_text("unknown response");
+            None
+        }
+    }
+
+    fn get_public_status_display_string(&self, entity_in: &Entity) -> String {
+        if self.show_public_private_status_preference.unwrap_or(false) {
+            entity_in.get_public_status_display_string_with_color(false)
+        } else {
+            String::new()
+        }
+    }
+
+    fn add_attribute(
+        &self,
+        entity_in: &Entity,
+        _starting_attribute_index_in: i32,
+        attr_form_in: i32,
+        attr_type_id_in: Option<i64>,
+    ) -> Option<Box<dyn Attribute>> {
+        let (attr_type_id, ask_for_attr_type_id) = if let Some(id) = attr_type_id_in {
+            (id, false)
+        } else {
+            (0, true)
+        };
+        
+        match attr_form_in {
+            form_id if form_id == Database::get_attribute_form_id(Util::QUANTITY_TYPE) => {
+                let add_quantity_attribute = |dh: QuantityAttributeDataHolder| -> Option<Box<dyn Attribute>> {
+                    entity_in.add_quantity_attribute(
+                        dh.attr_type_id,
+                        dh.unit_id,
+                        dh.number,
+                        None,
+                        dh.valid_on_date,
+                        dh.observation_date,
+                    ).ok().map(|attr| Box::new(attr) as Box<dyn Attribute>)
+                };
+                
+                self.ask_for_info_and_add_attribute(
+                    entity_in.get_db(),
+                    QuantityAttributeDataHolder {
+                        attr_type_id,
+                        valid_on_date: None,
+                        observation_date: chrono::Local::now().timestamp_millis(),
+                        number: 0.0,
+                        unit_id: 0,
+                    },
+                    ask_for_attr_type_id,
+                    Util::QUANTITY_TYPE,
+                    Some(Util::QUANTITY_TYPE_PROMPT),
+                    Self::ask_for_quantity_attribute_number_and_unit,
+                    add_quantity_attribute,
+                )
+            }
+            form_id if form_id == Database::get_attribute_form_id(Util::DATE_TYPE) => {
+                let add_date_attribute = |dh: DateAttributeDataHolder| -> Option<Box<dyn Attribute>> {
+                    entity_in.add_date_attribute(dh.attr_type_id, dh.date)
+                        .ok().map(|attr| Box::new(attr) as Box<dyn Attribute>)
+                };
+                
+                self.ask_for_info_and_add_attribute(
+                    entity_in.get_db(),
+                    DateAttributeDataHolder {
+                        attr_type_id,
+                        date: 0,
+                    },
+                    ask_for_attr_type_id,
+                    Util::DATE_TYPE,
+                    Some("SELECT TYPE OF DATE: "),
+                    Util::ask_for_date_attribute_value,
+                    add_date_attribute,
+                )
+            }
+            form_id if form_id == Database::get_attribute_form_id(Util::BOOLEAN_TYPE) => {
+                let add_boolean_attribute = |dh: BooleanAttributeDataHolder| -> Option<Box<dyn Attribute>> {
+                    entity_in.add_boolean_attribute(dh.attr_type_id, dh.boolean, None)
+                        .ok().map(|attr| Box::new(attr) as Box<dyn Attribute>)
+                };
+                
+                self.ask_for_info_and_add_attribute(
+                    entity_in.get_db(),
+                    BooleanAttributeDataHolder {
+                        attr_type_id,
+                        valid_on_date: None,
+                        observation_date: chrono::Local::now().timestamp_millis(),
+                        boolean: false,
+                    },
+                    ask_for_attr_type_id,
+                    Util::BOOLEAN_TYPE,
+                    Some("SELECT TYPE OF TRUE/FALSE VALUE: "),
+                    Util::ask_for_boolean_attribute_value,
+                    add_boolean_attribute,
+                )
+            }
+            form_id if form_id == Database::get_attribute_form_id(Util::FILE_TYPE) => {
+                let add_file_attribute = |dh: FileAttributeDataHolder| -> Option<Box<dyn Attribute>> {
+                    entity_in.add_file_attribute(dh.attr_type_id, &dh.description, &Path::new(&dh.original_file_path))
+                        .ok().map(|attr| Box::new(attr) as Box<dyn Attribute>)
+                };
+                
+                let result = self.ask_for_info_and_add_attribute(
+                    entity_in.get_db(),
+                    FileAttributeDataHolder {
+                        attr_type_id,
+                        description: String::new(),
+                        original_file_path: String::new(),
+                    },
+                    ask_for_attr_type_id,
+                    Util::FILE_TYPE,
+                    Some("SELECT TYPE OF FILE: "),
+                    Util::ask_for_file_attribute_info,
+                    add_file_attribute,
+                );
+                
+                if let Some(ref attr) = result {
+                    let fa = attr.as_any().downcast_ref::<FileAttribute>().unwrap();
+                    let ans = self.ui.ask_yes_no_question(
+                        &format!("Document successfully added. Do you want to DELETE the local copy (at {})?", fa.get_original_file_path()),
+                        None,
+                        false,
+                    );
+                    if ans.is_some() && ans.unwrap() {
+                        if !std::fs::remove_file(&fa.get_original_file_path()).is_ok() {
+                            self.ui.display_text("Unable to delete file at that location; reason unknown. You could check the permissions.");
+                        }
+                    }
+                }
+                result
+            }
+            form_id if form_id == Database::get_attribute_form_id(Util::TEXT_TYPE) => {
+                let add_text_attribute = |dh: TextAttributeDataHolder| -> Option<Box<dyn Attribute>> {
+                    entity_in.add_text_attribute(dh.attr_type_id, &dh.text, None, dh.valid_on_date, dh.observation_date)
+                        .ok().map(|attr| Box::new(attr) as Box<dyn Attribute>)
+                };
+                
+                self.ask_for_info_and_add_attribute(
+                    entity_in.get_db(),
+                    TextAttributeDataHolder {
+                        attr_type_id,
+                        valid_on_date: None,
+                        observation_date: chrono::Local::now().timestamp_millis(),
+                        text: String::new(),
+                    },
+                    ask_for_attr_type_id,
+                    Util::TEXT_TYPE,
+                    Some(&format!("SELECT TYPE OF {}: ", Util::TEXT_DESCRIPTION)),
+                    Util::ask_for_text_attribute_text,
+                    add_text_attribute,
+                )
+            }
+            form_id if form_id == Database::get_attribute_form_id(Util::RELATION_TO_LOCAL_ENTITY_TYPE) => {
+                let add_relation_to_entity = |dh: RelationToEntityDataHolder| -> Option<Box<dyn Attribute>> {
+                    if dh.is_remote {
+                        entity_in.add_relation_to_remote_entity(
+                            dh.attr_type_id,
+                            dh.entity_id2,
+                            None,
+                            dh.valid_on_date,
+                            dh.observation_date,
+                            &dh.remote_instance_id,
+                        ).ok().map(|attr| Box::new(attr) as Box<dyn Attribute>)
+                    } else {
+                        entity_in.add_relation_to_local_entity(
+                            dh.attr_type_id,
+                            dh.entity_id2,
+                            None,
+                            dh.valid_on_date,
+                            dh.observation_date,
+                        ).ok().map(|attr| Box::new(attr) as Box<dyn Attribute>)
+                    }
+                };
+                
+                self.ask_for_info_and_add_attribute(
+                    entity_in.get_db(),
+                    RelationToEntityDataHolder {
+                        attr_type_id,
+                        valid_on_date: None,
+                        observation_date: chrono::Local::now().timestamp_millis(),
+                        entity_id2: 0,
+                        is_remote: false,
+                        remote_instance_id: String::new(),
+                    },
+                    ask_for_attr_type_id,
+                    Util::RELATION_TYPE_TYPE,
+                    Some(&format!("CREATE OR SELECT RELATION TYPE: ({})", Util::REL_TYPE_EXAMPLES)),
+                    Self::ask_for_relation_entity_id_number2,
+                    add_relation_to_entity,
+                )
+            }
+            100 => {
+                // Special case for "has" relation
+                let e_id = self.ask_for_name_and_search_for_entity(entity_in.get_db());
+                e_id.and_then(|id| {
+                    entity_in.add_has_relation_to_local_entity(id.get_id(), None, chrono::Local::now().timestamp_millis())
+                        .ok().map(|attr| Box::new(attr) as Box<dyn Attribute>)
+                })
+            }
+            form_id if form_id == Database::get_attribute_form_id(Util::RELATION_TO_GROUP_TYPE) => {
+                let add_relation_to_group = |dh: RelationToGroupDataHolder| -> Option<Box<dyn Attribute>> {
+                    assert_eq!(dh.entity_id, entity_in.get_id());
+                    entity_in.add_relation_to_group(dh.attr_type_id, dh.group_id, None, dh.valid_on_date, dh.observation_date)
+                        .ok().map(|attr| Box::new(attr) as Box<dyn Attribute>)
+                };
+                
+                let result = self.ask_for_info_and_add_attribute(
+                    entity_in.get_db(),
+                    RelationToGroupDataHolder {
+                        entity_id: entity_in.get_id(),
+                        attr_type_id,
+                        group_id: 0,
+                        valid_on_date: None,
+                        observation_date: chrono::Local::now().timestamp_millis(),
+                    },
+                    ask_for_attr_type_id,
+                    Util::RELATION_TYPE_TYPE,
+                    Some(&format!(
+                        "CREATE OR SELECT RELATION TYPE: ({}).\n(Does anyone see a specific reason to keep asking for these dates?)",
+                        Util::REL_TYPE_EXAMPLES
+                    )),
+                    Self::ask_for_rel_to_group_info,
+                    add_relation_to_group,
+                );
+                
+                if let Some(ref attr) = result {
+                    let new_rtg = attr.as_any().downcast_ref::<RelationToGroup>().unwrap();
+                    QuickGroupMenu::new(self.ui.clone(), Rc::new(self.clone())).quick_group_menu(
+                        &Group::new(entity_in.get_db(), new_rtg.get_group_id()),
+                        0,
+                        Some(new_rtg),
+                        None,
+                        Some(entity_in),
+                    );
+                    
+                    if entity_in.get_db().borrow().relation_to_group_key_exists(new_rtg.get_id()) {
+                        result
+                    } else {
+                        None
+                    }
+                } else {
+                    result
+                }
+            }
+            101 => {
+                // External web page
+                let new_entity_name = self.ui.ask_for_string1(Some(vec!["Enter a name (or description) for this web page or other URI"]));
+                if new_entity_name.is_none() || new_entity_name.as_ref().unwrap().is_empty() {
+                    return None;
+                }
+                
+                let ans1 = self.ui.ask_which(
+                    Some(vec![
+                        "Do you want to enter the URI via the keyboard (typing or directly pasting), or \
+                        have OM pull directly from the clipboard (faster sometimes)?"
+                    ]),
+                    vec!["keyboard", "clipboard"],
+                );
+                if ans1.is_none() {
+                    return None;
+                }
+                
+                let keyboard_or_clipboard1 = ans1.unwrap();
+                let uri = if keyboard_or_clipboard1 == 1 {
+                    let text = self.ui.ask_for_string1(Some(vec!["Enter the URI:"]));
+                    if text.is_none() || text.as_ref().unwrap().is_empty() {
+                        return None;
+                    }
+                    text.unwrap()
+                } else {
+                    let uri_ready = self.ui.ask_yes_no_question(
+                        "Put the url on the system clipboard, then Enter to continue (or hit ESC or answer 'n' to get out)",
+                        Some("y"),
+                        false,
+                    );
+                    if uri_ready.is_none() || !uri_ready.unwrap() {
+                        return None;
+                    }
+                    Util::get_clipboard_content()
+                };
+                
+                let ans2 = self.ui.ask_which(
+                    Some(vec![
+                        "Do you want to enter a quote from it, via the keyboard (typing or directly pasting) or \
+                        have OM pull directly from the clipboard (faster sometimes, especially if \
+                        it's multi-line)? Or, ESC to not enter a quote. (Tip: if it is a whole file, just put in \
+                        a few characters from the keyboard, then go back and edit as multi-line to put in all.)"
+                    ]),
+                    vec!["keyboard", "clipboard"],
+                );
+                
+                let quote = if ans2.is_none() {
+                    None
+                } else {
+                    let keyboard_or_clipboard2 = ans2.unwrap();
+                    if keyboard_or_clipboard2 == 1 {
+                        let text = self.ui.ask_for_string1(Some(vec!["Enter the quote"]));
+                        if text.is_none() || text.as_ref().unwrap().is_empty() {
+                            return None;
+                        }
+                        text
+                    } else {
+                        let clip = self.ui.ask_yes_no_question(
+                            "Put a quote on the system clipboard, then Enter to continue (or answer 'n' to get out)",
+                            Some("y"),
+                            false,
+                        );
+                        if clip.is_none() || !clip.unwrap() {
+                            return None;
+                        }
+                        Some(Util::get_clipboard_content())
+                    }
+                };
+                
+                let quote_info = if let Some(ref q) = quote {
+                    format!("For this text: \n  {}\n...and, ", q)
+                } else {
+                    String::new()
+                };
+                
+                let proceed_answer = self.ui.ask_yes_no_question(
+                    &format!(
+                        "{}...for this name & URI:\n  {}\n  {}\n...: do you want to save them?",
+                        quote_info,
+                        new_entity_name.as_ref().unwrap(),
+                        uri
+                    ),
+                    Some("y"),
+                    false,
+                );
+                
+                if proceed_answer.is_none() || !proceed_answer.unwrap() {
+                    return None;
+                }
+                
+                let (new_entity, new_rte) = entity_in.add_uri_entity_with_uri_attribute(
+                    new_entity_name.as_ref().unwrap(),
+                    &uri,
+                    chrono::Local::now().timestamp_millis(),
+                    entity_in.get_public(),
+                    false,
+                    quote.as_deref(),
+                ).unwrap();
+                
+                EntityMenu::new(self.ui.clone(), Rc::new(self.clone()))
+                    .entity_menu(&new_entity, Some(&new_rte));
+                
+                if entity_in.get_db().borrow().relation_to_local_entity_key_exists(new_rte.get_id())
+                    && entity_in.get_db().borrow().entity_key_exists(new_entity.get_id()) {
+                    Some(Box::new(new_rte) as Box<dyn Attribute>)
+                } else {
+                    None
+                }
+            }
+            _ => {
+                self.ui.display_text("invalid response");
+                None
+            }
+        }
+    }
+
+    fn default_attribute_copying(&self, target_entity_in: &Entity, attribute_tuples_in: Option<&[(i64, Box<dyn Attribute>)]>) {
+        if self.should_try_adding_default_attributes(target_entity_in) {
+            let attribute_tuples = if let Some(tuples) = attribute_tuples_in {
+                tuples.to_vec()
+            } else {
+                target_entity_in.get_sorted_attributes(false).0
+            };
+            
+            let template_entity = target_entity_in.get_class_template_entity_id()
+                .map(|id| Entity::new(target_entity_in.get_db(), id));
+            
+            let template_attributes_to_copy = self.get_missing_attributes(template_entity.as_ref(), &attribute_tuples);
+            self.copy_and_edit_attributes(target_entity_in, &template_attributes_to_copy);
+        }
+    }
+
+    fn copy_and_edit_attributes(&self, entity_in: &Entity, template_attributes_to_copy_in: &[Box<dyn Attribute>]) {
+        let mut esc_counter = 0;
+        let mut user_wants_out = false;
+        
+        let check_if_exiting = |esc_counter_in: i32, attribute_counter_in: usize, num_attributes: usize| -> (i32, bool) {
+            let mut esc_counter_local = esc_counter_in + 1;
+            let mut wants_out = false;
+            
+            if esc_counter_local > 3 && attribute_counter_in < num_attributes {
+                let out_answer = self.ui.ask_yes_no_question("Stop checking/adding attributes?", Some(""), false);
+                if out_answer.is_some() && out_answer.unwrap() {
+                    wants_out = true;
+                } else {
+                    esc_counter_local = 0;
+                }
+            }
+            (esc_counter_local, wants_out)
+        };
+        
+        let mut ask_about_rte_every_time = None;
+        let mut all_copy = false;
+        let mut all_create_or_search = false;
+        let mut all_keep_reference = false;
+        let mut attr_counter = 0;
+        
+        for attribute_from_template in template_attributes_to_copy_in {
+            attr_counter += 1;
+            if user_wants_out {
+                break;
+            }
+            
+            let wait_for_keystroke = matches!(
+                attribute_from_template.get_form_id(),
+                id if id == Util::RELATION_TO_LOCAL_ENTITY_TYPE_FORM_ID || id == Util::RELATION_TO_REMOTE_ENTITY_TYPE_FORM_ID
+            );
+            
+            let prompt_to_edit_attribute_copy = || {
+                self.ui.display_text(
+                    &format!(
+                        "Edit the copied {} \"{}\" from the template entity (ESC to abort):",
+                        Database::get_attribute_form_name(attribute_from_template.get_form_id()),
+                        attribute_from_template.get_display_string(0, None, None, true)
+                    ),
+                    wait_for_keystroke,
+                );
+            };
+            
+            let new_attribute: Option<Box<dyn Attribute>> = match attribute_from_template.get_form_id() {
+                id if id == Util::QUANTITY_TYPE_FORM_ID => {
+                    prompt_to_edit_attribute_copy();
+                    let template_attr = attribute_from_template.as_any().downcast_ref::<QuantityAttribute>().unwrap();
+                    entity_in.add_quantity_attribute(
+                        template_attr.get_attr_type_id(),
+                        template_attr.get_unit_id(),
+                        template_attr.get_number(),
+                        Some(template_attr.get_sorting_index()),
+                        None,
+                        None,
+                    ).ok().map(|attr| Box::new(attr) as Box<dyn Attribute>)
+                }
+                id if id == Util::DATE_TYPE_FORM_ID => {
+                    prompt_to_edit_attribute_copy();
+                    let template_attr = attribute_from_template.as_any().downcast_ref::<DateAttribute>().unwrap();
+                    entity_in.add_date_attribute(
+                        template_attr.get_attr_type_id(),
+                        template_attr.get_date(),
+                        Some(template_attr.get_sorting_index()),
+                    ).ok().map(|attr| Box::new(attr) as Box<dyn Attribute>)
+                }
+                id if id == Util::BOOLEAN_TYPE_FORM_ID => {
+                    prompt_to_edit_attribute_copy();
+                    let template_attr = attribute_from_template.as_any().downcast_ref::<BooleanAttribute>().unwrap();
+                    entity_in.add_boolean_attribute(
+                        template_attr.get_attr_type_id(),
+                        template_attr.get_boolean(),
+                        Some(template_attr.get_sorting_index()),
+                    ).ok().map(|attr| Box::new(attr) as Box<dyn Attribute>)
+                }
+                id if id == Util::FILE_TYPE_FORM_ID => {
+                    self.ui.display_text(
+                        "You can add a FileAttribute manually afterwards for this attribute. Maybe it can be automated \
+                        more, when use cases for this part are more clear."
+                    );
+                    None
+                }
+                id if id == Util::TEXT_TYPE_FORM_ID => {
+                    prompt_to_edit_attribute_copy();
+                    let template_attr = attribute_from_template.as_any().downcast_ref::<TextAttribute>().unwrap();
+                    entity_in.add_text_attribute(
+                        template_attr.get_attr_type_id(),
+                        &template_attr.get_text(),
+                        Some(template_attr.get_sorting_index()),
+                        None,
+                        None,
+                    ).ok().map(|attr| Box::new(attr) as Box<dyn Attribute>)
+                }
+                id if id == Util::RELATION_TO_LOCAL_ENTITY_TYPE_FORM_ID || id == Util::RELATION_TO_REMOTE_ENTITY_TYPE_FORM_ID => {
+                    let (new_rte, ask_every_time) = self.copy_and_edit_relation_to_entity(
+                        entity_in,
+                        attribute_from_template.as_ref(),
+                        ask_about_rte_every_time,
+                        &mut all_copy,
+                        &mut all_create_or_search,
+                        &mut all_keep_reference,
+                    );
+                    ask_about_rte_every_time = ask_every_time;
+                    new_rte
+                }
+                id if id == Util::RELATION_TO_GROUP_TYPE_FORM_ID => {
+                    prompt_to_edit_attribute_copy();
+                    let template_attr = attribute_from_template.as_any().downcast_ref::<RelationToGroup>().unwrap();
+                    let template_group = template_attr.get_group();
+                    let (_, new_rtg) = entity_in.add_group_and_relation_to_group(
+                        template_attr.get_attr_type_id(),
+                        &template_group.get_name(),
+                        template_group.get_mixed_classes_allowed(),
+                        None,
+                        chrono::Local::now().timestamp_millis(),
+                        Some(template_attr.get_sorting_index()),
+                    ).unwrap();
+                    Some(Box::new(new_rtg) as Box<dyn Attribute>)
+                }
+                _ => panic!("Unexpected type: {}", attribute_from_template.get_class_name()),
+            };
+            
+            if new_attribute.is_none() {
+                let (new_counter, wants_out) = check_if_exiting(esc_counter, attr_counter, template_attributes_to_copy_in.len());
+                esc_counter = new_counter;
+                user_wants_out = wants_out;
+            } else if !matches!(
+                new_attribute.as_ref().unwrap().get_form_id(),
+                id if id == Util::RELATION_TO_LOCAL_ENTITY_TYPE_FORM_ID || id == Util::RELATION_TO_REMOTE_ENTITY_TYPE_FORM_ID
+            ) {
+                let exited_one_edit_line = self.edit_attribute_on_single_line(new_attribute.as_ref().unwrap().as_ref());
+                if exited_one_edit_line {
+                    new_attribute.unwrap().delete().unwrap();
+                    let (new_counter, wants_out) = check_if_exiting(esc_counter, attr_counter, template_attributes_to_copy_in.len());
+                    esc_counter = new_counter;
+                    user_wants_out = wants_out;
+                }
+            }
+        }
+    }
+
+    fn copy_and_edit_relation_to_entity(
+        &self,
+        entity_in: &Entity,
+        relation_to_entity_attribute_from_template_in: &dyn Attribute,
+        ask_every_time_in: Option<bool>,
+        all_copy: &mut bool,
+        all_create_or_search: &mut bool,
+        all_keep_reference: &mut bool,
+    ) -> (Option<Box<dyn Attribute>>, Option<bool>) {
+        assert!(matches!(
+            relation_to_entity_attribute_from_template_in.get_form_id(),
+            id if id == Util::RELATION_TO_LOCAL_ENTITY_TYPE_FORM_ID || id == Util::RELATION_TO_REMOTE_ENTITY_TYPE_FORM_ID
+        ));
+        
+        let choice1_text = "Copy the template entity, editing its name (**MOST LIKELY CHOICE)";
+        let copy_from_template_and_edit_name_choice_num = 1;
+        let choice2_text = "Create a new entity or search for an existing one for this purpose";
+        let create_or_search_for_entity_choice_num = 2;
+        let choice3_text = "Keep a reference to the same entity as in the template (least likely choice)";
+        let keep_same_reference_as_in_template_choice_num = 3;
+        
+        let mut ask_every_time = ask_every_time_in;
+        if ask_every_time.is_none() {
+            let how_rtes_leading_text = vec![
+                "The template has relations to entities. How would you like the equivalent to be provided \
+                for this new entity being created?"
+            ];
+            let how_handle_rtes_choices = vec![
+                format!("For ALL entity relations being added: {}", choice1_text),
+                format!("For ALL entity relations being added: {}", choice2_text),
+                format!("For ALL entity relations being added: {}", choice3_text),
+                "Ask for each relation to entity being created from the template",
+            ];
+            
+            let how_handle_rtes_response = self.ui.ask_which(Some(how_rtes_leading_text), how_handle_rtes_choices);
+            if let Some(response) = how_handle_rtes_response {
+                match response {
+                    1 => {
+                        *all_copy = true;
+                        ask_every_time = Some(false);
+                    }
+                    2 => {
+                        *all_create_or_search = true;
+                        ask_every_time = Some(false);
+                    }
+                    3 => {
+                        *all_keep_reference = true;
+                        ask_every_time = Some(false);
+                    }
+                    4 => {
+                        ask_every_time = Some(true);
+                    }
+                    _ => {
+                        self.ui.display_text(&format!("Unexpected answer: {}", response));
+                        ask_every_time = None;
+                    }
+                }
+            }
+        }
+        
+        if ask_every_time.is_none() {
+            return (None, ask_every_time);
+        }
+        
+        let how_copy_rte_response = if ask_every_time.unwrap() {
+            let which_rte_leading_text = vec![&format!(
+                "The template has a templateAttribute which is a relation to an entity named \"{}\": \
+                how would you like the equivalent to be provided for this new entity being created? \
+                (0/ESC to just skip this one for now)",
+                relation_to_entity_attribute_from_template_in.get_display_string(0, None, None, true)
+            )];
+            let which_rte_choices = vec![choice1_text, choice2_text, choice3_text];
+            self.ui.ask_which(Some(which_rte_leading_text), which_rte_choices)
+        } else {
+            None
+        };
+        
+        if ask_every_time.unwrap() && how_copy_rte_response.is_none() {
+            return (None, ask_every_time);
+        }
+        
+        let related_id2 = if relation_to_entity_attribute_from_template_in.get_form_id() == Util::RELATION_TO_REMOTE_ENTITY_TYPE_FORM_ID {
+            relation_to_entity_attribute_from_template_in.as_any().downcast_ref::<RelationToRemoteEntity>().unwrap().get_related_id2()
+        } else {
+            relation_to_entity_attribute_from_template_in.as_any().downcast_ref::<RelationToLocalEntity>().unwrap().get_related_id2()
+        };
+        
+        if *all_copy || (how_copy_rte_response.is_some() && how_copy_rte_response.unwrap() == copy_from_template_and_edit_name_choice_num) {
+            let current_or_remote_db = Database::current_or_remote_db(
+                relation_to_entity_attribute_from_template_in,
+                relation_to_entity_attribute_from_template_in.get_db(),
+            );
+            let templates_related_entity = Entity::new(current_or_remote_db, related_id2);
+            let old_name = templates_related_entity.get_name(None).unwrap_or_default();
+            
+            let new_entity = if relation_to_entity_attribute_from_template_in.get_form_id() == Util::RELATION_TO_LOCAL_ENTITY_TYPE_FORM_ID {
+                self.ask_for_name_and_write_entity(
+                    entity_in.get_db(),
+                    Util::ENTITY_TYPE,
+                    None,
+                    Some(old_name.clone()),
+                    None,
+                    None,
+                    templates_related_entity.get_class_id(),
+                    Some("EDIT THE ENTITY NAME:"),
+                    true,
+                )
+            } else {
+                let e = self.ask_for_name_and_write_entity(
+                    entity_in.get_db(),
+                    Util::ENTITY_TYPE,
+                    None,
+                    Some(old_name),
+                    None,
+                    None,
+                    None,
+                    Some("EDIT THE ENTITY NAME:"),
+                    true,
+                );
+                
+                if e.is_some() && templates_related_entity.get_class_id().is_some() {
+                    let remote_class_id = templates_related_entity.get_class_id().unwrap();
+                    let remote_class_name = EntityClass::new(current_or_remote_db, remote_class_id).get_name();
+                    self.ui.display_text(&format!(
+                        "Note: Did not write a class on the new entity to match that from the remote entity, until some kind of synchronization \
+                        of classes across OM instances is in place. (Idea: interim solution could be to match simply by name if \
+                        there is a match, with user confirmation, or user selection if multiple matches. The class \
+                        in the remote instance is: {}: {}",
+                        remote_class_id, remote_class_name
+                    ));
+                }
+                e
+            };
+            
+            if let Some(entity) = new_entity {
+                entity.update_new_entries_stick_to_top(templates_related_entity.get_new_entries_stick_to_top()).unwrap();
+                let new_rtle = entity_in.add_relation_to_local_entity(
+                    relation_to_entity_attribute_from_template_in.get_attr_type_id(),
+                    entity.get_id(),
+                    Some(relation_to_entity_attribute_from_template_in.get_sorting_index()),
+                    None,
+                    None,
+                ).unwrap();
+                (Some(Box::new(new_rtle) as Box<dyn Attribute>), ask_every_time)
+            } else {
+                (None, ask_every_time)
+            }
+        } else if *all_create_or_search || (how_copy_rte_response.is_some() && how_copy_rte_response.unwrap() == create_or_search_for_entity_choice_num) {
+            let rte_dh = RelationToEntityDataHolder {
+                attr_type_id: relation_to_entity_attribute_from_template_in.get_attr_type_id(),
+                valid_on_date: None,
+                observation_date: chrono::Local::now().timestamp_millis(),
+                entity_id2: 0,
+                is_remote: false,
+                remote_instance_id: String::new(),
+            };
+            
+            let dh = Self::ask_for_relation_entity_id_number2(self, entity_in.get_db().as_ref(), rte_dh, false, &self.ui);
+            if let Some(dh) = dh {
+                if dh.is_remote {
+                    let rtre = entity_in.add_relation_to_remote_entity(
+                        dh.attr_type_id,
+                        dh.entity_id2,
+                        Some(relation_to_entity_attribute_from_template_in.get_sorting_index()),
+                        dh.valid_on_date,
+                        dh.observation_date,
+                        &dh.remote_instance_id,
+                    ).unwrap();
+                    (Some(Box::new(rtre) as Box<dyn Attribute>), ask_every_time)
+                } else {
+                    let rtle = entity_in.add_relation_to_local_entity(
+                        dh.attr_type_id,
+                        dh.entity_id2,
+                        Some(relation_to_entity_attribute_from_template_in.get_sorting_index()),
+                        dh.valid_on_date,
+                        dh.observation_date,
+                    ).unwrap();
+                    (Some(Box::new(rtle) as Box<dyn Attribute>), ask_every_time)
+                }
+            } else {
+                (None, ask_every_time)
+            }
+        } else if *all_keep_reference || (how_copy_rte_response.is_some() && how_copy_rte_response.unwrap() == keep_same_reference_as_in_template_choice_num) {
+            let relation = if relation_to_entity_attribute_from_template_in.get_db().borrow().is_remote() {
+                let rtre_template = relation_to_entity_attribute_from_template_in.as_any().downcast_ref::<RelationToRemoteEntity>().unwrap();
+                entity_in.add_relation_to_remote_entity(
+                    relation_to_entity_attribute_from_template_in.get_attr_type_id(),
+                    related_id2,
+                    Some(relation_to_entity_attribute_from_template_in.get_sorting_index()),
+                    None,
+                    chrono::Local::now().timestamp_millis(),
+                    &rtre_template.get_remote_instance_id(),
+                ).unwrap()
+            } else {
+                entity_in.add_relation_to_local_entity(
+                    relation_to_entity_attribute_from_template_in.get_attr_type_id(),
+                    related_id2,
+                    Some(relation_to_entity_attribute_from_template_in.get_sorting_index()),
+                    None,
+                    chrono::Local::now().timestamp_millis(),
+                ).unwrap()
+            };
+            (Some(Box::new(relation) as Box<dyn Attribute>), ask_every_time)
+        } else {
+            self.ui.display_text(&format!(
+                "Unexpected answer: {}/{}/{}/{:?}/{:?}",
+                *all_copy,
+                *all_create_or_search,
+                *all_keep_reference,
+                ask_every_time,
+                how_copy_rte_response
+            ));
+            (None, ask_every_time)
+        }
+    }
+
+    fn get_missing_attributes(
+        &self,
+        class_template_entity_in: Option<&Entity>,
+        existing_attribute_tuples_in: &[(i64, Box<dyn Attribute>)],
+    ) -> Vec<Box<dyn Attribute>> {
+        let mut attributes_to_suggest_copying = Vec::new();
+        
+        if let Some(template_entity) = class_template_entity_in {
+            let (cde_attribute_tuples, _) = template_entity.get_sorted_attributes(false);
+            
+            for (_, cde_attribute) in cde_attribute_tuples {
+                let mut attribute_type_found_on_entity = false;
+                let cde_type_id = cde_attribute.get_attr_type_id();
+                
+                for (_, attribute) in existing_attribute_tuples_in {
+                    if !attribute_type_found_on_entity {
+                        let type_id = attribute.get_attr_type_id();
+                        let existing_attribute_string_contains_template_string = attribute
+                            .get_display_string(0, None, None, true)
+                            .contains(&cde_attribute.get_display_string(0, None, None, true));
+                        
+                        if cde_type_id == type_id && existing_attribute_string_contains_template_string {
+                            attribute_type_found_on_entity = true;
+                        }
+                    }
+                }
+                
+                if !attribute_type_found_on_entity {
+                    attributes_to_suggest_copying.push(cde_attribute.clone());
+                }
+            }
+        }
+        
+        attributes_to_suggest_copying
+    }
+
+    fn should_try_adding_default_attributes(&self, entity_in: &Entity) -> bool {
+        if entity_in.get_class_id().is_none() {
+            return false;
+        }
+        
+        let entity_class = EntityClass::new(entity_in.get_db(), entity_in.get_class_id().unwrap());
+        let create_attributes = entity_class.get_create_default_attributes();
+        
+        if let Some(create) = create_attributes {
+            create
+        } else if let Some(template_id) = entity_in.get_class_template_entity_id() {
+            let template_entity = Entity::new(entity_in.get_db(), template_id);
+            let attr_count = template_entity.get_attribute_count();
+            
+            if attr_count == 0 {
+                false
+            } else {
+                let add_attributes_answer = self.ui.ask_yes_no_question(
+                    "Add attributes to this entity as found on the class-defining entity (template)?",
+                    Some("y"),
+                    true,
+                );
+                add_attributes_answer.is_some() && add_attributes_answer.unwrap()
+            }
+        } else {
+            false
+        }
+    }
+}
+
+// Trait definitions for the data holders
+trait AttributeDataHolder: Clone {
+    fn get_attr_type_id(&self) -> i64;
+    fn set_attr_type_id(&mut self, id: i64);
+    fn as_relation_to_entity_data_holder(&self) -> Option<&RelationToEntityDataHolder> { None }
+    fn as_relation_to_entity_data_holder_mut(&mut self) -> Option<&mut RelationToEntityDataHolder> { None }
+    fn as_attribute_with_valid_and_observed_dates(&self) -> Option<&dyn AttributeWithValidAndObservedDates> { None }
+    fn as_attribute_with_valid_and_observed_dates_mut(&mut self) -> Option<&mut dyn AttributeWithValidAndObservedDates> { None }
+}
+
+trait AttributeWithValidAndObservedDates {
+    fn get_valid_on_date(&self) -> Option<i64>;
+    fn get_observation_date(&self) -> i64;
+    fn set_valid_on_date(&mut self, date: Option<i64>);
+    fn set_observation_date(&mut self, date: i64);
+}
+
+// Implement traits for data holders
+impl AttributeDataHolder for QuantityAttributeDataHolder {
+    fn get_attr_type_id(&self) -> i64 { self.attr_type_id }
+    fn set_attr_type_id(&mut self, id: i64) { self.attr_type_id = id; }
+    fn as_attribute_with_valid_and_observed_dates(&self) -> Option<&dyn AttributeWithValidAndObservedDates> {
+        Some(self)
+    }
+    fn as_attribute_with_valid_and_observed_dates_mut(&mut self) -> Option<&mut dyn AttributeWithValidAndObservedDates> {
+        Some(self)
+    }
+}
+
+impl AttributeWithValidAndObservedDates for QuantityAttributeDataHolder {
+    fn get_valid_on_date(&self) -> Option<i64> { self.valid_on_date }
+    fn get_observation_date(&self) -> i64 { self.observation_date }
+    fn set_valid_on_date(&mut self, date: Option<i64>) { self.valid_on_date = date; }
+    fn set_observation_date(&mut self, date: i64) { self.observation_date = date; }
+}
+
+impl AttributeDataHolder for TextAttributeDataHolder {
+    fn get_attr_type_id(&self) -> i64 { self.attr_type_id }
+    fn set_attr_type_id(&mut self, id: i64) { self.attr_type_id = id; }
+    fn as_attribute_with_valid_and_observed_dates(&self) -> Option<&dyn AttributeWithValidAndObservedDates> {
+        Some(self)
+    }
+    fn as_attribute_with_valid_and_observed_dates_mut(&mut self) -> Option<&mut dyn AttributeWithValidAndObservedDates> {
+        Some(self)
+    }
+}
+
+impl AttributeWithValidAndObservedDates for TextAttributeDataHolder {
+    fn get_valid_on_date(&self) -> Option<i64> { self.valid_on_date }
+    fn get_observation_date(&self) -> i64 { self.observation_date }
+    fn set_valid_on_date(&mut self, date: Option<i64>) { self.valid_on_date = date; }
+    fn set_observation_date(&mut self, date: i64) { self.observation_date = date; }
+}
+
+impl AttributeDataHolder for DateAttributeDataHolder {
+    fn get_attr_type_id(&self) -> i64 { self.attr_type_id }
+    fn set_attr_type_id(&mut self, id: i64) { self.attr_type_id = id; }
+}
+
+impl AttributeDataHolder for BooleanAttributeDataHolder {
+    fn get_attr_type_id(&self) -> i64 { self.attr_type_id }
+    fn set_attr_type_id(&mut self, id: i64) { self.attr_type_id = id; }
+    fn as_attribute_with_valid_and_observed_dates(&self) -> Option<&dyn AttributeWithValidAndObservedDates> {
+        Some(self)
+    }
+    fn as_attribute_with_valid_and_observed_dates_mut(&mut self) -> Option<&mut dyn AttributeWithValidAndObservedDates> {
+        Some(self)
+    }
+}
+
+impl AttributeWithValidAndObservedDates for BooleanAttributeDataHolder {
+    fn get_valid_on_date(&self) -> Option<i64> { self.valid_on_date }
+    fn get_observation_date(&self) -> i64 { self.observation_date }
+    fn set_valid_on_date(&mut self, date: Option<i64>) { self.valid_on_date = date; }
+    fn set_observation_date(&mut self, date: i64) { self.observation_date = date; }
+}
+
+impl AttributeDataHolder for FileAttributeDataHolder {
+    fn get_attr_type_id(&self) -> i64 { self.attr_type_id }
+    fn set_attr_type_id(&mut self, id: i64) { self.attr_type_id = id; }
+}
+
+impl AttributeDataHolder for RelationToEntityDataHolder {
+    fn get_attr_type_id(&self) -> i64 { self.attr_type_id }
+    fn set_attr_type_id(&mut self, id: i64) { self.attr_type_id = id; }
+    fn as_relation_to_entity_data_holder(&self) -> Option<&RelationToEntityDataHolder> { Some(self) }
+    fn as_relation_to_entity_data_holder_mut(&mut self) -> Option<&mut RelationToEntityDataHolder> { Some(self) }
+    fn as_attribute_with_valid_and_observed_dates(&self) -> Option<&dyn AttributeWithValidAndObservedDates> {
+        Some(self)
+    }
+    fn as_attribute_with_valid_and_observed_dates_mut(&mut self) -> Option<&mut dyn AttributeWithValidAndObservedDates> {
+        Some(self)
+    }
+}
+
+impl AttributeWithValidAndObservedDates for RelationToEntityDataHolder {
+    fn get_valid_on_date(&self) -> Option<i64> { self.valid_on_date }
+    fn get_observation_date(&self) -> i64 { self.observation_date }
+    fn set_valid_on_date(&mut self, date: Option<i64>) { self.valid_on_date = date; }
+    fn set_observation_date(&mut self, date: i64) { self.observation_date = date; }
+}
+
+impl AttributeDataHolder for RelationToGroupDataHolder {
+    fn get_attr_type_id(&self) -> i64 { self.attr_type_id }
+    fn set_attr_type_id(&mut self, id: i64) { self.attr_type_id = id; }
+    fn as_attribute_with_valid_and_observed_dates(&self) -> Option<&dyn AttributeWithValidAndObservedDates> {
+        Some(self)
+    }
+    fn as_attribute_with_valid_and_observed_dates_mut(&mut self) -> Option<&mut dyn AttributeWithValidAndObservedDates> {
+        Some(self)
+    }
+}
+
+impl AttributeWithValidAndObservedDates for RelationToGroupDataHolder {
+    fn get_valid_on_date(&self) -> Option<i64> { self.valid_on_date }
+    fn get_observation_date(&self) -> i64 { self.observation_date }
+    fn set_valid_on_date(&mut self, date: Option<i64>) { self.valid_on_date = date; }
+    fn set_observation_date(&mut self, date: i64) { self.observation_date = date; }
+}
+
+// Trait for objects with IDs
+trait HasId: std::any::Any {
+    fn get_id(&self) -> i64;
+    fn get_class_name(&self) -> &str;
+    fn as_any(&self) -> &dyn std::any::Any;
+}
+
+impl HasId for Entity {
+    fn get_id(&self) -> i64 { self.get_id() }
+    fn get_class_name(&self) -> &str { "Entity" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+}
+
+impl HasId for Group {
+    fn get_id(&self) -> i64 { self.get_id() }
+    fn get_class_name(&self) -> &str { "Group" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+}
+
+impl HasId for EntityClass {
+    fn get_id(&self) -> i64 { self.get_id() }
+    fn get_class_name(&self) -> &str { "EntityClass" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+}
+
+impl HasId for RelationType {
+    fn get_id(&self) -> i64 { self.get_id() }
+    fn get_class_name(&self) -> &str { "RelationType" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+}
+
+impl HasId for OmInstance {
+    fn get_id(&self) -> i64 { 0 } // OmInstance uses String IDs
+    fn get_class_name(&self) -> &str { "OmInstance" }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+}

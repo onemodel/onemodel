@@ -118,7 +118,7 @@ impl Group {
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         _attr_type_id_in: Option<i64>,                 /*= None*/
-        name_in: Option<String>,                       /*= None*/
+        name_in: Option<&String>,                       /*= None*/
         allow_mixed_classes_in_group_in: Option<bool>, /*= None*/
         new_entries_stick_to_top_in: Option<bool>,     /*= None*/
         _valid_on_date_in: Option<i64>,
@@ -131,7 +131,7 @@ impl Group {
             self.id,
             match name_in {
                 None => self.get_name(transaction.clone())?,
-                Some(ref s) => {
+                Some(s) => {
                     self.name = s.clone();
                     s.clone()
                 }
@@ -285,7 +285,7 @@ impl Group {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_index_in: i64,
-        max_vals_in: Option<i64>, /*= None*/
+        max_vals_in: Option<u64>, /*= None*/
     ) -> Result<Vec<Group>, Error> {
         let ids = self.db.clone().borrow().get_group_entry_ids(
             transaction.clone(),
@@ -319,6 +319,12 @@ impl Group {
             .add_entity_to_group(tx, id, in_entity_id, sorting_index_in)
     }
 
+    // (See comment on fn get_id in quantity_attribute.rs, about no call to read_data_from_db().)
+    pub fn get_db(&self) -> Rc<RefCell<dyn Database>> {
+        self.db.clone()
+    }
+
+    // (See comment on fn get_id in quantity_attribute.rs, about no call to read_data_from_db().)
     pub fn get_id(&self) -> i64 {
         self.id
     }
@@ -414,7 +420,7 @@ impl Group {
     //     _ => return Err(anyhow!("unexpected result?: {:?}", entries.get(next_index)))
     //   }
     // }
-    fn get_class_id(
+    pub fn get_class_id(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<Option<i64>, Error> {
@@ -495,10 +501,10 @@ impl Group {
             .get_highest_sorting_index_for_group(transaction, self.get_id())
     }
 
-    fn get_containing_relations_to_group(
+    pub fn get_containing_relations_to_group(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        starting_index_in: i64,
+        starting_index_in: u64,
         max_vals_in: Option<u64>, /*= None*/
     ) -> Result<Vec<RelationToGroup>, Error> {
         let rtgs_data: Vec<(i64, i64, i64, i64, Option<i64>, i64, i64)> = self
@@ -540,7 +546,7 @@ impl Group {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         starting_index_in: i64,
-        max_vals_in: Option<i64>, /*= None*/
+        max_vals_in: Option<u64>, /*= None*/
     ) -> Result<Vec<(i64, Entity)>, Error> {
         let ids = self.db.borrow().get_entities_containing_group(
             transaction.clone(),
@@ -571,7 +577,7 @@ impl Group {
     fn get_groups_containing_entitys_groups_ids(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        limit_in: Option<i64>, /*= Some(5)*/
+        limit_in: Option<u64>, /*= Some(5)*/
     ) -> Result<Vec<Vec<Option<DataType>>>, Error> {
         self.db.borrow().get_groups_containing_entitys_groups_ids(
             transaction,
@@ -594,7 +600,7 @@ impl Group {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         sorting_index_in: i64,
-        limit_in: Option<i64>, /*= None*/
+        limit_in: Option<u64>, /*= None*/
         forward_not_back_in: bool,
     ) -> Result<Vec<Vec<Option<DataType>>>, Error> {
         self.db.borrow().get_adjacent_group_entries_sorting_indexes(

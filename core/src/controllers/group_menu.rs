@@ -1,6 +1,7 @@
 /*  This file is part of OneModel, a program to manage knowledge.
     Copyright in each year of 2003-2004 and 2008-2017 inclusive, 2019, and 2023-2024 inclusive, Luke A. Call.
-    (That copyright statement was previously 2013-2015, until I remembered that much of Controller came from TextUI.scala and TextUI.java
+    (That copyright statement was previously 2013-2015, until I remembered that much of Controller came 
+    from TextUI.scala and TextUI.java
     s free software, distributed under a license that includes honesty, the Golden Rule, guidelines around binary
     distribution, and the GNU Affero General Public License as published by the Free Software Foundation;
     see the file LICENSE for license version and details.
@@ -8,7 +9,7 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
-struct GroupMenu {
+pub struct GroupMenu {
 /*%%
 package org.onemodel.core.controllers
 

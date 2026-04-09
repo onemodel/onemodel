@@ -34,7 +34,6 @@ impl MainMenu {
         db: Rc<RefCell<dyn Database>>,
         controller: Rc<Controller>,
     ) -> MainMenu {
-        //%%%%Result<(), anyhow::Error> {
         MainMenu { ui, db, controller }
     }
 
@@ -57,7 +56,7 @@ impl MainMenu {
                         format!("{}:{}:{}", file!(), line!(), column!()).as_str(),
                     );
                     let ans = self.ui.ask_yes_no_question(
-                        "Go back to what you were doing (vs. going out)?".to_string(),
+                        "Go back to what you were doing (vs. going out)?",
                         "y",
                         true,
                     );
@@ -72,7 +71,7 @@ impl MainMenu {
         }
     }
 
-    //%%bad smells: long method, with logical but bad-habit-forming unwrap()s?
+    //idea: fix bad smells: long method, with logical but bad-habit-forming unwrap()s?
     pub fn main_menu_helper(
         &self,
         entity_in: &Option<Entity>,           /*= None*/
@@ -87,8 +86,8 @@ impl MainMenu {
             ];
             let response = self.ui.ask_which(
                 None,
-                choices,
-                Vec::new(),
+                &choices,
+                &Vec::new(),
                 false,
                 Some(format!("{}{}", self.ui.how_quit(), " to quit").as_str()),
                 None,
@@ -101,7 +100,7 @@ impl MainMenu {
                 match answer {
                     1 => {
                         println!(
-                            "%%%%self.show_in_entity_menu_then_main_menu(
+                            "%%self.show_in_entity_menu_then_main_menu(
                             self.controller.ask_for_class_info_and_name_and_create_entity(
                                 self.db.clone(),
                                 None,
@@ -111,7 +110,7 @@ impl MainMenu {
                         Ok(())
                     }
                     2 => {
-                        println!("%%%%chooseorcreateobject");
+                        println!("%%chooseorcreateobject");
                         //let selection = self.controller.choose_or_create_object();
                         //    self.db.clone(),
                         //    None,
@@ -126,7 +125,7 @@ impl MainMenu {
                         //    None,
                         //    false,
                         //);
-                        ////%%%%rid of 2nd unwrap here?
+                        ////%%rid of 2nd unwrap here? (repl w/ ?;)
                         //if selection.is_some() {
                         //    let entity = Entity::new2(
                         //        self.db.clone(),
@@ -145,7 +144,6 @@ impl MainMenu {
                     }
                 }
             } else {
-                //%%test this, if user presses ESC or 0 (this else?)
                 Ok(())
             }
         } else if Entity::get_entity(self.db.clone(), None, entity_in.clone().unwrap().get_id())?
@@ -195,8 +193,8 @@ impl MainMenu {
             let response = if go_directly_to_choice.is_none() {
                 let ans = self.ui.ask_which(
                     Some(vec![leading_text]),
-                    choices,
-                    Vec::new(),
+                    &choices,
+                    &Vec::new(),
                     true,
                     Some(format!("{} to quit (anytime)", self.ui.how_quit()).as_str()),
                     None,
@@ -212,7 +210,7 @@ impl MainMenu {
                 match answer {
                     1 => {
                         println!(
-                            "%%%%self.show_in_entity_menu_then_main_menu(
+                            "%%self.show_in_entity_menu_then_main_menu(
                             self.controller.ask_for_class_info_and_name_and_create_entity(
                                 self.db.clone(),
                                 None,
@@ -222,7 +220,7 @@ impl MainMenu {
                     }
                     2 => {
                         println!(
-                            "%%%%self.show_in_entity_menu_then_main_menu(
+                            "%%self.show_in_entity_menu_then_main_menu(
                             self.controller.ask_for_name_and_write_entity(
                                 self.db.clone(),
                                 Util::RELATION_TYPE_TYPE,
@@ -239,7 +237,7 @@ impl MainMenu {
                     }
                     3 => {
                         println!(
-                            "%%%%
+                            "%%
                         let preferences_container_id = self.db.get_preferences_container_id(None)?;
                         let entity = Entity::new2(self.db.clone(), None, preferences_container_id)?;
                         EntityMenu::new(self.ui.clone(), self.controller.clone())
@@ -250,7 +248,7 @@ impl MainMenu {
                         );
                     }
                     4 => {
-                        println!("%%%%chooseobj");
+                        println!("%%chooseobj");
                         //let rt_id = self.controller.choose_or_create_object(
                         //    self.db.clone(),
                         //    None,
@@ -280,16 +278,15 @@ impl MainMenu {
                         //}
                     }
                     5 => {
-                        println!("%%%%g2eoisgm");
-                        //let (sub_entity_selected, _, _) =
-                        //    self.controller.go_to_entity_or_its_sole_groups_menu(
-                        //        entity,
-                        //        None,
-                        //        None,
-                        //    );
-                        //if sub_entity_selected.is_some() {
-                        //    self.main_menu(sub_entity_selected, None);
-                        //}
+                        let (sub_entity_selected, _, _) =
+                            self.controller.go_to_entity_or_its_sole_groups_menu(
+                                &entity,
+                                None,
+                                None,
+                            )?;
+                        if sub_entity_selected.is_some() {
+                            self.main_menu(sub_entity_selected, None);
+                        }
                     }
                     6 => {
                         println!("%%%%coco");
@@ -317,7 +314,7 @@ impl MainMenu {
                         //}
                     }
                     7 => {
-                        println!("%%%%coco");
+                        println!("%%coco");
                         //let class_id = self.controller.choose_or_create_object(
                         //    self.db.clone(),
                         //    None,
@@ -345,7 +342,7 @@ impl MainMenu {
                         //}
                     }
                     8 => {
-                        println!("%%%%coco");
+                        println!("%%coco");
                         //let om_instance_key = self.controller.choose_or_create_object(
                         //    self.db.clone(),
                         //    None,
@@ -362,7 +359,7 @@ impl MainMenu {
                         //);
                         //// (compare this to show_in_entity_menu_then_main_menu)
                         //if om_instance_key.is_some() {
-                        //    //%%%%is ui.clone needed here & in similar places?
+                        //    //%%is ui.clone needed here & in similar places?
                         //    let om_instance = OmInstance::new2(
                         //        self.db.clone(),
                         //        None,
@@ -388,7 +385,7 @@ impl MainMenu {
     }
 
     fn show_in_entity_menu_then_main_menu(&self, entity_in: Option<Entity>) {
-        println!("%%%%siemtmm");
+        println!("%%siemtmm");
         //if entity_in.is_some() {
         //    //idea: is there a better way to do this, maybe have a single entityMenu for the
         //    //class instead of new.. each time?
