@@ -27,11 +27,15 @@ pub struct OmInstance {
 }
 
 impl OmInstance {
-    fn address_length(&self) -> i32 {
-        self.db.borrow().om_instance_address_length()
+    //%%needed?
+    //pub fn address_length(&self) -> i32 {
+    //    self.db.borrow().om_instance_address_length()
+    //}
+    pub fn address_length(&self) -> i32 {
+        Database::om_instance_address_length(&*(self.db.borrow()))
     }
 
-    fn is_duplicate(
+    pub fn is_duplicate(
         db_in: &dyn Database,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         address_in: &str,
@@ -113,10 +117,13 @@ impl OmInstance {
         }
     }
 
-    /// When using, consider if get_archived_status_display_string should be called with it in the display (see usage examples of get_archived_status_display_string).
-    pub fn get_id(&self) -> Result<String, anyhow::Error> {
+    /// When using, consider if get_archived_status_display_string should be called with it in the 
+    /// display (see usage examples of get_archived_status_display_string).
+    //%%pub fn get_id(&self) -> Result<String, anyhow::Error> {
+    pub fn get_id(&self) -> String {
         // all creation methods ensure id exists, so no need to call read_data_from_db().
-        Ok(self.id.clone())
+        //Ok(self.id.clone())
+        self.id.clone()
     }
 
     fn get_local(&mut self) -> Result<bool, anyhow::Error> {
@@ -145,7 +152,7 @@ impl OmInstance {
         ))
     }
 
-    fn get_address(&mut self) -> Result<String, anyhow::Error> {
+    pub fn get_address(&mut self) -> Result<String, anyhow::Error> {
         if !self.already_read_data {
             self.read_data_from_db(None)?;
         }
@@ -167,7 +174,7 @@ impl OmInstance {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<(), anyhow::Error> {
         let data: Vec<Option<DataType>> =
-            self.db.borrow().get_om_instance_data(transaction, self.get_id()?)?;
+            self.db.borrow().get_om_instance_data(transaction, self.get_id())?;
         if data.len() == 0 {
             return Err(anyhow!(
                 "No results returned from data request for: {}",
@@ -197,7 +204,7 @@ impl OmInstance {
         Ok(())
     }
 
-    fn get_display_string(&mut self) -> Result<String, anyhow::Error> {
+    pub fn get_display_string(&mut self) -> Result<String, anyhow::Error> {
         let addr = self.get_address()?;
         let date = self.get_creation_date_formatted(None)?;
         Ok(format!(
@@ -209,7 +216,7 @@ impl OmInstance {
         ))
     }
 
-    fn update(
+    pub fn update(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         new_address: String,
@@ -217,7 +224,7 @@ impl OmInstance {
         let entity_id = self.get_entity_id(transaction.clone())?;
         self.db.borrow().update_om_instance(
             transaction.clone(),
-            self.get_id()?,
+            self.get_id(),
             new_address,
             entity_id,
         )
@@ -228,6 +235,6 @@ impl OmInstance {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<u64, Error> {
         self.db.borrow()
-            .delete_om_instance(transaction, self.get_id()?.as_str())
+            .delete_om_instance(transaction, self.get_id().as_str())
     }
 }

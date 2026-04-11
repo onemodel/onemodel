@@ -36,7 +36,7 @@ use std::rc::Rc;
 impl PostgreSQLDatabase {
     // Moved methods that are not part of the Database trait go here
     // or in postgresql_database.rs (they are split to make smaller files,
-    // for parsing speed during intellij editing).
+    // for rust-analyzer speed during editing or compiler for compiling).
 
     pub fn limit_to_entities_only(select_column_names: &str) -> String {
         // IN MAINTENANCE: compare to logic in method get_entities_used_as_attribute_types_sql, and related/similar logic near the top of
@@ -600,7 +600,7 @@ impl PostgreSQLDatabase {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
-        limit_in: Option<i64>, /*= None*/
+        limit_in: Option<u64>, /*= None*/
     ) -> Result<Vec<Vec<Option<DataType>>>, anyhow::Error> {
         // see comments in get_group_entries_data
         self.db_query(transaction, format!("select attribute_form_id, attribute_id, sorting_index from AttributeSorting where \
@@ -608,7 +608,7 @@ impl PostgreSQLDatabase {
                       "Int,i64,i64")
     }
 
-    pub fn check_if_should_be_all_results(max_vals_in: Option<i64>) -> String {
+    pub fn check_if_should_be_all_results(max_vals_in: Option<u64>) -> String {
         match max_vals_in {
             None => "ALL".to_string(),
             Some(x) if x <= 0 => "1".to_string(),
@@ -941,7 +941,7 @@ impl PostgreSQLDatabase {
 
     pub fn get_entities_used_as_attribute_types_sql(
         &self,
-        attribute_type_in: String,
+        attribute_type_in: &str,
         quantity_seeks_unit_not_type_in: bool,
     ) -> Result<String, anyhow::Error> {
         // whether it is archived doesn't seem relevant in the use case, but, it is debatable:
@@ -954,11 +954,11 @@ impl PostgreSQLDatabase {
             // IN MAINTENANCE: compare to logic in method limit_to_entities_only.
             if Util::QUANTITY_TYPE == attribute_type_in && quantity_seeks_unit_not_type_in {
                 "unit_id"
-            } else if Util::NON_RELATION_ATTR_TYPE_NAMES.contains(&attribute_type_in.as_str()) {
+            } else if Util::NON_RELATION_ATTR_TYPE_NAMES.contains(&attribute_type_in) {
                 "attr_type_id"
             } else if Util::RELATION_TYPE_TYPE == attribute_type_in {
                 "entity_id"
-            } else if Util::RELATION_ATTR_TYPE_NAMES.contains(&attribute_type_in.as_str()) {
+            } else if Util::RELATION_ATTR_TYPE_NAMES.contains(&attribute_type_in) {
                 "rel_type_id"
             } else {
                 return Err(anyhow!(
@@ -968,8 +968,8 @@ impl PostgreSQLDatabase {
             }
         };
         let mut sql: String = format!(" from Entity e where e.id in (select {} from ", id_type);
-        if Util::NON_RELATION_ATTR_TYPE_NAMES.contains(&attribute_type_in.as_str())
-            || Util::RELATION_ATTR_TYPE_NAMES.contains(&attribute_type_in.as_str())
+        if Util::NON_RELATION_ATTR_TYPE_NAMES.contains(&attribute_type_in)
+            || Util::RELATION_ATTR_TYPE_NAMES.contains(&attribute_type_in)
         {
             // it happens to match the table name, which is convenient:
             sql = format!("{}{})", sql, attribute_type_in);
@@ -1000,8 +1000,8 @@ impl PostgreSQLDatabase {
         &self,
         db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        starting_object_index_in: i64,
-        max_vals_in: Option<i64>,
+        starting_object_index_in: u64,
+        max_vals_in: Option<u64>,
         table_name_in: &str,
         class_id_in: Option<i64>,         /*= None*/
         limit_by_class: bool,             /*= false*/

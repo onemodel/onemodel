@@ -586,6 +586,11 @@ impl Attribute for FileAttribute {
         self.db.borrow().delete_file_attribute(transaction, self.id)
     }
 
+    // (See comment on fn get_id about no call to read_data_from_db().)
+    fn get_db(&self) -> Rc<RefCell<dyn Database>> {
+        self.db.clone()
+    }
+
     // This datum is provided upon construction (new2(), at minimum), so can be returned
     // regardless of already_read_data / read_data_from_db().
     fn get_id(&self) -> i64 {

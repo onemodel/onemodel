@@ -106,7 +106,7 @@ impl BooleanAttribute {
         Ok(self.boolean_value)
     }
 
-    fn update(
+    pub fn update(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         attr_type_id_in: i64,
@@ -238,6 +238,11 @@ impl Attribute for BooleanAttribute {
     // fn get_id_wrapper(&self) -> IdWrapper {
     //     IdWrapper::new(self.id)
     // }
+
+    // (See comment on fn get_id about no call to read_data_from_db().)
+    fn get_db(&self) -> Rc<RefCell<dyn Database>> {
+        self.db.clone()
+    }
 
     // This datum is provided upon construction (new2(), at minimum), so can be returned
     // regardless of already_read_data / read_data_from_db().

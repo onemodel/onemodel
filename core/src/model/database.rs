@@ -20,6 +20,7 @@ use crate::util::Util;
 use anyhow::anyhow;
 //use mockall::{automock, mock, predicate::*};
 use sqlx::{Postgres, Transaction};
+use std::any::{Any}; //%%, TypeId};
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::rc::Rc;
@@ -87,6 +88,7 @@ pub trait Database {
     // is needed, maybe it should be put in a TextAttribute and make those more convenient to use, instead.
     // (See usages. The DNS hostname max size seems to be 255 plus 1 null, but the ":<port>" part could add 6 more chars (they seem to go up to :65535).
     // Idea: Maybe someday we will have to move to a larger or flexible size in case it changes or uses unicode or I don't know what.)
+    // The "&self" parameter is required so that Database can be dyn compatible.
     fn om_instance_address_length(&self) -> i32 {
         262
     }
@@ -94,6 +96,7 @@ pub trait Database {
     /// This has &self as a parameter to avoid a compiler error about Database not being able to
     /// be made into an object, unless it is there.
     fn get_attribute_form_id(&self, key: &str) -> Result<i32, anyhow::Error> {
+    //fn get_attribute_form_id(key: &str) -> Result<i32, anyhow::Error> {
         //MAKE SURE THESE MATCH WITH THOSE IN attribute_key_exists and get_attribute_form_name, and the range in the db constraint valid_attribute_form_id ,
         // and in RestDatabase.process_array_of_tuples_and_int !
         let res = match key {
@@ -312,20 +315,6 @@ pub trait Database {
           pub fn getRestDatabase(remoteAddressIn: String) -> RestDatabase {
             new RestDatabase(remoteAddressIn)
           }
-
-          //%%should this be here or somewhere else, given what it depends on? See where used.
-          pub fn currentOrRemoteDb(relationToEntityIn: Attribute, currentDb: Database) -> Database {
-            require(relationToEntityIn.isInstanceOf[RelationToLocalEntity] || relationToEntityIn.isInstanceOf[RelationToRemoteEntity])
-
-            // Can't use ".is_remote" here because a RelationToRemoteEntity is stored locally (so would say false),
-            // but refers to an entity which is remote (so we want the next line to be true in that case):
-            //noinspection TypeCheckCanBeMatch
-            if relationToEntityIn.isInstanceOf[RelationToRemoteEntity]) {
-              relationToEntityIn.asInstanceOf[RelationToRemoteEntity].getRemoteDatabase
-            } else if relationToEntityIn.isInstanceOf[RelationToLocalEntity]) {
-              currentDb
-            } else throw new OmDatabaseException("Unexpected type: " + relationToEntityIn.getClass.getCanonicalName)
-          }
     */
 
     /// %%Many of these methods were marked "protected[model]" in scala, for 2 reasons:
@@ -459,7 +448,7 @@ pub trait Database {
         starting_object_index_in: usize, /*= 0*/
         max_vals_in: usize,              /*= 0*/
         only_public_entities_in: bool,   /*= true*/
-    ) -> Result<(Vec<(i64, Rc<dyn Attribute>)>, usize), anyhow::Error>;
+    ) -> Result<(Vec<(i64, Rc<RefCell<dyn Attribute>>)>, usize), anyhow::Error>;
     fn get_relation_type_data(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
@@ -539,7 +528,7 @@ pub trait Database {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         group_id_in: i64,
         starting_object_index_in: i64,
-        max_vals_in: Option<i64>, /*= None*/
+        max_vals_in: Option<u64>, /*= None*/
                                   //) -> Result<Vec<Entity>, anyhow::Error>;
     ) -> Result<Vec<i64>, anyhow::Error>;
     fn get_highest_sorting_index_for_group(
@@ -563,7 +552,7 @@ pub trait Database {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         group_id_in: i64,
-        limit_in: Option<i64>,              /*= None*/
+        limit_in: Option<u64>,              /*= None*/
         include_archived_entities_in: bool, /*= true*/
     ) -> Result<Vec<Vec<Option<DataType>>>, anyhow::Error>;
     fn find_relation_to_and_group_on_entity(
@@ -577,7 +566,7 @@ pub trait Database {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         group_id_in: i64,
         starting_index_in: i64,
-        max_vals_in: Option<i64>, /*= None*/
+        max_vals_in: Option<u64>, /*= None*/
                                   //) -> Result<Vec<(i64, Entity)>, anyhow::Error>;
     ) -> Result<Vec<(i64, i64)>, anyhow::Error>;
     fn get_count_of_entities_containing_group(
@@ -616,7 +605,7 @@ pub trait Database {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: Option<i64>, /*= None*/
-    ) -> Result<usize, anyhow::Error>;
+    ) -> Result<u64, anyhow::Error>;
     //) -> Result<u64, anyhow::Error>;
     fn get_class_name(
         &self,
@@ -638,7 +627,7 @@ pub trait Database {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         group_id_in: i64,
-        limit_in: Option<i64>, /*= Some(5)*/
+        limit_in: Option<u64>, /*= Some(5)*/
     ) -> Result<Vec<Vec<Option<DataType>>>, anyhow::Error>;
     fn is_entity_in_group(
         &self,
@@ -651,7 +640,7 @@ pub trait Database {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         group_id_in: i64,
         sorting_index_in: i64,
-        limit_in: Option<i64>, /*= None*/
+        limit_in: Option<u64>, /*= None*/
         forward_not_back_in: bool,
     ) -> Result<Vec<Vec<Option<DataType>>>, anyhow::Error>;
     fn get_nearest_group_entrys_sorting_index(
@@ -666,7 +655,7 @@ pub trait Database {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
         sorting_index_in: i64,
-        limit_in: Option<i64>,
+        limit_in: Option<u64>,
         forward_not_back_in: bool,
     ) -> Result<Vec<Vec<Option<DataType>>>, anyhow::Error>;
     fn get_nearest_attribute_entrys_sorting_index(
@@ -731,7 +720,7 @@ pub trait Database {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
         starting_index_in: i64,
-        max_vals_in: Option<i64>, /*= None*/
+        max_vals_in: Option<u64>, /*= None*/
                                   //) -> Result<Vec<(i64, Entity)>, anyhow::Error>;
     ) -> Result<Vec<(i64, i64)>, anyhow::Error>;
     fn get_count_of_groups_containing_entity(
@@ -749,8 +738,8 @@ pub trait Database {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
-        starting_index_in: i64,
-        max_vals_in: Option<i64>, /*= None*/
+        starting_index_in: u64,
+        max_vals_in: Option<u64>, /*= None*/
                                   //) -> Result<Vec<RelationToGroup>, anyhow::Error>;
     ) -> Result<Vec<(i64, i64, i64, i64, Option<i64>, i64, i64)>, anyhow::Error>;
     //%% fn get_should_create_default_attributes(&self, transaction: &Option<&mut Transaction<Postgres>>, class_id_in: i64) -> Result<Option<bool>, anyhow::Error>;
@@ -783,14 +772,14 @@ pub trait Database {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
-        limit_in: Option<i64>, /*= None*/
+        limit_in: Option<u64>, /*= None*/
     ) -> Result<Vec<String>, anyhow::Error>;
     fn get_matching_entities(
         &self,
         db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        starting_object_index_in: i64,
-        max_vals_in: Option<i64>, /*= None*/
+        starting_object_index_in: u64,
+        max_vals_in: Option<u64>, /*= None*/
         omit_entity_id_in: Option<i64>,
         name_regex_in: String,
     ) -> Result<Vec<Entity>, anyhow::Error>;
@@ -798,8 +787,8 @@ pub trait Database {
         &self,
         db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        starting_object_index_in: i64,
-        max_vals_in: Option<i64>, /*= None*/
+        starting_object_index_in: u64,
+        max_vals_in: Option<u64>, /*= None*/
         omit_group_id_in: Option<i64>,
         name_regex_in: String,
     ) -> Result<Vec<Group>, anyhow::Error>;
@@ -807,7 +796,7 @@ pub trait Database {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         group_id_in: i64,
-        starting_index_in: i64,
+        starting_index_in: u64,
         max_vals_in: Option<u64>, /*= None*/
                                   //) -> Result<Vec<RelationToGroup>, anyhow::Error>;
     ) -> Result<Vec<(i64, i64, i64, i64, Option<i64>, i64, i64)>, anyhow::Error>;
@@ -815,15 +804,15 @@ pub trait Database {
         &self,
         db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        starting_object_index_in: i64,
-        max_vals_in: Option<i64>, /*= None*/
+        starting_object_index_in: u64,
+        max_vals_in: Option<u64>, /*= None*/
     ) -> Result<Vec<Entity>, anyhow::Error>;
     fn get_entities_only(
         &self,
         db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        starting_object_index_in: i64,
-        max_vals_in: Option<i64>,         /*= None*/
+        starting_object_index_in: u64,
+        max_vals_in: Option<u64>,         /*= None*/
         class_id_in: Option<i64>,         /*= None*/
         limit_by_class: bool,             /*= false*/
         template_entity: Option<i64>,     /*= None*/
@@ -832,31 +821,31 @@ pub trait Database {
     fn get_count_of_entities_used_as_attribute_types(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        object_type_in: String,
+        object_type_in: &str,
         quantity_seeks_unit_not_type_in: bool,
     ) -> Result<u64, anyhow::Error>;
     fn get_entities_used_as_attribute_types(
         &self,
         db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        object_type_in: String,
-        starting_object_index_in: i64,
+        object_type_in: &str,
+        starting_object_index_in: u64,
         quantity_seeks_unit_not_type_in: bool,
-        max_vals_in: Option<i64>, /*= None*/
+        max_vals_in: Option<u64>, /*= None*/
     ) -> Result<Vec<Entity>, anyhow::Error>;
     fn get_relation_types(
         &self,
         db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        starting_object_index_in: i64,
-        max_vals_in: Option<i64>, /*= None*/
+        starting_object_index_in: u64,
+        max_vals_in: Option<u64>, /*= None*/
     ) -> Result<Vec<RelationType>, anyhow::Error>;
     fn get_classes(
         &self,
         db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        starting_object_index_in: i64,
-        max_vals_in: Option<i64>, /*= None*/
+        starting_object_index_in: u64,
+        max_vals_in: Option<u64>, /*= None*/
     ) -> Result<Vec<EntityClass>, anyhow::Error>;
     fn get_relation_type_count(
         &self,
@@ -875,7 +864,7 @@ pub trait Database {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         start_time_in: i64,
         end_time_in: i64,
-        limit_in: Option<i64>, /*= None*/
+        limit_in: Option<u64>, /*= None*/
     ) -> Result<Vec<(i64, String, i64)>, anyhow::Error>;
     fn get_group_count(
         &self,
@@ -885,8 +874,8 @@ pub trait Database {
         &self,
         db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        starting_object_index_in: i64,
-        max_vals_in: Option<i64>,         /*= None*/
+        starting_object_index_in: u64,
+        max_vals_in: Option<u64>,         /*= None*/
         group_to_omit_id_in: Option<i64>, /*= None*/
     ) -> Result<Vec<Group>, anyhow::Error>;
     fn create_group(

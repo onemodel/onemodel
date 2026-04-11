@@ -2917,12 +2917,12 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         template_entity_id_in: Option<i64>, /*= None*/
-    ) -> Result<usize, anyhow::Error> {
+    ) -> Result<u64, anyhow::Error> {
         let where_clause = match template_entity_id_in {
             Some(x) => format!(" where defining_entity_id={}", x),
             _ => "".to_string(),
         };
-        let cnt: usize = self
+        let cnt: u64 = self
             .extract_row_count_from_count_query(
                 transaction,
                 format!("SELECT count(1) from class{}", where_clause).as_str(),
@@ -3325,7 +3325,7 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         group_id_in: i64,
-        _starting_index_in: i64,
+        _starting_index_in: u64,
         _max_vals_in: Option<u64>, /*= None*/
                                    //) -> Result<Vec<RelationToGroup>, anyhow::Error> {
     ) -> Result<Vec<(i64, i64, i64, i64, Option<i64>, i64, i64)>, anyhow::Error> {
@@ -3450,7 +3450,7 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
-        limit_in: Option<i64>, /*= None*/
+        limit_in: Option<u64>, /*= None*/
     ) -> Result<Vec<String>, anyhow::Error> {
         let omit_archived = if !self.include_archived_entities {
             "(not archived) and "
@@ -3488,7 +3488,7 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         group_id_in: i64,
-        limit_in: Option<i64>, /*= Some(5)*/
+        limit_in: Option<u64>, /*= Some(5)*/
     ) -> Result<Vec<Vec<Option<DataType>>>, anyhow::Error> {
         //get every entity that contains a rtg that contains this group:
         let limit = Self::check_if_should_be_all_results(limit_in);
@@ -3532,7 +3532,7 @@ impl Database for PostgreSQLDatabase {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         start_time_in: i64,
         end_time_in: i64,
-        limit_in: Option<i64>, /*= None*/
+        limit_in: Option<u64>, /*= None*/
     ) -> Result<Vec<(i64, String, i64)>, anyhow::Error> {
         let limit = Self::check_if_should_be_all_results(limit_in);
         let rows: Vec<Vec<Option<DataType>>> = self.db_query(transaction,
@@ -4202,8 +4202,8 @@ impl Database for PostgreSQLDatabase {
         &self,
         db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        starting_object_index_in: i64,
-        max_vals_in: Option<i64>, /*= None*/
+        starting_object_index_in: u64,
+        max_vals_in: Option<u64>, /*= None*/
     ) -> Result<Vec<Entity>, anyhow::Error> {
         self.get_entities_generic(
             db,
@@ -4235,8 +4235,8 @@ impl Database for PostgreSQLDatabase {
         &self,
         db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        starting_object_index_in: i64,
-        max_vals_in: Option<i64>,         /*= None*/
+        starting_object_index_in: u64,
+        max_vals_in: Option<u64>,         /*= None*/
         class_id_in: Option<i64>,         /*= None*/
         limit_by_class: bool,             /*= false*/
         template_entity: Option<i64>,     /*= None*/
@@ -4264,8 +4264,8 @@ impl Database for PostgreSQLDatabase {
         &self,
         db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        starting_object_index_in: i64,
-        max_vals_in: Option<i64>,
+        starting_object_index_in: u64,
+        max_vals_in: Option<u64>,
     ) -> Result<Vec<RelationType>, anyhow::Error> {
         let some_sql = ", r.name_in_reverse_direction, r.directionality ";
         let more = " from Entity e ";
@@ -4373,8 +4373,8 @@ impl Database for PostgreSQLDatabase {
         &self,
         db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        starting_object_index_in: i64,
-        max_vals_in: Option<i64>, /*= None*/
+        starting_object_index_in: u64,
+        max_vals_in: Option<u64>, /*= None*/
         omit_entity_id_in: Option<i64>,
         name_regex_in: String,
     ) -> Result<Vec<Entity>, anyhow::Error> {
@@ -4423,8 +4423,8 @@ impl Database for PostgreSQLDatabase {
         &self,
         db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        starting_object_index_in: i64,
-        max_vals_in: Option<i64>, /*= None*/
+        starting_object_index_in: u64,
+        max_vals_in: Option<u64>, /*= None*/
         omit_group_id_in: Option<i64>,
         name_regex_in: String,
     ) -> Result<Vec<Group>, anyhow::Error> {
@@ -4463,7 +4463,7 @@ impl Database for PostgreSQLDatabase {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
         starting_index_in: i64,
-        max_vals_in: Option<i64>, /*= None*/
+        max_vals_in: Option<u64>, /*= None*/
                                   //) -> Result<Vec<(i64, Entity)>, anyhow::Error> {
     ) -> Result<Vec<(i64, i64)>, anyhow::Error> {
         let not_archived = if !self.include_archived_entities {
@@ -4486,7 +4486,7 @@ impl Database for PostgreSQLDatabase {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         group_id_in: i64,
         starting_index_in: i64,
-        max_vals_in: Option<i64>, /*= None*/
+        max_vals_in: Option<u64>, /*= None*/
                                   //) -> Result<Vec<(i64, Entity)>, anyhow::Error> {
     ) -> Result<Vec<(i64, i64)>, anyhow::Error> {
         let sql = format!("select rel_type_id, entity_id from relationtogroup where group_id={}  order by entity_id, rel_type_id \
@@ -4539,8 +4539,8 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
-        starting_index_in: i64,
-        max_vals_in: Option<i64>, /*= None*/
+        starting_index_in: u64,
+        max_vals_in: Option<u64>, /*= None*/
                                   //) -> Result<Vec<RelationToGroup>, anyhow::Error> {
     ) -> Result<Vec<(i64, i64, i64, i64, Option<i64>, i64, i64)>, anyhow::Error> {
         // BUG (tracked in tasks): there is a disconnect here between this method and its _helper method, because one uses the eig table, the other the rtg table,
@@ -4631,7 +4631,7 @@ impl Database for PostgreSQLDatabase {
     fn get_count_of_entities_used_as_attribute_types(
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        attribute_type_in: String,
+        attribute_type_in: &str,
         quantity_seeks_unit_not_type_in: bool,
     ) -> Result<u64, anyhow::Error> {
         let entities_sql = self.get_entities_used_as_attribute_types_sql(
@@ -4646,10 +4646,10 @@ impl Database for PostgreSQLDatabase {
         &self,
         db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        attribute_type_in: String,
-        _starting_object_index_in: i64,
+        attribute_type_in: &str,
+        _starting_object_index_in: u64,
         quantity_seeks_unit_not_type_in: bool,
-        _max_vals_in: Option<i64>, /*= None*/
+        _max_vals_in: Option<u64>, /*= None*/
     ) -> Result<Vec<Entity>, anyhow::Error> {
         let sql = format!(
             "{}{}",
@@ -4692,8 +4692,8 @@ impl Database for PostgreSQLDatabase {
         &self,
         db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        starting_object_index_in: i64,
-        max_vals_in: Option<i64>,         /*= None*/
+        starting_object_index_in: u64,
+        max_vals_in: Option<u64>,         /*= None*/
         group_to_omit_id_in: Option<i64>, /*= None*/
     ) -> Result<Vec<Group>, anyhow::Error> {
         let omission_expression: String = match group_to_omit_id_in {
@@ -4757,8 +4757,8 @@ impl Database for PostgreSQLDatabase {
         &self,
         db: Rc<RefCell<dyn Database>>,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
-        starting_object_index_in: i64,
-        max_vals_in: Option<i64>, // = None
+        starting_object_index_in: u64,
+        max_vals_in: Option<u64>, // = None
     ) -> Result<Vec<EntityClass>, anyhow::Error> {
         let sql: String = format!(
             "SELECT id, name, defining_entity_id, create_default_attributes from class order by id limit {} offset {}",
@@ -4803,7 +4803,7 @@ impl Database for PostgreSQLDatabase {
         &self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         group_id_in: i64,
-        limit_in: Option<i64>,              /*= None*/
+        limit_in: Option<u64>,              /*= None*/
         include_archived_entities_in: bool, /*= true*/
     ) -> Result<Vec<Vec<Option<DataType>>>, anyhow::Error> {
         // LIKE THE OTHER 3 BELOW SIMILAR METHODS:
@@ -4829,7 +4829,7 @@ impl Database for PostgreSQLDatabase {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         group_id_in: i64,
         sorting_index_in: i64,
-        limit_in: Option<i64>, /*= None*/
+        limit_in: Option<u64>, /*= None*/
         forward_not_back_in: bool,
     ) -> Result<Vec<Vec<Option<DataType>>>, anyhow::Error> {
         // see comments in get_group_entries_data.
@@ -4860,7 +4860,7 @@ impl Database for PostgreSQLDatabase {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         entity_id_in: i64,
         sorting_index_in: i64,
-        limit_in: Option<i64>,
+        limit_in: Option<u64>,
         forward_not_back_in: bool,
     ) -> Result<Vec<Vec<Option<DataType>>>, anyhow::Error> {
         // (See comments in getAdjacentGroupEntriesSortingIndexes, at least about the "...archived..." stuff.)
@@ -5002,7 +5002,7 @@ impl Database for PostgreSQLDatabase {
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         group_id_in: i64,
         starting_object_index_in: i64,
-        max_vals_in: Option<i64>, /*= None*/
+        max_vals_in: Option<u64>, /*= None*/
     ) -> Result<Vec<i64>, anyhow::Error> {
         let not_archived = if !self.include_archived_entities {
             " and (not e.archived) "
@@ -5519,8 +5519,8 @@ impl Database for PostgreSQLDatabase {
         starting_object_index_in: usize, // = 0
         max_vals_in: usize,              // = 0
         only_public_entities_in: bool,   // = true
-    ) -> Result<(Vec<(i64, Rc<dyn Attribute>)>, usize), anyhow::Error> {
-        let mut all_results: Vec<(Option<i64>, Rc<dyn Attribute>)> = Vec::new();
+    ) -> Result<(Vec<(i64, Rc<RefCell<dyn Attribute>>)>, usize), anyhow::Error> {
+        let mut all_results: Vec<(Option<i64>, Rc<RefCell<dyn Attribute>>)> = Vec::new();
         // First select the counts from each table, keep a running total so we know when to select
         // attributes (compared to starting_object_index_in) and when to stop.
         let tables = vec![
@@ -5681,7 +5681,7 @@ impl Database for PostgreSQLDatabase {
                     let sorting_index = Util::get_value_bigint_option("result[0]", &result[0])?;
                     all_results.push((
                         sorting_index,
-                        Rc::new(QuantityAttribute::new(
+                        Rc::new(RefCell::new(QuantityAttribute::new(
                             db.clone(),
                             Util::get_value_bigint("result[1]", &result[1])?,
                             Util::get_value_bigint("result[2]", &result[2])?,
@@ -5692,12 +5692,12 @@ impl Database for PostgreSQLDatabase {
                             Util::get_value_bigint("result[7]", &result[7])?,
                             Util::get_value_bigint("result[0]", &result[0])?,
                         )),
-                    ));
+                    )));
                 } else if table_name == Util::TEXT_TYPE {
                     let sorting_index = Util::get_value_bigint_option("result[0]", &result[0])?;
                     all_results.push((
                         sorting_index,
-                        Rc::new(TextAttribute::new(
+                        Rc::new(RefCell::new(TextAttribute::new(
                             db.clone(),
                             Util::get_value_bigint("result[1]", &result[1])?,
                             Util::get_value_bigint("result[2]", &result[2])?,
@@ -5706,26 +5706,26 @@ impl Database for PostgreSQLDatabase {
                             Util::get_value_bigint_option("result[5]", &result[5])?,
                             Util::get_value_bigint("result[6]", &result[6])?,
                             Util::get_value_bigint("result[0]", &result[0])?,
-                        )),
+                        ))),
                     ));
                 } else if table_name == Util::DATE_TYPE {
                     let sorting_index = Util::get_value_bigint_option("result[0]", &result[0])?;
                     all_results.push((
                         sorting_index,
-                        Rc::new(DateAttribute::new(
+                        Rc::new(RefCell::new(DateAttribute::new(
                             db.clone(),
                             Util::get_value_bigint("result[1]", &result[1])?,
                             Util::get_value_bigint("result[2]", &result[2])?,
                             Util::get_value_bigint("result[3]", &result[3])?,
                             Util::get_value_bigint("result[4]", &result[4])?,
                             Util::get_value_bigint("result[0]", &result[0])?,
-                        )),
+                        ))),
                     ));
                 } else if table_name == Util::BOOLEAN_TYPE {
                     let sorting_index = Util::get_value_bigint_option("result[0]", &result[0])?;
                     all_results.push((
                         sorting_index,
-                        Rc::new(BooleanAttribute::new(
+                        Rc::new(RefCell::new(BooleanAttribute::new(
                             db.clone(),
                             Util::get_value_bigint("result[1]", &result[1])?,
                             Util::get_value_bigint("result[2]", &result[2])?,
@@ -5734,13 +5734,13 @@ impl Database for PostgreSQLDatabase {
                             Util::get_value_bigint_option("result[5]", &result[5])?,
                             Util::get_value_bigint("result[6]", &result[6])?,
                             Util::get_value_bigint("result[0]", &result[0])?,
-                        )),
+                        ))),
                     ));
                 } else if table_name == Util::FILE_TYPE {
                     let sorting_index = Util::get_value_bigint_option("result[0]", &result[0])?;
                     all_results.push((
                         sorting_index,
-                        Rc::new(FileAttribute::new(
+                        Rc::new(RefCell::new(FileAttribute::new(
                             db.clone(),
                             Util::get_value_bigint("result[1]", &result[1])?,
                             Util::get_value_bigint("result[2]", &result[2])?,
@@ -5755,13 +5755,13 @@ impl Database for PostgreSQLDatabase {
                             Util::get_value_bigint("result[11]", &result[11])?,
                             Util::get_value_string("result[12]", &result[12])?,
                             Util::get_value_bigint("result[0]", &result[0])?,
-                        )),
+                        ))),
                     ));
                 } else if table_name == Util::RELATION_TO_LOCAL_ENTITY_TYPE {
                     let sorting_index = Util::get_value_bigint_option("result[0]", &result[0])?;
                     all_results.push((
                         sorting_index,
-                        Rc::new(RelationToLocalEntity::new(
+                        Rc::new(RefCell::new(RelationToLocalEntity::new(
                             db.clone(),
                             Util::get_value_bigint("result[1]", &result[1])?,
                             Util::get_value_bigint("result[2]", &result[2])?,
@@ -5770,13 +5770,13 @@ impl Database for PostgreSQLDatabase {
                             Util::get_value_bigint_option("result[5]", &result[5])?,
                             Util::get_value_bigint("result[6]", &result[6])?,
                             Util::get_value_bigint("result[0]", &result[0])?,
-                        )),
+                        ))),
                     ));
                 } else if table_name == Util::RELATION_TO_GROUP_TYPE {
                     let sorting_index = Util::get_value_bigint_option("result[0]", &result[0])?;
                     all_results.push((
                         sorting_index,
-                        Rc::new(RelationToGroup::new(
+                        Rc::new(RefCell::new(RelationToGroup::new(
                             db.clone(),
                             Util::get_value_bigint("result[1]", &result[1])?,
                             Util::get_value_bigint("result[2]", &result[2])?,
@@ -5785,7 +5785,7 @@ impl Database for PostgreSQLDatabase {
                             Util::get_value_bigint_option("result[5]", &result[5])?,
                             Util::get_value_bigint("result[6]", &result[6])?,
                             Util::get_value_bigint("result[0]", &result[0])?,
-                        )),
+                        ))),
                     ));
                 } else if table_name == Util::RELATION_TO_REMOTE_ENTITY_TYPE {
                     unimplemented!(); //%%needs the RTRE to be converted w/ a new().
@@ -5794,7 +5794,7 @@ impl Database for PostgreSQLDatabase {
                                       //let sorting_index = Util::get_value_bigint_option("result[1]", &result[1])?;
                                       //all_results.push((
                                       //    sorting_index,
-                                      //    Rc::new(RelationToRemoteEntity::new(
+                                      //    Rc::new(RefCell::new(RelationToRemoteEntity::new(
                                       //        db.clone(),
                                       //        Util::get_value_bigint("result[1]", &result[1])?,
                                       //        Util::get_value_bigint("result[2]", &result[2])?,
@@ -5816,7 +5816,7 @@ impl Database for PostgreSQLDatabase {
                                       //        //},
                                       //        //result[7].clone().unwrap().as_bigint()?,
                                       //        //result[0].clone().unwrap().as_bigint()?,
-                                      //    )),
+                                      //    ))),
                                       //));
                 } else {
                     return Err(anyhow::anyhow!("invalid table type?: '{}'", table_name));
@@ -5841,7 +5841,7 @@ impl Database for PostgreSQLDatabase {
             all_results.len()
         );
 
-        let mut all_results_array: Vec<(i64, Rc<dyn Attribute>)> =
+        let mut all_results_array: Vec<(i64, Rc<RefCell<dyn Attribute>>)> =
             Vec::with_capacity(all_results.len());
 
         for (sorting_index, attribute) in all_results {
@@ -5862,7 +5862,7 @@ impl Database for PostgreSQLDatabase {
             all_results_array.len()
         };
         let until = std::cmp::min(starting_object_index_in + num_vals, all_results_array.len());
-        let mut return_attrs: Vec<(i64, Rc<dyn Attribute>)> = Vec::new();
+        let mut return_attrs: Vec<(i64, Rc<RefCell<dyn Attribute>>)> = Vec::new();
         for (sorting_index, attr) in all_results_array[starting_object_index_in..until].iter() {
             return_attrs.push((*sorting_index, attr.clone()));
         }

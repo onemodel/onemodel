@@ -11,6 +11,7 @@
 // use chrono::LocalResult;
 // use chrono::prelude::*;
 // use crate::util::Util;
+use crate::model::database::Database;
 use crate::model::entity::Entity;
 // use crate::model::id_wrapper::IdWrapper;
 use crate::model::relation_type::RelationType;
@@ -41,7 +42,6 @@ pub trait Attribute {
     // Idea: somehow use language features better to make it cleaner, so we don't need these extra 2 vars, because they are
     // used in 1-2 instances, and ignored in the rest.  One thing is that RelationTo[Local|Remote]Entity and RelationToGroup
     // are Attributes. Should they be?
-
     fn get_display_string(
         &mut self,
         in_length_limit: usize,
@@ -62,6 +62,8 @@ pub trait Attribute {
 
     //looks unused except for Entity and EntityClass
     // fn get_id_wrapper(&self) -> IdWrapper;
+
+    fn get_db(&self) -> Rc<RefCell<dyn Database>>;
 
     fn get_id(&self) -> i64;
 

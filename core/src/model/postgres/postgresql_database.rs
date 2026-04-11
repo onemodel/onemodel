@@ -45,7 +45,7 @@ pub struct PostgreSQLDatabase {
 impl PostgreSQLDatabase {
     // Moved methods that are not part of the Database trait go here
     // or in postgresql_database2.rs (split up to make smaller files,
-    // for parsing speed during intellij editing).
+    // for rust-analyzer speed during editing or compiler for compiling).
 
     pub const SCHEMA_VERSION: i32 = 7;
     pub const ENTITY_ONLY_SELECT_PART: &'static str = "SELECT e.id";
@@ -411,8 +411,9 @@ impl PostgreSQLDatabase {
          */
         // we don't have to do much: see the odd string that works ok, searching for "!@#$%" etc in PostgreSQLDatabaseTest.
         result = result.replace("'", "\\39");
-        // there is probably a different/better/right way to do this, possibly using the psql functions quote_literal or quote_null,
-        // or maybe using "escape" string constants (a postgresql extension to the sql standard). But it needs some thought, and maybe
+        // there is probably a different/better/right way to do this, possibly using the psql 
+        // functions quote_literal or quote_null, or maybe using "escape" string constants (a postgresql 
+        // extension to the sql standard). But it needs some thought, and maybe
         // this will work for now, unless someone needs to access the DB in another form. Kludgy, yes. It's on the fix list.
         result = result.replace(";", "\\59");
         result
@@ -860,21 +861,24 @@ impl PostgreSQLDatabase {
             false,
         )?;
 
-        // this table "inherits" from Entity (each relation type is an Entity) but we use homegrown "inheritance" for that to make it
-        // easier to port to databases that don't have postgresql-like inheritance built in. It inherits from Entity so that as Entity
-        // expands (i.e., context-based naming or whatever), we'll automatically get the benefits, in objects based on this table (at least
-        // that's the idea at this moment...) --Luke Call 8/2003.  Update:  That may have been a mistake--more of a nuisance to coordinate
-        // them than having 2 tables (luke, 2013-11-1).
-        // inherits from Entity; see RelationConnection for more info.
-        // Note, 2014-07: At one point I considered whether this concept overlaps with that of class, but now I think they are quite separate.  This table
-        // could fill the concept of an entity that *is* a relationship, containing e.g. the date a relationship began, or any other attributes that are not about
-        // either participant, but about the relationship itself.  One such use could be: I "have" a physical object, I and the object being entities with
-        // classes, and the "have" is not a regular generic "have" type (as defined by the system at first startup), but a particular one (maybe RelationType
+        // This table "inherits" from Entity (each relation type is an Entity) but we use homegrown "inheritance" 
+        // for that to make it easier to port to databases that don't have postgresql-like inheritance built in. 
+        // It inherits from Entity so that as Entity expands (i.e., context-based naming or whatever), we'll 
+        // automatically get the benefits, in objects based on this table (at least
+        // that's the idea at this moment...) --Luke Call 2003-08.  Update:  That may have been a mistake--more 
+        // of a nuisance to coordinate them than having 2 tables (luke, 2013-11-01).
+        // Inherits from Entity; see RelationConnection [outdated: see RelationToEntity?] for more info.
+        // Note, 2014-07: At one point I considered whether this concept overlaps with that of class, but now 
+        // I think they are quite separate.  This table could fill the concept of an entity that *is* a 
+        // relationship, containing e.g. the date a relationship began, or any other attributes that are not about
+        // either participant, but about the relationship itself.  One such use could be: I "have" a physical 
+        // object, I and the object being entities with classes, and the "have" is not a regular generic "have" 
+        // type (as defined by the system at first startup), but a particular one (maybe RelationType
         // should be renamed to "RelationEntity" or something: think about all this some more: more use cases etc).
 
-        // Valid values for directionality are "BI ","UNI","NON"-directional for this relationship. example: parent/child is unidirectional. sibling is bidirectional,
-        // and for nondirectional
-        // see Controller's mention of "nondir" and/or elsewhere for comments
+        // Valid values for directionality are "BI ","UNI","NON"-directional for this relationship. example: 
+        // parent/child is unidirectional. sibling is bidirectional,
+        // And for nondirectional see Controller's mention of "nondir" and/or elsewhere for comments
         self.db_action(transaction.clone(), format!("create table RelationType (\
             entity_id bigint PRIMARY KEY, \
             name_in_reverse_direction varchar({}), \
@@ -1204,11 +1208,14 @@ impl PostgreSQLDatabase {
         // The "id" column can be treated like a primary key (with the advantages of being
         // artificial) but the real one is a bit farther down. This one has the
         // slight or irrelevant disadvantage that it artificially limits the # of rows in this table, but it's still a big #.
-        // The rel_type_id column is for lookup in RelationType table, eg "has".
-        // About the entity_id column: what is related (see RelationConnection for "related to what" (related_to_entity_id).
+        // The rel_type_id column is for lookup in RelationType table, eg a relation type of "has" or "owns" or such.
+        // About the entity_id column: what is related (see RelationConnection [outdated: see RelationType?] for 
+        // "related to what" (related_to_entity_id).
         // For entity_id_2: the entity_id in RelAttr table is related to what other entity(ies).
-        // The valid on date can be null (means no info), or 0 (means 'for all time', not 1970 or whatever that was. At least make it a 1 in that case),
-        // or the date it first became valid/true. (The java/scala version of it put in System.currentTimeMillis() for "now"%%--ck if it
+        // The valid on date can be null (means no info), or 0 (means 'for all time', not 1970 or 
+        // whatever that was. At least make it a 1 in that case),
+        // or the date it first became valid/true. (The java/scala version of it put in System.currentTimeMillis() 
+        // for "now"%%--ck if it
         // behaves correctly now when saving/reading/displaying, in milliseconds...? like the call in create_base_data()
         // to create_relation_to_local_entity ?)
         // The observation_date is: whenever first observed (in milliseconds?).

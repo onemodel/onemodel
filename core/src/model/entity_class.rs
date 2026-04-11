@@ -28,7 +28,7 @@ pub struct EntityClass {
 }
 
 impl EntityClass {
-    fn name_length() -> u32 {
+    pub fn name_length() -> u16 {
         Util::class_name_length()
     }
 
@@ -167,7 +167,7 @@ impl EntityClass {
         Ok(())
     }
 
-    fn get_id_wrapper(&self) -> IdWrapper {
+    pub fn get_id_wrapper(&self) -> IdWrapper {
         IdWrapper::new(self.id)
     }
 
@@ -179,7 +179,7 @@ impl EntityClass {
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         // for explanation see comment in entity_class.rs fn get_display_string.
-        fail: bool,
+        fail: bool, /*=false*/
     ) -> Result<String, Error> {
         if fail {
             Err(anyhow!(
@@ -190,12 +190,13 @@ impl EntityClass {
         }
     }
 
-    fn get_display_string(
+    pub fn get_display_string(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         // This parameter is for testing, to avoid using mocking crates that got very many
         // lifetime or other errors from the compiler. (I tried mockall, unimock, faux, and mry.)
-        fail: bool,
+        // I later simplified how OM uses lifetimes, so maybe it would go better using mocks, now.
+        fail: bool, /*=false*/
     ) -> String {
         let result = self.get_display_string_helper(transaction, fail);
         match result {
@@ -212,7 +213,7 @@ impl EntityClass {
         }
     }
 
-    fn update_class_and_template_entity_name<'a, 'b>(
+    pub fn update_class_and_template_entity_name<'a, 'b>(
         &'a mut self,
         transaction: Option<Rc<RefCell<Transaction<'b, Postgres>>>>,
         name_in: &str,

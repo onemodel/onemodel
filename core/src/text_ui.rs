@@ -17,6 +17,7 @@ use console::{Key, Term};
     reedline
     others at crates.io as things change over time (search for "readline" maybe and at libs.rs &c.)
 */
+use anyhow::anyhow;
 use rustyline::error::ReadlineError;
 // use rustyline::{Editor, Result as RustyLineResult};
 use rustyline::{DefaultEditor, Result as RustyLineResult};
@@ -245,22 +246,22 @@ impl TextUI {
     }
 
     pub fn ask_for_string1(&self, leading_text: Vec<&str>) -> Option<String> {
-        self.ask_for_string5(leading_text, None, "", false, true)
+        self.ask_for_string5(leading_text, None, "".to_string(), false, true, None)
     }
     pub fn ask_for_string3(
         &self,
         leading_text: Vec<&str>,
-        criteria: Option<fn(s: &str /*, ui: &TextUI*/) -> bool>,
-        default_value: &str,
+        criteria: Option<fn(s: &str /*, ui: &TextUI*/) -> Result<(), anyhow::Error>>,
+        default_value: String, /*= ""*/
     ) -> Option<String> {
         //TextUI::ask_for_string5(self, leading_text, criteria, default_value, false, true)
-        self.ask_for_string5(leading_text, criteria, default_value, false, true)
+        self.ask_for_string5(leading_text, criteria, default_value, false, true, None)
     }
     pub fn ask_for_string4(
         &self,
         leading_text: Vec<&str>,
-        criteria: Option<fn(s: &str /*, ui: &TextUI*/) -> bool>,
-        default_value: &str,
+        criteria: Option<fn(s: &str /*, ui: &TextUI*/) -> Result<(), anyhow::Error>>,
+        default_value: String,
         is_password: bool,
     ) -> Option<String> {
         TextUI::ask_for_string5(
@@ -270,6 +271,7 @@ impl TextUI {
             default_value,
             is_password,
             true,
+            None,
         )
     }
     /// Returns the string entered (None if the user just wants out of this question or whatever,
@@ -278,7 +280,8 @@ impl TextUI {
     /// input), which it checks for validity.
     /// If the entry didn't meet the criteria, it repeats the question until it does or user gets out w/ ESC.
     /// A simple way to let the user know why it didn't meet the criteria is to put them in the leading text.
-    /// The same-named functions with fewer parameters default to, after the first: None, None, false, true, respectively.
+    /// The same-named functions, with fewer parameters, default to, after the first: None, None, false, true, respectively.
+    /// If error_message_in is None and there is an error, a default message is shown to the user.
     //%%@tailrec //see below note on 'recursive' for why removed 4 now.
     pub fn ask_for_string5(
         &self,
@@ -286,11 +289,12 @@ impl TextUI {
         // idea: is there a way to make this Option take a closure or function, instead of
         // just a function, as suggested by "The Rust Programming Language" ("the Book"),
         // where it mentions "FnMut"?
-        criteria_in: Option<fn(s: &str /*(not needed right?), ui: &TextUI*/) -> bool>,
-        default_value_in: &str,
+        criteria_in: Option<fn(s: &str /*%%(not needed right?), ui: &TextUI*/) -> Result<(), anyhow::Error>>,
+        default_value_in: String,
         //%%use this parm below, not just as another parameter. For pwd entry, sch crates.ui for "password entry" and/or use dialoguer and/or can rustyline do it/modify it/ask somewhere anyway? (see also other %%cmts below re this like "dialoguer" etc)
         is_password_in: bool,
         esc_key_skips_criteria_check_in: bool,
+        error_message_in: Option<&str>, /*=None*/
     ) -> Option<String> {
         let mut count = 0;
         let last_line_of_prompt: String = {
@@ -317,9 +321,9 @@ impl TextUI {
         {
             let mut spaces: String = String::new();
             // (the + 1 in next line is for the closing parenthesis in the prompt, which comes after the visual end position marker in end_prompt.
-            let pad_length: u32 = Util::max_name_length()
-                - last_line_of_prompt.chars().count() as u32
-                - end_prompt.chars().count() as u32
+            let pad_length: u16 = Util::max_name_length()
+                - last_line_of_prompt.chars().count() as u16
+                - end_prompt.chars().count() as u16
                 + 1;
             for _ in 0..pad_length {
                 spaces.push(' ')
@@ -350,7 +354,7 @@ impl TextUI {
                     //or ask/ck issue tracker for rustyline?
                     // let line = jlineReader.readLine(null, if is_password_in { '*' } else { null } );
                     //%%make ^C work to get out of prompt! ?  see where trapped ("Error: ..."), just below.
-                    let line = editor.readline_with_initial("", (default_value_in, ""));
+                    let line = editor.readline_with_initial("", (default_value_in.as_str(), ""));
                     match line {
                         Ok(l) => {
                             if l.len() == 0 && esc_key_skips_criteria_check_in {
@@ -366,14 +370,31 @@ impl TextUI {
                                         //How to make ESC exit the prompt and return None as some things expect!??
                                         // then try that w/ username/password forced w/ x parm.
                                         //%%make ^C work to get out of prompt?  see where trapped ("Error: ..."), just below.
-                                        if check_criteria_function(l.as_str()) {
-                                            break Some(l);
-                                        } else {
-                                            self.display_text1(
-                                                "Didn't pass the criteria; please re-enter.",
-                                            );
-                                            continue;
+                                        let criteria_result = check_criteria_function(l.as_str());
+                                        match criteria_result {
+                                            Ok(_) => {
+                                                break Some(l);
+                                            },
+                                            Err(err) => {
+                                                match error_message_in {
+                                                    None => {
+                                                        self.display_text1(
+                                                            "Didn't pass the criteria; please re-enter.",
+                                                        );
+                                                    },
+                                                    //%%need to test this with a malformed date format
+                                                    //string. per Util::ask_for_date_attribute_value,
+                                                    //where it says "now handled by" and used to have
+                                                    //the err handling code there. After this works,
+                                                    //remove both this and that cmts.
+                                                    Some(msg) => {
+                                                        let msg = format!("{}: {}", msg, err).as_str();
+                                                        self.display_text1(msg);
+                                                    },
+                                                }
+                                            }
                                         }
+                                        continue;
                                     }
                                 }
                             }
@@ -429,32 +450,40 @@ impl TextUI {
     ///
     /// Based on # of available columns and a possible max column width.
     /// SEE ALSO the method lines_left(), which actually has/uses the number.
-    fn max_columnar_choices_to_display_after(
+    pub fn max_columnar_choices_to_display_after(
         &self,
         num_of_leading_text_lines_in: usize,
         num_choices_above_columns_in: usize,
-        field_width_in: usize,
-    ) -> usize {
+        field_width_in: u16,
+    ) -> Result<u64, anyhow::Error> {
         let max_more_choices_by_space_available =
             TextUI::lines_left(num_of_leading_text_lines_in, num_choices_above_columns_in)
                 * TextUI::columns_possible(
-                    field_width_in + usize::from(TextUI::CHOOSER_MENU_PREFIX_LENGTH),
-                );
+                    field_width_in + TextUI::CHOOSER_MENU_PREFIX_LENGTH,
+                )?;
         // The next 2 lines are in coordination with an 'assert!' statement in ask_which_choice_or_its_alternate,
         // so we don't fail it:
         let max_more_choices_by_menu_chars_available = TextUI::MENU_CHARS.len();
-        std::cmp::min(
+        let min = std::cmp::min(
             max_more_choices_by_space_available,
             max_more_choices_by_menu_chars_available,
-        )
+        );
+        let conversion_result = u64::try_from(min);
+        match conversion_result {
+            Err(e) => {
+                return Err(anyhow!(e.to_string()));
+            },
+            Ok(x) => Ok(x),
+        }
     }
 
-    fn columns_possible(column_width: usize) -> usize {
+    fn columns_possible(column_width: u16) -> Result<usize, anyhow::Error> {
         //idea: instead of assert!, would it be better to make a check, output a message, and
         //return 0?
         assert!(column_width > 0);
         // allow at least 1 column, even with a smaller terminal width
-        std::cmp::max(usize::from(TextUI::terminal_width()) / column_width, 1)
+        let max = std::cmp::max(usize::try_from(TextUI::terminal_width() / column_width)?, 1);
+        Ok(max)
     }
 
     /// The parm "choices" are shown in a single-column list; the "moreChoices" are shown in columns as
@@ -470,11 +499,12 @@ impl TextUI {
     /// secondaryHighlightIndexIn 0-based.
     /// defaultChoiceIn 1-based.
     /// return value is 1-based (see description).
+    /// Returns None if user just wants out.
     pub fn ask_which(
         &self,
-        leading_text_in: Option<Vec<&str>>,
-        choices_in: Vec<&str>,
-        more_choices_in: Vec<&str>,
+        leading_text_in: Option<Vec<String>>,
+        choices_in: &Vec<String>,
+        more_choices_in: &Vec<String>,                  /* = Vec<&str>::new()*/
         include_esc_choice_in: bool,                 /* = true*/
         trailing_text_in: Option<&str>,              /* = None*/
         highlight_index_in: Option<usize>,           /* = None*/
@@ -502,14 +532,14 @@ impl TextUI {
     fn show_choices(
         line_count: &mut i32,
         already_full_in: &mut bool,
-        choices_in: &Vec<&str>,
-        more_choices_in: &Vec<&str>,
+        choices_in: &Vec<String>,
+        more_choices_in: &Vec<String>,
         last_menu_chars_index: &mut i32,
         all_allowed_answers: &mut String,
         possible_menu_chars: &str,
         default_choice_in: &Option<usize>,
         include_esc_choice_in: &bool,
-    ) {
+    ) -> Result<(), anyhow::Error> {
         // see containing method description: these choices are 1-based when considered from the human/UI perspective:
         let mut index: usize = 1;
 
@@ -517,9 +547,9 @@ impl TextUI {
             if !Self::ran_out_of_vertical_space(
                 line_count,
                 already_full_in,
-                &choices_in,
-                more_choices_in,
-            ) {
+                choices_in.len(),
+                more_choices_in.len(),
+            )? {
                 let menu_char = Self::next_menu_char(
                     last_menu_chars_index,
                     all_allowed_answers,
@@ -539,27 +569,28 @@ impl TextUI {
             && !Self::ran_out_of_vertical_space(
                 line_count,
                 already_full_in,
-                &choices_in,
-                &more_choices_in,
-            )
+                choices_in.len(),
+                more_choices_in.len(),
+            )?
         {
             println!("0/ESC - back/previous menu");
         }
+        Ok(())
     }
 
     fn show_more_choices(
         line_count: &mut i32,
         already_full_in: &mut bool,
-        choices_in: &Vec<&str>,
-        more_choices_in: &Vec<&str>,
-        leading_text_in: &Option<Vec<&str>>,
+        choices_in: &Vec<String>,
+        more_choices_in: &Vec<String>,
+        leading_text_in: &Option<Vec<String>>,
         highlight_index_in: &Option<usize>,
         secondary_highlight_index_in: &Option<usize>,
         max_choice_length: &u32,
         all_allowed_answers: &mut String,
         possible_menu_chars: &String,
         last_menu_chars_index: &mut i32,
-    ) {
+    ) -> Result<(), anyhow::Error> {
         //claude added this condition? makes no sense.:
         //if let Some(more_choices) = &more_choices_in {
         if more_choices_in.len() > 0 {
@@ -617,9 +648,9 @@ impl TextUI {
                     && !Self::ran_out_of_vertical_space(
                         line_count,
                         already_full_in,
-                        &choices_in,
-                        &more_choices_in,
-                    )
+                        choices_in.len(),
+                        more_choices_in.len(),
+                    )?
                 {
                     // Idea for bugfix: adjust the effective_line_length for non-displaying chars
                     // that make up the color of the lineMarker above! Would need better
@@ -653,6 +684,7 @@ impl TextUI {
                 );
             }
         }
+        Ok(())
     }
 
     fn next_menu_char(
@@ -673,16 +705,16 @@ impl TextUI {
     fn ran_out_of_vertical_space(
         line_count: &mut i32,
         already_full_in: &mut bool,
-        choices_in: &Vec<&str>,
-        more_choices_in: &Vec<&str>,
-    ) -> bool {
+        choices_in_len: usize,
+        more_choices_in_len: usize,
+    ) -> Result<bool, anyhow::Error> {
         *line_count += 1;
         if *already_full_in {
-            return *already_full_in;
+            return Ok(*already_full_in);
         } else if *line_count > Self::terminal_height().into() {
             // (+ 1 above to leave room for the error message line, below)
-            let unshown_count: i32 =
-                (choices_in.len() + more_choices_in.len()) as i32 - *line_count - 1;
+            let unshown_count =
+                (choices_in_len + more_choices_in_len) - usize::try_from(*line_count)? - 1;
             eprintln!("==============================");
             eprintln!("FYI: Unable to show remaining {} items in the available screen space(!?). Consider code \
                     change to pass the right number of them, relaunching w/ larger terminal, or grouping \
@@ -695,18 +727,19 @@ impl TextUI {
                     it consistently.");
             eprintln!("==============================");
             //*already_full_in = true
-            return *already_full_in;
+            return Ok(*already_full_in);
         }
-        false
+        Ok(false)
     }
 
     /// Like ask_which but if user makes the alternate action on a choice (eg, double-click, click+differentButton,
     /// right-click, presses "alt+letter"), then it tells you so in the 2nd (boolean) part of the return value.
+    /// Returns None if the user just wants out.
     pub fn ask_which_choice_or_its_alternate(
         &self,
-        leading_text_in: Option<Vec<&str>>,
-        choices_in: Vec<&str>,
-        more_choices_in: Vec<&str>,
+        leading_text_in: Option<Vec<String>>,
+        choices_in: &Vec<String>,
+        more_choices_in: &Vec<String>,
         include_esc_choice_in: bool,                 /* = true*/
         trailing_text_in: Option<&str>,              /* = None*/
         highlight_index_in: Option<usize>,           /* = None*/
@@ -719,7 +752,7 @@ impl TextUI {
         // are too many "choices", it will use letters for those as well.
         // I.e., 2nd part of menu ("moreChoices") always starts with a letter, not a #, but the
         // 1st part can use numbers+letters as necessary. This is for the user experience: it
-        // seems will be easier to remember how to get around one's own model if attributes always
+        // seems will be easier to remember how to get around one's own data if attributes always
         // start with 'a' and go from there.
 
         assert!(!choices_in.is_empty());
@@ -735,6 +768,8 @@ impl TextUI {
         let possible_menu_chars = format!("{}{}", first_menu_chars, TextUI::MENU_CHARS);
         // Make sure caller didn't send more than the # of things we can handle
         if (choices_in.len() + more_choices_in.len()) > possible_menu_chars.len() {
+            //%%return err instead? or handle it by reducing amt of data that this method is
+            //attempting to handle, after letting the user know?
             panic!("Programming error: there are more choices provided ({}) than the menu can handle ({})",
                    choices_in.len() + more_choices_in.len(), possible_menu_chars.len());
         }
@@ -756,8 +791,8 @@ impl TextUI {
         Self::show_choices(
             &mut line_counter,
             &mut already_full,
-            &choices_in,
-            &more_choices_in,
+            choices_in,
+            more_choices_in,
             &mut last_menu_chars_index,
             &mut all_allowed_answers,
             &possible_menu_chars,
@@ -767,12 +802,12 @@ impl TextUI {
         Self::show_more_choices(
             &mut line_counter,
             &mut already_full,
-            &choices_in,
-            &more_choices_in,
+            choices_in,
+            more_choices_in,
             &leading_text_in,
             &highlight_index_in,
             &secondary_highlight_index_in,
-            &max_choice_length,
+            &(u32::from(max_choice_length)),
             &mut all_allowed_answers,
             &possible_menu_chars,
             &mut last_menu_chars_index,
@@ -839,34 +874,45 @@ impl TextUI {
         }
     }
 
-    fn is_valid_yes_no_answer(s: &str) -> bool {
-        s.to_lowercase() == "y"
+    fn is_valid_yes_no_answer(s: &str) -> Result<(), anyhow::Error> {
+        if s.to_lowercase() == "y"
             || s.to_lowercase() == "yes"
             || s.to_lowercase() == "n"
             || s.to_lowercase() == "no"
+        { 
+            Ok(())
+        } else {
+            Err(anyhow!("\"{}\" is not a yes or no answer.", s))
+        }
     }
 
-    fn is_valid_yes_no_or_blank_answer(s: &str) -> bool {
-        Self::is_valid_yes_no_answer(s) || s.trim().is_empty()
+    fn is_valid_yes_no_or_blank_answer(s: &str) -> Result<(), anyhow::Error> {
+        if Self::is_valid_yes_no_answer(s).is_ok() || s.trim().is_empty() {
+            Ok(())
+        } else {
+            Err(anyhow!("\"{}\" is not a yes, no, or blank answer.", s))
+        }
     }
 
     /// true means yes, None means user wants out.
     pub fn ask_yes_no_question(
         &self,
-        prompt_in: String,
+        prompt_in: &str,
         default_value_in: &str,   /*= 'n' (was: Some("n"))*/
         allow_blank_answer: bool, /*= false*/
     ) -> Option<bool> {
         let answer = self.ask_for_string5(
             vec![format!("{} (y/n)", prompt_in).as_str()],
             if allow_blank_answer {
-                Some(Self::is_valid_yes_no_or_blank_answer)
-            } else {
+                let criteria_fn: fn(&str) -> Result<(), anyhow::Error> = Self::is_valid_yes_no_or_blank_answer;
+                Some(criteria_fn)
+            } else { //%%need2do same thing as in previous condition branch?:
                 Some(Self::is_valid_yes_no_answer)
             },
-            default_value_in,
+            default_value_in.to_string(),
             false,
             allow_blank_answer,
+            None,
         );
         match answer {
             None if allow_blank_answer => None,

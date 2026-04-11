@@ -97,7 +97,7 @@ impl DateAttribute {
         Ok(self.date_value)
     }
 
-    fn update(
+    pub fn update(
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
         attr_type_id_in: i64,
@@ -190,6 +190,11 @@ impl Attribute for DateAttribute {
         //id_in: i64,
     ) -> Result<u64, anyhow::Error> {
         self.db.borrow().delete_date_attribute(transaction, self.id)
+    }
+
+    // (See comment on fn get_id in quantity_attribute.rs, about no call to read_data_from_db().)
+    fn get_db(&self) -> Rc<RefCell<dyn Database>> {
+        self.db.clone()
     }
 
     //looks unused
