@@ -192,7 +192,7 @@ impl MainMenu {
             ];
             let response = if go_directly_to_choice.is_none() {
                 let ans = self.ui.ask_which(
-                    Some(vec![leading_text]),
+                    Some(vec![leading_text.to_string()]),
                     &choices,
                     &Vec::new(),
                     true,

@@ -148,7 +148,7 @@ impl Controller {
                                     .expect("Error running entity.get_name(.")
                             );
                             let ans = self.ui.ask_which(
-                                Some(vec![&msg.as_str()]),
+                                Some(vec![msg]),
                                 &vec![
                                     "Un-archive the default entity now".to_string(),
                                     "Display archived entities".to_string(),
@@ -509,7 +509,7 @@ impl Controller {
             leading_text_in.unwrap_or(""),
             y,
         ];
-        let x3: String = default_name.unwrap_or("").to_string();
+        let x3: String = default_name.unwrap_or_default();
         // let x4: &str = x3.as_str();
         let name_opt: Option<String> = self.ui.ask_for_string3(prompt, None, x3); //from claude:.as_deref());
         let Some(name) = name_opt else {
@@ -532,7 +532,7 @@ impl Controller {
             );
             return self.ask_and_save(
                 db_in,
-                Some(name.as_str()),
+                Some(name),
                 leading_text_in,
                 existing_entity_in,
                 create_not_update,

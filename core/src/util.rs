@@ -339,7 +339,8 @@ impl Util {
         //%%was:  ! attributeIn.isInstanceOf[FileAttribute]
         //%%ex: if self.db.get_attribute_form_name(attribute_in.get_form_id()?)? == Util::TEXT_TYPE {
         //%%above syas: pub const FILE_TYPE: &'static str = "FileAttribute";
-        let type_name = db_in.borrow().get_attribute_form_name(attribute_in.get_form_id()?)?;
+        let db_borrowed = db_in.borrow();
+        let type_name = db_borrowed.get_attribute_form_name(attribute_in.get_form_id()?)?;
         let matches = type_name == Util::FILE_TYPE;
         Ok(matches)
         //Ok(!attribute_in.get_form_id()? == Util::FILE_TYPE)
@@ -370,7 +371,7 @@ impl Util {
         //%% Same w/ all other code changed lately?
         let mut found = true;
         let index_of_prompt: usize =
-            match choices_in.iter().position(|&x| x == Self::LIST_NEXT_ITEMS_PROMPT.to_string()) {
+            match choices_in.iter().position(|x| x == Self::LIST_NEXT_ITEMS_PROMPT) {
                 Some(i) => {
                     //%%i64::try_from(i)?
                     i
@@ -381,9 +382,9 @@ impl Util {
                 },
             };
         if num_left > 0 && found {
-            match choices_in.get(index_of_prompt) {
+            match choices_in.get_mut(index_of_prompt) {
                 None => {
-                    // do nothing due to very unexpected error of not finding it, after finding it? Or, how show the 
+                    // do nothing due to very unexpected error of not finding it, after finding it? Or, how show the
                     // err?--pop it up and move on as we do elsewhere? what best fr user standpoint? fixing?
                 }
                 Some(found_entry) => {
@@ -618,8 +619,8 @@ impl Util {
                         Some(od) => {
                             let dates_descr: String =
                                 Util::get_dates_description(valid_on_date, od);
-                            let prompt = format!("Dates are: {}: right?", dates_descr).as_str();
-                            let answer = ui.ask_yes_no_question(prompt, "y", false);
+                            let prompt_owned = format!("Dates are: {}: right?", dates_descr);
+                            let answer = ui.ask_yes_no_question(prompt_owned.as_str(), "y", false);
                             match answer {
                                 Some(ans) if ans => {
                                     break (valid_on_date, od, user_cancelled);
@@ -860,7 +861,7 @@ impl Util {
         //     Some(s) => Some(s.as_str())
         // };
         loop {
-            let ans = ui.ask_for_string3(vec![leading_text.as_str()], None, default_value);
+            let ans = ui.ask_for_string3(vec![leading_text.as_str()], None, default_value.clone());
             match ans {
                 None => {
                     match date_type_in {
@@ -1000,10 +1001,12 @@ impl Util {
     }
 
     pub fn string_too_long_error_message(name_length: u16, details_in: &str) -> String /*= ""*/ {
+        let details_owned;
         let details = if details_in.is_empty() {
             ""
         } else {
-            format!(" Details: {}", details_in).as_str()
+            details_owned = format!(" Details: {}", details_in);
+            details_owned.as_str()
         };
         // for details, see method PostgreSQLDatabase.escape_quotes_etc. (??)
         format!(
@@ -1253,7 +1256,7 @@ impl Util {
             let answer = ui.ask_for_string3(
                 leading_text,
                 Some(Util::is_numeric),
-                format!("{}", previous_quantity).as_str(),
+                format!("{}", previous_quantity),
             );
             match answer {
                 None => return None,
@@ -1488,7 +1491,7 @@ impl Util {
                                      to add the full text.  But consider if a 'file' attribute or some other way of \
                                      modeling the info would be better at representing what it really *is*.  Legitimate \
                                      use cases for a text attribute might include a quote or a stack trace.)"];
-                let answer = ui.ask_for_string3(leading_text, None, default_text_value);
+                let answer = ui.ask_for_string3(leading_text, None, default_text_value.to_string());
                 match answer {
                     None => Ok(None),
                     Some(ans) => {
@@ -1563,7 +1566,7 @@ impl Util {
         let answer = ui.ask_for_string5(
             vec![Util::GENERIC_DATE_PROMPT],
             Some(date_criteria),
-            "", /*%%default_value.as_str()*/
+            String::new(), /*%%default_value.as_str()*/
             false,
             true, 
             Some("Could not recognize date format"),
@@ -1659,7 +1662,7 @@ impl Util {
             let leading_text = vec![
                 "Enter file path (must exist and be readable), then press Enter; ESC to cancel",
             ];
-            path = ui.ask_for_string3(leading_text, Some(Util::input_file_valid), "");
+            path = ui.ask_for_string3(leading_text, Some(Util::input_file_valid), String::new());
         }
         //%%deletable attempt at new logic w/ match, but too confusing to maintain old ideas
         // match path {
@@ -1720,7 +1723,7 @@ impl Util {
                 }
             };
             let leading_text = vec!["Type file description, then press Enter; ESC to cancel"];
-            let answer = ui.ask_for_string3(leading_text, None, default_description_value.as_str());
+            let answer = ui.ask_for_string3(leading_text, None, default_description_value);
             match answer {
                 None => Ok(None),
                 Some(ans) => {
@@ -1758,7 +1761,7 @@ impl Util {
         let answer = ui.ask_for_string3(
             vec![Util::RELATION_TO_GROUP_NAME_PROMPT],
             None,
-            group_in.get_name(None)?.as_str(),
+            group_in.get_name(None)?,
         );
         match answer {
             None => Ok(None),

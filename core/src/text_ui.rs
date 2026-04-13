@@ -388,8 +388,8 @@ impl TextUI {
                                                     //the err handling code there. After this works,
                                                     //remove both this and that cmts.
                                                     Some(msg) => {
-                                                        let msg = format!("{}: {}", msg, err).as_str();
-                                                        self.display_text1(msg);
+                                                        let msg_owned = format!("{}: {}", msg, err);
+                                                        self.display_text1(msg_owned.as_str());
                                                     },
                                                 }
                                             }

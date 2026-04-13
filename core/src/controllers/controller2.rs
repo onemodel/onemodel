@@ -575,7 +575,7 @@ impl Controller {
                 previous_selection_id_in,
                 containing_group_in,
             )?;
-        let leading_text_as_strs: Vec<String> = leading_text.iter().map(|s| s).collect();
+        let leading_text_as_strs: Vec<String> = leading_text.iter().map(|s| s.clone()).collect();
         let choices_as_strs: Vec<String> = choices.iter().map(|s| s.clone()).collect();
         let ans = self.ui.ask_which_choice_or_its_alternate(
             Some(leading_text_as_strs),

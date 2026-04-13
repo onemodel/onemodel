@@ -306,7 +306,8 @@ impl Controller {
         all_keep_reference: &mut bool,
     ) -> Result<(Option<Box<dyn Attribute>>, Option<bool>), anyhow::Error> {
         let rte_attr_from_template_form_id: i32 = relation_to_entity_attribute_from_template_in.borrow().get_form_id()?;
-        let form_name = self.db.borrow().get_attribute_form_name(rte_attr_from_template_form_id)?;
+        let db_borrow = self.db.borrow();
+        let form_name = db_borrow.get_attribute_form_name(rte_attr_from_template_form_id)?;
         // assert!(matches!(
         //     rte_attr_from_template_form_id,
         //     form_id if form_name == Util::RELATION_TO_LOCAL_ENTITY_TYPE || form_name == Util::RELATION_TO_REMOTE_ENTITY_TYPE
@@ -324,7 +325,7 @@ impl Controller {
         if ask_every_time.is_none() {
             let how_rtes_leading_text = vec![
                 "The template has relations to entities. How would you like the equivalent to be provided \
-                for this new entity being created?"
+                for this new entity being created?".to_string()
             ];
             let how_handle_rtes_choices = vec![
                 format!("For ALL entity relations being added: {}", choice1_text),
@@ -375,8 +376,8 @@ impl Controller {
                 "The template has a templateAttribute which is a relation to an entity named \"{}\": \
                 how would you like the equivalent to be provided for this new entity being created? \
                 (0/ESC to just skip this one for now)",
-                relation_to_entity_attribute_from_template_in.borrow().get_display_string(0, None, None, /*simplify=*/ true)?
-            ).as_str()];
+                relation_to_entity_attribute_from_template_in.borrow_mut().get_display_string(0, None, None, /*simplify=*/ true)?
+            )];
             let which_rte_choices = vec![choice1_text, choice2_text, choice3_text];
             let ans = self.ui.ask_which(
                 Some(which_rte_leading_text),
@@ -426,17 +427,19 @@ impl Controller {
                 relation_to_entity_attribute_from_template_in.clone(),
                 relation_to_entity_attribute_from_template_in.borrow().get_db(),
             )?;
-            let templates_related_entity =
+            let mut templates_related_entity =
                 Entity::new2(current_or_remote_db_for_related_entity.clone(), None, related_id2)?;
             let old_name: String = templates_related_entity.get_name(None)?; //%%was from claude: .unwrap_or_default();
-            let form_name = self.db.borrow().get_attribute_form_name(relation_to_entity_attribute_from_template_in.borrow().get_form_id()?)?;
+            let form_id = relation_to_entity_attribute_from_template_in.borrow_mut().get_form_id()?;
+            let db_borrow2 = self.db.borrow();
+            let form_name = db_borrow2.get_attribute_form_name(form_id)?;
             let new_entity: Option<Entity> = if form_name == Util::RELATION_TO_LOCAL_ENTITY_TYPE
             {
                 self.ask_for_name_and_write_entity(
                     entity_in.get_db(),
                     Util::ENTITY_TYPE,
                     Rc::new(RefCell::new(None)),
-                    Some(old_name.as_str()),
+                    Some(old_name.clone()),
                     None,
                     None,
                     templates_related_entity.get_class_id(None)?,
@@ -448,7 +451,7 @@ impl Controller {
                     entity_in.get_db(),
                     Util::ENTITY_TYPE,
                     Rc::new(RefCell::new(None)),
-                    Some(old_name.as_str()),
+                    Some(old_name),
                     None,
                     None,
                     None,
@@ -476,16 +479,16 @@ impl Controller {
                 ));
                 Some(e)
             };
-            if let Some(entity) = new_entity {
+            if let Some(mut entity) = new_entity {
                 entity.update_new_entries_stick_to_top(
                     None,
                     templates_related_entity.get_new_entries_stick_to_top(None)?,
                 )?;
                 let new_rtle = entity_in.add_relation_to_local_entity(
                     None,
-                    relation_to_entity_attribute_from_template_in.borrow().get_attr_type_id(None)?,
+                    relation_to_entity_attribute_from_template_in.borrow_mut().get_attr_type_id(None)?,
                     entity.get_id(),
-                    Some(relation_to_entity_attribute_from_template_in.borrow().get_sorting_index(None)?),
+                    Some(relation_to_entity_attribute_from_template_in.borrow_mut().get_sorting_index(None)?),
                     //None,
                     None,
                     //%% Utc::now().timestamp_millis(),
@@ -503,14 +506,14 @@ impl Controller {
                 && how_copy_rte_response.unwrap() == create_or_search_for_entity_choice_num)
         {
             let rte_dh = RelationToEntityDH {
-                rel_type_id: relation_to_entity_attribute_from_template_in.borrow().get_attr_type_id(None)?,
+                rel_type_id: relation_to_entity_attribute_from_template_in.borrow_mut().get_attr_type_id(None)?,
                 valid_on_date: None,
                 observation_date: chrono::Local::now().timestamp_millis(),
                 entity_id2: 0,
                 is_remote: false,
                 remote_instance_id: String::new(),
             };
-            let rte_dhv = AttributeDataHolder::RelationToEntityDH { rtedh: rte_dh };
+            let mut rte_dhv = AttributeDataHolder::RelationToEntityDH { rtedh: rte_dh };
             let adh: Option<AttributeDataHolder> = self.ask_for_relation_entity_id_number2(
                 entity_in.get_db(), /*%%?:.as_ref()*/
                 &mut rte_dhv,
@@ -539,7 +542,7 @@ impl Controller {
                     None,
                     dh.rel_type_id,
                     dh.entity_id2,
-                    Some(relation_to_entity_attribute_from_template_in.borrow().get_sorting_index(None)?),
+                    Some(relation_to_entity_attribute_from_template_in.borrow_mut().get_sorting_index(None)?),
                     dh.valid_on_date,
                     dh.observation_date,
                 )?; //%%?:.unwrap();
@@ -572,9 +575,9 @@ impl Controller {
                 entity_in
                     .add_relation_to_local_entity(
                         None,
-                        relation_to_entity_attribute_from_template_in.borrow().get_attr_type_id(None)?,
+                        relation_to_entity_attribute_from_template_in.borrow_mut().get_attr_type_id(None)?,
                         related_id2,
-                        Some(relation_to_entity_attribute_from_template_in.borrow().get_sorting_index(None)?),
+                        Some(relation_to_entity_attribute_from_template_in.borrow_mut().get_sorting_index(None)?),
                         None,
                         //%%%%:
                         chrono::Local::now().timestamp_millis(),

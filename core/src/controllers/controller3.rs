@@ -268,7 +268,7 @@ impl Controller {
     }
 
     fn choose_among_entities(&self, containing_entities: &mut Vec<(i64, Entity)>) -> Result<Option<Entity>, anyhow::Error> {
-        let leading_text = vec!["Pick from menu, or an entity by letter"];
+        let leading_text = vec!["Pick from menu, or an entity by letter".to_string()];
         let choices = vec![Util::LIST_NEXT_ITEMS_PROMPT.to_string()];
         //(see comments at similar location in EntityMenu, as of this writing [in scala] on line 288)
         let mut containing_entities_names_with_rel_types: Vec<String> = Vec::new();
@@ -758,7 +758,7 @@ impl Controller {
             let ans1 = self.ui.ask_which(
                 Some(vec![
                     "Do you want to enter the URI via the keyboard (typing or directly pasting), or \
-                    have OM pull directly from the clipboard (faster sometimes)?"
+                    have OM pull directly from the clipboard (faster sometimes)?".to_string()
                 ]),
                 &vec!["keyboard".to_string(), "clipboard".to_string()],
                 &Vec::<String>::new(),
@@ -812,7 +812,7 @@ impl Controller {
                     "Do you want to enter a quote from it, via the keyboard (typing or directly pasting) or \
                     have OM pull directly from the clipboard (faster sometimes, especially if \
                     it's multi-line)? Or, ESC to not enter a quote. (Tip: if it is a whole file, just put in \
-                    a few characters from the keyboard, then go back and edit as multi-line to put in all.)"
+                    a few characters from the keyboard, then go back and edit as multi-line to put in all.)".to_string()
                 ]),
                 &vec!["keyboard".to_string(), "clipboard".to_string()],
                 &Vec::<String>::new(),

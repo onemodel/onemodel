@@ -704,7 +704,7 @@ impl Controller {
             //.map(|v| v.iter().map(|s| s.to_string()).collect())
             //.unwrap_or_else(|| vec![Util::PICK_FROM_LIST_PROMPT.to_string()]);
         let mut leading_text = match leading_text_in {
-            Some(v) => v,
+            Some(ref v) => v.clone(),
             None => vec![Util::PICK_FROM_LIST_PROMPT.to_string()],
         };
         let choices_pre_adjustment = vec![
