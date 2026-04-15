@@ -11,6 +11,7 @@
   If we ever do port to another database, create the Database interface (removed around 2014-1-1 give or take) and see other changes at that time.
 */
 // use std::os::unix::process::parent_id;
+use std::any::Any;
 use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
 use crate::model::database::{DataType, Database};
 use crate::util::Util;
@@ -407,6 +408,8 @@ impl Attribute for RelationToGroup {
         }
         Ok(self.entity_id)
     }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
 }
 
 impl AttributeWithValidAndObservedDates for RelationToGroup {

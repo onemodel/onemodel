@@ -11,6 +11,7 @@
 // use chrono::LocalResult;
 // use chrono::prelude::*;
 // use crate::util::Util;
+use std::any::Any;
 use crate::model::database::Database;
 use crate::model::entity::Entity;
 // use crate::model::id_wrapper::IdWrapper;
@@ -19,7 +20,7 @@ use sqlx::{Postgres, Transaction};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-impl std::fmt::Debug for dyn Attribute {
+impl std::fmt::Debug for dyn Attribute + '_ {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // to enhance, see std lib docs for Debug or fmt.
         //let desc = match self.get_display_string(0, None, None, false) {
@@ -85,6 +86,8 @@ pub trait Attribute {
         &mut self,
         transaction: Option<Rc<RefCell<Transaction<Postgres>>>>,
     ) -> Result<i64, anyhow::Error>;
+
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 
     // For descriptions of the meanings of these variables, see the comments
     // on create_tables(...), and examples in the database testing code &/or in PostgreSQLDatabase or Database classes.

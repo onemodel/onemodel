@@ -13,11 +13,12 @@ use crate::model::entity_class::EntityClass;
 use crate::model::group::Group;
 use crate::model::relation_type::RelationType;
 use crate::model::om_instance::OmInstance;
-//use std::any::Any;
+use std::any::Any;
 
 /// Trait for objects with IDs. See usus for example in controller.rs.
 pub trait HasId { //%%?:  : std::any::Any {
     fn get_id(&self) -> i64;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
     //%% these and others below?:
     //fn get_class_name(&self) -> &str;
     //fn as_any(&self) -> &dyn std::any::Any;
@@ -26,30 +27,35 @@ pub trait HasId { //%%?:  : std::any::Any {
 //%%should this be moved to entity.rs, and others below similarly to other files?
 impl HasId for Entity {
     fn get_id(&self) -> i64 { self.get_id() }
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
     //fn get_class_name(&self) -> &str { "Entity" }
     //fn as_any(&self) -> &dyn std::any::Any { self }
 }
 
 impl HasId for Group {
     fn get_id(&self) -> i64 { self.get_id() }
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
     //fn get_class_name(&self) -> &str { "Group" }
     //fn as_any(&self) -> &dyn std::any::Any { self }
 }
 
 impl HasId for EntityClass {
     fn get_id(&self) -> i64 { self.get_id() }
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
     //fn get_class_name(&self) -> &str { "EntityClass" }
     //fn as_any(&self) -> &dyn std::any::Any { self }
 }
 
 impl HasId for RelationType {
     fn get_id(&self) -> i64 { self.get_id() }
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
     //fn get_class_name(&self) -> &str { "RelationType" }
     //fn as_any(&self) -> &dyn std::any::Any { self }
 }
 
 impl HasId for OmInstance {
     fn get_id(&self) -> i64 { 0 } // OmInstance uses String IDs
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
     //fn get_class_name(&self) -> &str { "OmInstance" }
     //fn as_any(&self) -> &dyn std::any::Any { self }
 }

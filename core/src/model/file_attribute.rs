@@ -11,6 +11,7 @@
 use crate::model::database::DataType;
 use crate::model::database::Database;
 use crate::util::Util;
+use std::any::Any;
 use anyhow::{anyhow, Error, Result};
 // use sqlx::{PgPool, Postgres, Row, Transaction};
 use crate::model::attribute::Attribute;
@@ -631,6 +632,8 @@ impl Attribute for FileAttribute {
         }
         Ok(self.parent_id)
     }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
 }
 
 #[cfg(test)]

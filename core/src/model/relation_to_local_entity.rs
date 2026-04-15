@@ -11,6 +11,7 @@
 */
 use crate::color::Color;
 use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
+use std::any::Any;
 use crate::model::database::DataType;
 use crate::model::database::Database;
 use crate::util::Util;
@@ -449,6 +450,8 @@ impl Attribute for RelationToLocalEntity {
         }
         Ok(self.sorting_index)
     }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
 }
 
 impl AttributeWithValidAndObservedDates for RelationToLocalEntity {

@@ -245,7 +245,7 @@ impl Controller {
         //for obj in objects_to_display {
             //let obj = &obj;
         for i in 0..objects_to_display.len() {
-            let mut obj_opt = /*%%&*/objects_to_display.get(i);
+            let obj_opt = /*%%&*/objects_to_display.get(i);
             let Some(obj) = obj_opt else {
                 return Err(anyhow!("Unexpected value None for object_to_display.get(i) for i={}", i));
             };
@@ -253,14 +253,14 @@ impl Controller {
             //%%.iter()
             //%%.map(|obj| {
                 //%%if let Some(entity) = obj.as_any().downcast_ref::<Entity>() {
-                let obj/*%%: &mut dyn HasId*/ = &mut obj.as_ref().borrow_mut();
-                let obj_any = obj as &mut dyn Any;
+                let mut obj_borrow = obj.as_ref().borrow_mut();
+                let obj_any = obj_borrow.as_any_mut();
                 if object_type_in == Util::ENTITY_TYPE {
-                    let entity_opt = obj_any.downcast_ref::<Entity>();
+                    let entity_opt = obj_any.downcast_mut::<Entity>();
                     if entity_opt.is_none() {
-                        return Err(anyhow!("Unexpected None from downcast_ref of entity_opt."));
+                        return Err(anyhow!("Unexpected None from downcast_mut of entity_opt."));
                     };
-                    let mut entity = entity_opt.unwrap();
+                    let entity = entity_opt.unwrap();
                     let astat = entity.get_archived_status_display_string(None)?;
                     let s = format!(
                         "{}{}",
@@ -270,18 +270,19 @@ impl Controller {
                     object_statuses_and_names.push(s);
                 //%%} else if let Some(class) = obj.as_any().downcast_ref::<EntityClass>() {
                 } else if object_type_in == Util::ENTITY_CLASS_TYPE {
-                    let class_opt = obj_any.downcast_ref::<EntityClass>();
+                    let class_opt = obj_any.downcast_mut::<EntityClass>();
                     if class_opt.is_none() {
-                        return Err(anyhow!("Unexpected None from downcast_ref of class_opt."));
+                        return Err(anyhow!("Unexpected None from downcast_mut of class_opt."));
                     };
-                    let mut class: &EntityClass = class_opt.unwrap();
+                    let class = class_opt.unwrap();
                     object_statuses_and_names.push(class.get_name(None)?);
                 //%%} else if let Some(instance) = obj.as_any().downcast_ref::<OmInstance>() {
                 } else if object_type_in == Util::OM_INSTANCE_TYPE {
                     let instance_opt = obj_any.downcast_mut::<OmInstance>();
-                    let Some(&mut instance) = instance_opt else {
-                        return Err(anyhow!("Unexpected None from downcast_ref of instance_opt."));
+                    if instance_opt.is_none() {
+                        return Err(anyhow!("Unexpected None from downcast_mut of instance_opt."));
                     };
+                    let instance = instance_opt.unwrap();
                     object_statuses_and_names.push(instance.get_display_string()?);
                 } else {
                     //%%%ret err instd, **AND**? at similar places that panic here:
@@ -289,7 +290,7 @@ impl Controller {
                     return Err(anyhow!("unexpected object_type_in: {}", object_type_in));
                 }
             } //%%)
-            //%%.collect();
+            //%/.collect();
         Ok((leading_text, objects_to_display, object_statuses_and_names))
     }
 

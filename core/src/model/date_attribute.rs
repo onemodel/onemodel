@@ -7,6 +7,7 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
+use std::any::Any;
 use anyhow::{anyhow, Error, Result};
 use sqlx::{Postgres, Transaction};
 
@@ -244,6 +245,8 @@ impl Attribute for DateAttribute {
         }
         Ok(self.parent_id)
     }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
 }
 
 #[cfg(test)]

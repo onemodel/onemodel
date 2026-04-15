@@ -345,7 +345,7 @@ impl Controller {
                 let mut dh = AttributeDataHolder::QuantityAttributeDH { qadh };
                 //See %%%%%%%s in Util.java for ideas re this and similar places below?
                 let update_fn = |mut quantity_attr_in: &mut dyn Attribute, dh: AttributeDataHolder| -> Result<(), anyhow::Error> {
-                    let Some(qa) = (&mut quantity_attr_in as &mut dyn Any).downcast_mut::<QuantityAttribute>() else {
+                    let Some(qa) = quantity_attr_in.as_any_mut().downcast_mut::<QuantityAttribute>() else {
                         return Err(anyhow!("unexpected attribute type: {:?}", quantity_attr_in));
                     };
                     match dh {
@@ -394,7 +394,7 @@ impl Controller {
                 let update_fn =
                     //%%%is this fixed in similar code in ler3.rs? (sch for "|dh")
                     |mut text_attr_in: &mut dyn Attribute, dh_in: AttributeDataHolder/*::TextAttributeDH*/| -> Result<(), anyhow::Error> {
-                    let Some(ta) = (&mut text_attr_in as &mut dyn Any).downcast_mut::<TextAttribute>() else {
+                    let Some(ta) = text_attr_in.as_any_mut().downcast_mut::<TextAttribute>() else {
                         return Err(anyhow!("unexpected attribute type: {:?}", text_attr_in));
                     };
                         match dh_in {
@@ -441,7 +441,7 @@ impl Controller {
                 };
                 let mut dh = AttributeDataHolder::DateAttributeDH { dadh };
                 let update_fn = |mut date_attribute_in: &mut dyn Attribute, dh_in: AttributeDataHolder/*%%%%%%%::DateAttributeDH*/| -> Result<(), anyhow::Error> {
-                    let Some(da) = (&mut date_attribute_in as &mut dyn Any).downcast_mut::<DateAttribute>() else {
+                    let Some(da) = date_attribute_in.as_any_mut().downcast_mut::<DateAttribute>() else {
                         return Err(anyhow!("unexpected attribute type: {:?}", date_attribute_in));
                     };
                     match dh_in {
@@ -485,7 +485,7 @@ impl Controller {
                 let mut dh = AttributeDataHolder::BooleanAttributeDH { badh };
                 //%%can just pass dh on this & similar lines? or any other way to simplify? 
                 let update_fn = |mut boolean_attribute_in: &mut dyn Attribute, dh_in: AttributeDataHolder/*%%::BooleanAttributeDH*/| -> Result<(), anyhow::Error> {
-                    let Some(ba) = (&mut boolean_attribute_in as &mut dyn Any).downcast_mut::<BooleanAttribute>() else {
+                    let Some(ba) = boolean_attribute_in.as_any_mut().downcast_mut::<BooleanAttribute>() else {
                         return Err(anyhow!("unexpected attribute type: {:?}", boolean_attribute_in));
                     };
                     match dh_in {

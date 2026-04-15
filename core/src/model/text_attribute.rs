@@ -7,6 +7,7 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
     You should have received a copy of the GNU Affero General Public License along with OneModel.  If not, see <http://www.gnu.org/licenses/>
 */
+use std::any::Any;
 use crate::model::attribute_with_valid_and_observed_dates::AttributeWithValidAndObservedDates;
 use crate::model::database::DataType;
 use crate::model::database::Database;
@@ -279,6 +280,8 @@ impl Attribute for TextAttribute {
         }
         Ok(self.parent_id)
     }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any { self }
 }
 
 impl AttributeWithValidAndObservedDates for TextAttribute {
